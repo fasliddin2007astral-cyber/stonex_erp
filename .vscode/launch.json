@@ -1,0 +1,37 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "STONEX ERP (Mock Rejimi)",
+      "request": "launch",
+      "type": "dart",
+      "program": "app/lib/main.dart",
+      "args": ["-d", "windows"]
+    },
+    {
+      "name": "STONEX ERP (Haqiqiy MySQL Database)",
+      "request": "launch",
+      "type": "dart",
+      "program": "app/lib/main.dart",
+      "args": [
+        "-d",
+        "windows",
+        "--dart-define=USE_MOCK=false",
+        "--dart-define=API_URL=http://127.0.0.1:8000"
+      ]
+    },
+    {
+      "name": "STONEX ERP (Render Cloud Backend)",
+      "request": "launch",
+      "type": "dart",
+      "program": "app/lib/main.dart",
+      "args": [
+        "-d",
+        "windows",
+        "--dart-define=USE_MOCK=false",
+        "--dart-define=API_URL=https://sizning-loyiha.onrender.com"
+      ]
+    }
+  ]
+}
+
