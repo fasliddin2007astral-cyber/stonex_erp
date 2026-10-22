@@ -7,6 +7,8 @@ import '../core/theme.dart';
 import '../data/repositories.dart';
 import '../domain/models.dart';
 import 'common.dart';
+import 'production_screen.dart';
+import 'stock_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key, this.onNavigate, this.searchCtrl});
@@ -192,7 +194,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           const SizedBox(width: 20),
                           Expanded(
                             flex: 3,
-                            child: _buildRestockAiCard(products),
+                            child: _buildRestockAiCard(products, sales),
                           ),
                           const SizedBox(width: 20),
                           Expanded(
@@ -204,7 +206,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     else ...[
                       _buildRecentOrdersCard(f, displaySales),
                       const SizedBox(height: 20),
-                      _buildRestockAiCard(products),
+                      _buildRestockAiCard(products, sales),
                       const SizedBox(height: 20),
                       _buildTasksQueueCard(tasks),
                     ],
@@ -1861,60 +1863,529 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // 3. Pastki o'rta: AI Zaxira Tavsiyasi (AI Restock Recommendation)
   // ---------------------------------------------------------------------------
 
-  Widget _buildRestockAiCard(List<Product> products) {
+  List<AiRestockItem> _calculateAiRecommendations(List<Product> products, List<SaleResult> sales) {
+    final salesVolume = <int, double>{};
+    for (final s in sales) {
+      for (final it in s.items) {
+        salesVolume[it.productId] = (salesVolume[it.productId] ?? 0) + it.quantity;
+      }
+    }
+
+    final items = <AiRestockItem>[];
+    for (final p in products) {
+      final sold = salesVolume[p.id] ?? 0;
+      final daily = sold > 0 ? (sold / 14).clamp(0.2, 50.0) : 0.5;
+      final stock = p.stock;
+      final daysLeft = stock <= 0 ? 0 : (stock / daily).round();
+
+      String urgency;
+      String reason;
+      double recommended;
+
+      if (stock <= 0) {
+        urgency = 'critical';
+        reason = 'Omborda butunlay tugagan! Zudlik bilan xarid yoki ishlab chiqarish kerak.';
+        recommended = (daily * 30).clamp(20.0, 300.0).roundToDouble();
+      } else if (stock < 15 || daysLeft <= 5) {
+        urgency = 'critical';
+        reason = 'Zaxira ~$daysLeft kunga yetadi (Kunlik sotuv: ~${daily.toStringAsFixed(1)} ${p.unit}).';
+        recommended = ((daily * 30) - stock).clamp(10.0, 250.0).roundToDouble();
+      } else if (stock < 35 || daysLeft <= 14) {
+        urgency = 'warning';
+        reason = 'Xavfsiz zaxira miqdoridan past. Oldindan buyurtma berish tavsiya etiladi.';
+        recommended = ((daily * 30) - stock).clamp(10.0, 200.0).roundToDouble();
+      } else {
+        urgency = 'optimal';
+        reason = 'Zaxira yetarli (~$daysLeft kunga yetadi).';
+        recommended = 0;
+      }
+
+      items.add(AiRestockItem(
+        product: p,
+        currentStock: stock,
+        totalSold: sold,
+        dailyBurn: daily,
+        daysRemaining: daysLeft,
+        recommendedQty: recommended,
+        urgency: urgency,
+        reason: reason,
+      ));
+    }
+
+    items.sort((a, b) {
+      const priority = {'critical': 0, 'warning': 1, 'optimal': 2};
+      final pComp = (priority[a.urgency] ?? 2).compareTo(priority[b.urgency] ?? 2);
+      if (pComp != 0) return pComp;
+      return a.daysRemaining.compareTo(b.daysRemaining);
+    });
+
+    return items;
+  }
+
+  Future<void> _openQuickPurchase() async {
+    final repos = context.read<AppRepositories>();
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => StockPurchaseDialog(
+        stockRepo: repos.stock,
+        productRepo: repos.products,
+      ),
+    );
+    if (ok == true && mounted) {
+      _reload();
+    }
+  }
+
+  Future<void> _openQuickProduction() async {
+    final repos = context.read<AppRepositories>();
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => TaskCreateDialog(
+        productRepo: repos.products,
+        productionRepo: repos.production,
+      ),
+    );
+    if (ok == true && mounted) {
+      _reload();
+    }
+  }
+
+  void _showAiRestockDetails(List<AiRestockItem> items) {
+    final critical = items.where((x) => x.urgency == 'critical').toList();
+    final warning = items.where((x) => x.urgency == 'warning').toList();
+    final optimal = items.where((x) => x.urgency == 'optimal').toList();
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: ctx.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 680, maxHeight: 600),
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Sarlavha
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: ctx.isDark ? const Color(0xFF2B3310) : AppColors.neonLimeSoft,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 20,
+                      color: ctx.isDark ? AppColors.neonLime : AppColors.darkCard,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'AI Zaxira va Xarid Prognozi',
+                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: ctx.inkColor),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Oxirgi sotuvlar tezligi va joriy qoldiq asosida hisoblangan tavsiyalar',
+                          style: TextStyle(fontSize: 11.5, color: ctx.mutedColor),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Mini hisobot paneli
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: ctx.isDark ? const Color(0xFF1E2822) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: ctx.borderColor),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Column(
+                      children: [
+                        const Text('Kritik tanqislik', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                        const SizedBox(height: 2),
+                        Text('${critical.length} ta tovar', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.danger)),
+                      ],
+                    ),
+                    Container(width: 1, height: 26, color: ctx.borderColor),
+                    Column(
+                      children: [
+                        const Text('Zaxira zarur', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                        const SizedBox(height: 2),
+                        Text('${warning.length} ta tovar', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFFD97706))),
+                      ],
+                    ),
+                    Container(width: 1, height: 26, color: ctx.borderColor),
+                    Column(
+                      children: [
+                        const Text('Yetarli zaxira', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                        const SizedBox(height: 2),
+                        Text('${optimal.length} ta tovar', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.green)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Tovarlar ro'yxati
+              Expanded(
+                child: ListView.separated(
+                  itemCount: items.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) {
+                    final item = items[i];
+                    final isCrit = item.urgency == 'critical';
+                    final isWarn = item.urgency == 'warning';
+
+                    Color statusColor = AppColors.green;
+                    String statusText = 'Yetarli (${qty(item.currentStock)} ${item.product.unit})';
+                    if (isCrit) {
+                      statusColor = AppColors.danger;
+                      statusText = item.currentStock <= 0 ? 'Tugagan (0 ${item.product.unit})' : 'Kritik: ${qty(item.currentStock)} ${item.product.unit}';
+                    } else if (isWarn) {
+                      statusColor = const Color(0xFFD97706);
+                      statusText = 'Kam qolgan (${qty(item.currentStock)} ${item.product.unit})';
+                    }
+
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: ctx.cardColor,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isCrit ? AppColors.danger.withValues(alpha: 0.3) : ctx.borderColor,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          ProductThumbnail(
+                            imageUrl: item.product.imageUrl,
+                            name: item.product.name,
+                            size: 44,
+                            borderRadius: 10,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        item.product.name,
+                                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: ctx.inkColor),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        statusText,
+                                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: statusColor),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  item.reason,
+                                  style: TextStyle(fontSize: 11, color: ctx.mutedColor),
+                                ),
+                                if (item.recommendedQty > 0) ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.tips_and_updates_outlined, size: 13, color: AppColors.green),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'AI Tavsiya: +${qty(item.recommendedQty)} ${item.product.unit} buyurtma berish',
+                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.green),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          if (item.recommendedQty > 0)
+                            FilledButton(
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                _openQuickPurchase();
+                              },
+                              style: FilledButton.styleFrom(
+                                backgroundColor: isCrit ? AppColors.danger : (ctx.isDark ? AppColors.neonLime : AppColors.darkCard),
+                                foregroundColor: isCrit ? Colors.white : (ctx.isDark ? AppColors.ink : Colors.white),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                              ),
+                              child: const Text('Kirim'),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Pastki tugmalar
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _openQuickProduction();
+                      },
+                      icon: const Icon(Icons.precision_manufacturing_rounded, size: 16),
+                      label: const Text('Ishlab chiqarishga berish'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _openQuickPurchase();
+                      },
+                      icon: const Icon(Icons.shopping_bag_rounded, size: 16),
+                      label: const Text('+ Xarid Kirimi'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.neonLime,
+                        foregroundColor: AppColors.ink,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRestockAiCard(List<Product> products, List<SaleResult> sales) {
+    final items = _calculateAiRecommendations(products, sales);
+    final critical = items.where((x) => x.urgency == 'critical').toList();
+    final warning = items.where((x) => x.urgency == 'warning').toList();
+    final urgentList = [...critical, ...warning];
+
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: context.cardColor,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: context.borderColor),
+        border: Border.all(color: critical.isNotEmpty ? AppColors.danger.withValues(alpha: 0.35) : context.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'AI Zaxira Tavsiyasi',
-            style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: context.inkColor),
+          // Sarlavha va status
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: context.isDark ? const Color(0xFF2B3310) : AppColors.neonLimeSoft,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 17,
+                  color: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AI Zaxira Tavsiyasi',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: context.inkColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      'Avtomatik tahlil',
+                      style: TextStyle(fontSize: 10.5, color: context.mutedColor),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: critical.isNotEmpty
+                      ? const Color(0xFFFCE4E3)
+                      : (warning.isNotEmpty ? const Color(0xFFFEF3C7) : AppColors.greenSoft),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  critical.isNotEmpty
+                      ? '${critical.length} ta kritik'
+                      : (warning.isNotEmpty ? '${warning.length} ta kam' : 'Optimal'),
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: critical.isNotEmpty
+                        ? AppColors.danger
+                        : (warning.isNotEmpty ? const Color(0xFFD97706) : AppColors.darkCard),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
+
           // Mini grafik chiziq
           SizedBox(
-            height: 60,
+            height: 48,
             width: double.infinity,
             child: CustomPaint(
               painter: _MiniSparklinePainter(),
             ),
           ),
-          const SizedBox(height: 14),
-          Text(
-            'Qoldig‘i 20% dan kam qolgan tovarlar aniqlandi.',
-            style: TextStyle(fontSize: 12, color: context.mutedColor, height: 1.4),
-          ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 10),
+
+          // Tavsiya ro'yxati (eng xavfli 2 ta tovar)
+          if (urgentList.isNotEmpty) ...[
+            for (final it in urgentList.take(2))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: context.isDark ? const Color(0xFF1E2822) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: it.urgency == 'critical'
+                          ? AppColors.danger.withValues(alpha: 0.25)
+                          : context.borderColor,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      ProductThumbnail(
+                        imageUrl: it.product.imageUrl,
+                        name: it.product.name,
+                        size: 34,
+                        borderRadius: 8,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              it.product.name,
+                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: context.inkColor),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              it.currentStock <= 0 ? 'Tugagan (0 ${it.product.unit})' : 'Qoldiq: ${qty(it.currentStock)} ${it.product.unit}',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                                color: it.urgency == 'critical' ? AppColors.danger : const Color(0xFFD97706),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.greenSoft,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '+${qty(it.recommendedQty)} ${it.product.unit}',
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.darkCard),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ] else ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: AppColors.green, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Barcha tovarlar zaxirasi optimal holatda.',
+                      style: TextStyle(fontSize: 11.5, color: context.mutedColor),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 8),
+
+          // Tugmalar
           Row(
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => widget.onNavigate?.call(4),
+                  onPressed: () => _showAiRestockDetails(items),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: context.inkColor,
                     side: BorderSide(color: context.borderColor),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
-                  child: const Text('Barchasi'),
+                  child: const Text('Batafsil', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: FilledButton(
-                  onPressed: () => widget.onNavigate?.call(4),
+                  onPressed: _openQuickPurchase,
                   style: FilledButton.styleFrom(
                     backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
                     foregroundColor: context.isDark ? AppColors.ink : Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
-                  child: const Text('Zaxira'),
+                  child: const Text('Xarid', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                 ),
               ),
             ],
@@ -1922,7 +2393,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
     );
-}
+  }
 
   // ---------------------------------------------------------------------------
   // 3. Pastki o'ng: Ishlab Chiqarish Topshiriqlari (Still Not Arrived / Production)
@@ -2890,4 +3361,26 @@ class _MiniSparklinePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class AiRestockItem {
+  final Product product;
+  final double currentStock;
+  final double totalSold;
+  final double dailyBurn;
+  final int daysRemaining;
+  final double recommendedQty;
+  final String urgency; // 'critical', 'warning', 'optimal'
+  final String reason;
+
+  const AiRestockItem({
+    required this.product,
+    required this.currentStock,
+    required this.totalSold,
+    required this.dailyBurn,
+    required this.daysRemaining,
+    required this.recommendedQty,
+    required this.urgency,
+    required this.reason,
+  });
 }
