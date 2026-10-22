@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../domain/models.dart';
 import 'api_client.dart' show ApiException;
 import 'repositories.dart';
@@ -124,6 +126,44 @@ class MockStore {
         ],
       ),
       cost: 1300000,
+    ),
+  ];
+  final List<Customer> customers = [
+    const Customer(
+      id: 1,
+      name: 'Sardor Qodirov',
+      phone: '+998 90 999 11 22',
+      passport: 'AB 1234567',
+      totalSpent: 1800000,
+      totalDebt: 0,
+      salesCount: 1,
+    ),
+    const Customer(
+      id: 2,
+      name: 'Farhod Usta',
+      phone: '+998 91 888 22 33',
+      passport: 'AC 9876543',
+      totalSpent: 900000,
+      totalDebt: 0,
+      salesCount: 1,
+    ),
+    const Customer(
+      id: 3,
+      name: 'Javohir Toshkent',
+      phone: '+998 93 777 33 44',
+      passport: 'AA 5556677',
+      totalSpent: 1500000,
+      totalDebt: 500000,
+      salesCount: 1,
+    ),
+    const Customer(
+      id: 4,
+      name: 'Komil Samarkand',
+      phone: '+998 99 555 12 34',
+      passport: 'AD 1122334',
+      totalSpent: 1900000,
+      totalDebt: 700000,
+      salesCount: 1,
     ),
   ];
   final List<ProductionTask> tasks = [
@@ -310,8 +350,11 @@ class MockSalesRepository implements SalesRepository {
   Future<SaleResult> createSale({
     required List<CartLine> lines,
     required double paidAmount,
+    int? customerId,
     String? customerName,
     String? customerPhone,
+    String? customerPassport,
+    String? customerPhotoUrl,
   }) async {
     if (lines.isEmpty) throw ApiException('Savat bo‘sh', 400);
     final reserved = <int, double>{};
@@ -347,8 +390,11 @@ class MockSalesRepository implements SalesRepository {
       total: total,
       paid: paidAmount,
       debt: debt,
+      customerId: customerId,
       customerName: customerName,
       customerPhone: customerPhone,
+      customerPassport: customerPassport,
+      customerPhotoUrl: customerPhotoUrl,
       createdAt: DateTime.now(),
       items: lines.map((l) => SaleItemRecord(
         productId: l.product.id,
@@ -675,6 +721,57 @@ class MockNotificationRepository implements NotificationRepository {
   Future<void> markAllRead() async {
     for (int i = 0; i < _s.notifications.length; i++) {
       _s.notifications[i] = _s.notifications[i].copyWith(isRead: true);
+    }
+  }
+}
+
+class MockCustomerRepository implements CustomerRepository {
+  MockCustomerRepository(this._s);
+  final MockStore _s;
+
+  @override
+  Future<List<Customer>> listCustomers({String? query}) async {
+    await Future.delayed(const Duration(milliseconds: 60));
+    if (query == null || query.trim().isEmpty) return List.of(_s.customers);
+    final q = query.trim().toLowerCase();
+    return _s.customers.where((c) {
+      return c.name.toLowerCase().contains(q) ||
+          (c.phone ?? '').toLowerCase().contains(q) ||
+          (c.passport ?? '').toLowerCase().contains(q);
+    }).toList();
+  }
+
+  @override
+  Future<Customer> getCustomer(int id) async {
+    final c = _s.customers.firstWhere((x) => x.id == id, orElse: () => throw ApiException('Mijoz topilmadi', 404));
+    return c;
+  }
+
+  @override
+  Future<Customer> createCustomer(Customer customer) async {
+    final c = customer.copyWith(id: _s.nextId++, createdAt: DateTime.now());
+    _s.customers.add(c);
+    return c;
+  }
+
+  @override
+  Future<Customer> updateCustomer(Customer customer) async {
+    final idx = _s.customers.indexWhere((x) => x.id == customer.id);
+    if (idx < 0) throw ApiException('Mijoz topilmadi', 404);
+    _s.customers[idx] = customer;
+    return customer;
+  }
+
+  @override
+  Future<String> uploadCustomerImage(List<int> bytes, String filename) async {
+    return 'data:image/jpeg;base64,${base64Encode(bytes)}';
+  }
+
+  @override
+  Future<void> deleteCustomer(int id) async {
+    final idx = _s.customers.indexWhere((x) => x.id == id);
+    if (idx >= 0) {
+      _s.customers.removeAt(idx);
     }
   }
 }

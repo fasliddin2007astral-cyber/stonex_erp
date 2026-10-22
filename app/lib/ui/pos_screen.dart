@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image/image.dart' as img;
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../core/format.dart';
@@ -155,7 +158,7 @@ class _PosScreenState extends State<PosScreen> {
                             icon: const Icon(Icons.close_rounded, size: 18),
                             onPressed: () {
                               _search.clear();
-                              _reload();
+                              setState(() {});
                             },
                           ),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14),
@@ -163,7 +166,7 @@ class _PosScreenState extends State<PosScreen> {
                     enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide(color: context.borderColor)),
                     focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide(color: context.isDark ? AppColors.neonLime : AppColors.ink, width: 1.5)),
                   ),
-                  onChanged: (_) => _reload(),
+                  onChanged: (_) => setState(() {}),
                   onSubmitted: _onSubmit,
                 ),
               ),
@@ -239,6 +242,16 @@ class _PosScreenState extends State<PosScreen> {
             if (snap.hasError) return ErrorView(message: snap.error.toString(), onRetry: _reload);
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
             var items = snap.data!;
+
+            final query = _search.text.trim().toLowerCase();
+            if (query.isNotEmpty) {
+              items = items.where((p) {
+                final n = p.name.toLowerCase();
+                final sku = p.sku.toLowerCase();
+                final qr = p.qrCode.toLowerCase();
+                return n.contains(query) || sku.contains(query) || qr.contains(query);
+              }).toList();
+            }
 
             if (_selectedCategory != 'Barchasi') {
               items = items.where((p) {
@@ -738,7 +751,14 @@ class _CartPanel extends StatelessWidget {
     final result = await showDialog<_CheckoutInput>(context: context, builder: (_) => _CheckoutDialog(total: cart.total));
     if (result == null || !context.mounted) return;
     try {
-      final res = await cart.checkout(paid: result.paid, customerName: result.name, customerPhone: result.phone);
+      final res = await cart.checkout(
+        paid: result.paid,
+        customerId: result.customerId,
+        customerName: result.name,
+        customerPhone: result.phone,
+        customerPassport: result.passport,
+        customerPhotoUrl: result.photoUrl,
+      );
       if (!context.mounted) return;
       showMessage(context, 'Savdo #${res.id} saqlandi. To‘landi: ${money(res.paid)}'
           '${res.debt > 0 ? ', nasiya: ${money(res.debt)}' : ''}');
@@ -960,9 +980,20 @@ class _StepBtn extends StatelessWidget {
 
 class _CheckoutInput {
   final double paid;
+  final int? customerId;
   final String? name;
   final String? phone;
-  _CheckoutInput(this.paid, this.name, this.phone);
+  final String? passport;
+  final String? photoUrl;
+
+  _CheckoutInput({
+    required this.paid,
+    this.customerId,
+    this.name,
+    this.phone,
+    this.passport,
+    this.photoUrl,
+  });
 }
 
 class _CheckoutDialog extends StatefulWidget {
@@ -976,13 +1007,36 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
   late final _paid = TextEditingController(text: widget.total.round().toString());
   final _name = TextEditingController();
   final _phone = TextEditingController();
+  final _passport = TextEditingController();
+  String? _photoUrl;
+  int? _selectedCustomerId;
+  List<Customer> _existingCustomers = [];
+  bool _uploadingImage = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCustomers();
+  }
+
+  Future<void> _loadCustomers() async {
+    try {
+      final list = await context.read<AppRepositories>().customers.listCustomers();
+      if (mounted) {
+        setState(() {
+          _existingCustomers = list;
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
     _paid.dispose();
     _name.dispose();
     _phone.dispose();
+    _passport.dispose();
     super.dispose();
   }
 
@@ -991,6 +1045,86 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       _paid.text = v.round().toString();
       _error = null;
     });
+  }
+
+  void _selectCustomer(Customer c) {
+    setState(() {
+      _selectedCustomerId = c.id;
+      _name.text = c.name;
+      _phone.text = c.phone ?? '';
+      _passport.text = c.passport ?? '';
+      _photoUrl = c.photoUrl;
+      _error = null;
+    });
+  }
+
+  void _clearCustomer() {
+    setState(() {
+      _selectedCustomerId = null;
+      _name.clear();
+      _phone.clear();
+      _passport.clear();
+      _photoUrl = null;
+    });
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final custRepo = context.read<AppRepositories>().customers;
+    setState(() {
+      _uploadingImage = true;
+      _error = null;
+    });
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: source, maxWidth: 1200, maxHeight: 1200, imageQuality: 80);
+      if (picked == null) {
+        if (mounted) setState(() => _uploadingImage = false);
+        return;
+      }
+      final bytes = await picked.readAsBytes();
+      if (bytes.isEmpty) {
+        if (mounted) setState(() => _uploadingImage = false);
+        return;
+      }
+
+      String finalUrl;
+      try {
+        final decoded = img.decodeImage(Uint8List.fromList(bytes));
+        if (decoded != null) {
+          final resized = (decoded.width > 480 || decoded.height > 480)
+              ? img.copyResize(decoded, width: decoded.width >= decoded.height ? 480 : null, height: decoded.height > decoded.width ? 480 : null)
+              : decoded;
+          final jpg = img.encodeJpg(resized, quality: 78);
+          finalUrl = 'data:image/jpeg;base64,${base64Encode(jpg)}';
+        } else {
+          finalUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        }
+      } catch (_) {
+        finalUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      }
+
+      try {
+        final filename = picked.name.isNotEmpty ? picked.name : 'cust_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final uploaded = await custRepo.uploadCustomerImage(bytes, filename);
+        if (uploaded.isNotEmpty) {
+          finalUrl = uploaded;
+        }
+      } catch (_) {}
+
+      if (mounted) {
+        setState(() {
+          _photoUrl = finalUrl;
+          _uploadingImage = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Rasm olishda xatolik: $e';
+          _uploadingImage = false;
+        });
+      }
+    }
   }
 
   void _ok() {
@@ -1008,7 +1142,17 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       });
       return;
     }
-    Navigator.pop(context, _CheckoutInput(paid > widget.total ? widget.total : paid, _name.text.trim(), _phone.text.trim()));
+    Navigator.pop(
+      context,
+      _CheckoutInput(
+        paid: paid > widget.total ? widget.total : paid,
+        customerId: _selectedCustomerId,
+        name: _name.text.trim().isNotEmpty ? _name.text.trim() : null,
+        phone: _phone.text.trim().isNotEmpty ? _phone.text.trim() : null,
+        passport: _passport.text.trim().isNotEmpty ? _passport.text.trim() : null,
+        photoUrl: _photoUrl,
+      ),
+    );
   }
 
   @override
@@ -1016,19 +1160,21 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
     final paid = parseInput(_paid.text) ?? 0;
     final debt = (widget.total - paid).clamp(0, double.infinity).toDouble();
     final hasDebt = debt > 0.5;
+
     return AlertDialog(
-      backgroundColor: Colors.white,
+      backgroundColor: context.cardColor,
       surfaceTintColor: Colors.transparent,
       shape: _dialogShape,
       title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('To‘lov', style: TextStyle(fontSize: 14, color: AppColors.muted, fontWeight: FontWeight.w500)),
+        const Text('To‘lovni qabul qilish', style: TextStyle(fontSize: 14, color: AppColors.muted, fontWeight: FontWeight.w500)),
         const SizedBox(height: 2),
         Text(money(widget.total), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.green)),
       ]),
       content: SizedBox(
-        width: 380,
+        width: 440,
         child: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            // To'lov summasi
             TextField(
               controller: _paid,
               autofocus: true,
@@ -1046,6 +1192,8 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
               ActionChip(label: const Text('Hammasi nasiya'), onPressed: () => _setPaid(0)),
             ]),
             const SizedBox(height: 12),
+
+            // Nasiya holati banneri
             AnimatedContainer(
               duration: const Duration(milliseconds: 250),
               padding: const EdgeInsets.all(12),
@@ -1059,18 +1207,208 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(hasDebt ? 'Nasiya (qarz): ${money(debt)}' : 'To‘liq to‘lanadi',
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
                 ),
               ]),
             ),
-            const SizedBox(height: 12),
-            TextField(controller: _name, decoration: const InputDecoration(labelText: 'Mijoz (nasiya uchun majburiy)')),
+            const SizedBox(height: 16),
+
+            // Mijoz ma'lumotlari sarlavhasi
+            Row(
+              children: [
+                const Icon(Icons.person_outline_rounded, size: 18, color: AppColors.muted),
+                const SizedBox(width: 6),
+                Text(
+                  'Xaridor ma‘lumotlari',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.inkColor),
+                ),
+                const Spacer(),
+                if (_selectedCustomerId != null)
+                  TextButton.icon(
+                    onPressed: _clearCustomer,
+                    icon: const Icon(Icons.person_add_rounded, size: 15),
+                    label: const Text('Yangi mijoz', style: TextStyle(fontSize: 11)),
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+
+            // Doimiy mijozlarni tezkor tanlash
+            if (_existingCustomers.isNotEmpty && _selectedCustomerId == null) ...[
+              SizedBox(
+                height: 34,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _existingCustomers.take(5).length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 6),
+                  itemBuilder: (_, i) {
+                    final c = _existingCustomers[i];
+                    return ActionChip(
+                      avatar: const Icon(Icons.history_rounded, size: 14),
+                      label: Text(c.name, style: const TextStyle(fontSize: 11)),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      onPressed: () => _selectCustomer(c),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+
+            // Ism
+            TextField(
+              controller: _name,
+              decoration: InputDecoration(
+                labelText: hasDebt ? 'Mijoz Ism-Familiyasi * (Nasiya uchun majburiy)' : 'Mijoz Ism-Familiyasi',
+                hintText: 'Masalan: Rustam Karimov',
+                prefixIcon: const Icon(Icons.person_rounded, size: 18),
+              ),
+            ),
             const SizedBox(height: 10),
-            TextField(controller: _phone, decoration: const InputDecoration(labelText: 'Telefon (ixtiyoriy)')),
+
+            // Telefon
+            TextField(
+              controller: _phone,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Telefon raqami',
+                hintText: '+998 90 123 45 67',
+                prefixIcon: Icon(Icons.phone_rounded, size: 18),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Pasport
+            TextField(
+              controller: _passport,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                labelText: 'Pasport seriya va raqami',
+                hintText: 'AA 1234567',
+                prefixIcon: Icon(Icons.badge_rounded, size: 18),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Pasport / Mijoz fotosurati qismi
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: context.isDark ? const Color(0xFF1E2822) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: context.borderColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.camera_alt_outlined, size: 16, color: AppColors.muted),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Pasport / Mijoz surati',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.inkColor),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (_photoUrl != null && _photoUrl!.isNotEmpty) ...[
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => showProductImagePreview(
+                            context,
+                            imageUrl: _photoUrl,
+                            name: _name.text.isNotEmpty ? _name.text : 'Xaridor surati',
+                            subtitle: 'Pasport: ${_passport.text.isNotEmpty ? _passport.text : 'Yo‘q'}',
+                          ),
+                          child: ProductThumbnail(
+                            imageUrl: _photoUrl,
+                            name: _name.text,
+                            size: 64,
+                            borderRadius: 14,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Rasm saqlandi', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.green)),
+                              const SizedBox(height: 2),
+                              const Text('To‘liq ko‘rish uchun rasmni bosing', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  InkWell(
+                                    onTap: () => _pickImage(ImageSource.camera),
+                                    child: const Text('Qayta olish', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.green)),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  InkWell(
+                                    onTap: () => setState(() => _photoUrl = null),
+                                    child: const Text('O‘chirish', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.danger)),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    if (_uploadingImage)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                              SizedBox(width: 10),
+                              Text('Rasm yuklanmoqda...', style: TextStyle(fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _pickImage(ImageSource.camera),
+                              icon: const Icon(Icons.photo_camera_rounded, size: 16),
+                              label: const Text('Kamera', style: TextStyle(fontSize: 12)),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _pickImage(ImageSource.gallery),
+                              icon: const Icon(Icons.photo_library_rounded, size: 16),
+                              label: const Text('Galereya', style: TextStyle(fontSize: 12)),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ],
+              ),
+            ),
+
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 10),
-                child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12, fontWeight: FontWeight.w600)),
               ),
           ]),
         ),

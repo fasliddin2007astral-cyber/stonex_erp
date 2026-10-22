@@ -34,9 +34,17 @@ def ensure_migrations():
     """Jadvallarga yangi ustunlarni xavfsiz qo'shish."""
     from sqlalchemy import inspect, text
     inspector = inspect(engine)
-    if "products" in inspector.get_table_names():
+    table_names = inspector.get_table_names()
+    if "products" in table_names:
         columns = [c["name"] for c in inspector.get_columns("products")]
         with engine.begin() as conn:
             if "image_url" not in columns:
                 conn.execute(text("ALTER TABLE products ADD COLUMN image_url TEXT NULL"))
+    if "customers" in table_names:
+        c_columns = [c["name"] for c in inspector.get_columns("customers")]
+        with engine.begin() as conn:
+            if "passport" not in c_columns:
+                conn.execute(text("ALTER TABLE customers ADD COLUMN passport VARCHAR(64) NULL"))
+            if "photo_url" not in c_columns:
+                conn.execute(text("ALTER TABLE customers ADD COLUMN photo_url MEDIUMTEXT NULL"))
 

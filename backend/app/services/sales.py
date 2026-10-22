@@ -53,10 +53,24 @@ def create_sale(db: Session, cashier: m.User, data: SaleIn) -> m.Sale:
     if customer_id is not None and db.get(m.Customer, customer_id) is None:
         raise HTTPException(404, "Mijoz topilmadi")
     if customer_id is None and data.customer_name:
-        c = m.Customer(name=data.customer_name.strip(), phone=data.customer_phone)
+        c = m.Customer(
+            name=data.customer_name.strip(),
+            phone=data.customer_phone,
+            passport=data.customer_passport,
+            photo_url=data.customer_photo_url,
+        )
         db.add(c)
         db.flush()
         customer_id = c.id
+    elif customer_id is not None:
+        c = db.get(m.Customer, customer_id)
+        if c:
+            if data.customer_passport:
+                c.passport = data.customer_passport
+            if data.customer_photo_url:
+                c.photo_url = data.customer_photo_url
+            if data.customer_phone and not c.phone:
+                c.phone = data.customer_phone
     if debt > 0 and customer_id is None:
         raise HTTPException(400, "Nasiya uchun mijoz ko'rsatilishi shart")
 

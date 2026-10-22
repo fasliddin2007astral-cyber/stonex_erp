@@ -12,6 +12,8 @@ import 'package:stonex_erp/ui/production_screen.dart';
 import 'package:stonex_erp/ui/dashboard_screen.dart';
 import 'package:stonex_erp/ui/products_screen.dart';
 import 'package:stonex_erp/ui/pos_screen.dart';
+import 'package:stonex_erp/ui/customers_screen.dart';
+import 'package:stonex_erp/state/theme_controller.dart';
 
 void main() {
   late MockStore store;
@@ -29,6 +31,7 @@ void main() {
       users: MockUserRepository(store),
       stock: MockStockRepository(store),
       notifications: MockNotificationRepository(store),
+      customers: MockCustomerRepository(store),
     );
   });
 
@@ -322,5 +325,46 @@ void main() {
     // Scanner screen should be dismissed and cart preserved in POS
     expect(find.text('QR Skaner'), findsNothing);
     expect(cartController.lines.length, 1);
+  });
+
+  testWidgets('CustomersScreen renders correctly, search works and dialog opens', (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    final authCtrl = AuthController(repos.auth);
+    await authCtrl.login('admin', 'admin123', Role.admin);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          Provider<AppRepositories>.value(value: repos),
+          ChangeNotifierProvider.value(value: authCtrl),
+          ChangeNotifierProvider(create: (_) => CartController(repos.sales)),
+          ChangeNotifierProvider(create: (_) => ThemeController()),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: CustomersScreen()),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // CustomersScreen header and customer cards should be rendered
+    expect(find.text('Sardor Qodirov'), findsOneWidget);
+    expect(find.text('Jami mijozlar'), findsOneWidget);
+    expect(find.text('Yangi Mijoz'), findsOneWidget);
+
+    // Filter by searching "Farhod"
+    final searchField = find.byType(TextField);
+    expect(searchField, findsOneWidget);
+    await tester.enterText(searchField, 'Farhod');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('Farhod Usta'), findsOneWidget);
+    expect(find.text('Sardor Qodirov'), findsNothing);
   });
 }

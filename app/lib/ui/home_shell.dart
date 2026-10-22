@@ -11,6 +11,7 @@ import '../domain/models.dart';
 import '../state/auth_controller.dart';
 import '../state/theme_controller.dart';
 import 'common.dart';
+import 'customers_screen.dart';
 import 'dashboard_screen.dart';
 import 'debts_screen.dart';
 import 'pos_screen.dart';
@@ -36,6 +37,12 @@ List<_Dest> _destinationsFor(Role role,
       actionLabel: '+ Yangi Savdo');
   const pos = _Dest('Savdo (POS)', Icons.point_of_sale_rounded, PosScreen.new,
       actionLabel: 'Savdoga o‘tish');
+  const customers = _Dest(
+    'Mijozlar',
+    Icons.people_alt_rounded,
+    CustomersScreen.new,
+    actionLabel: '+ Yangi Mijoz',
+  );
   const debts = _Dest(
       'Nasiyalar', Icons.pending_actions_rounded, DebtsScreen.new,
       actionLabel: 'Qarz undirish');
@@ -63,9 +70,9 @@ List<_Dest> _destinationsFor(Role role,
 
   switch (role) {
     case Role.admin:
-      return [dash, pos, debts, products, stock, prod, staff, cams];
+      return [dash, pos, customers, debts, products, stock, prod, staff, cams];
     case Role.kassir:
-      return [pos, debts, products];
+      return [pos, customers, debts, products];
     case Role.ishchi:
       return [prod];
   }
@@ -151,6 +158,14 @@ class _HomeShellState extends State<HomeShell> {
     } else if (cur.label.startsWith('Savdo')) {
       showMessage(
           context, 'Kassa faol. Mahsulotni tanlang yoki kodini skaner qiling.');
+    } else if (cur.label == 'Mijozlar') {
+      final updated = await showDialog<bool>(
+        context: context,
+        builder: (_) => const CustomerDialog(),
+      );
+      if (updated == true && mounted) {
+        setState(() => _refreshKey++);
+      }
     } else if (cur.label == 'Nasiyalar') {
       final debts = await repos.sales.listDebts();
       if (!mounted) return;

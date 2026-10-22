@@ -170,13 +170,90 @@ class SaleItemRecord {
       );
 }
 
+class Customer {
+  final int id;
+  final String name;
+  final String? phone;
+  final String? passport;
+  final String? photoUrl;
+  final DateTime? createdAt;
+  final double totalSpent;
+  final double totalDebt;
+  final int salesCount;
+
+  const Customer({
+    required this.id,
+    required this.name,
+    this.phone,
+    this.passport,
+    this.photoUrl,
+    this.createdAt,
+    this.totalSpent = 0,
+    this.totalDebt = 0,
+    this.salesCount = 0,
+  });
+
+  factory Customer.fromJson(Map<String, dynamic> j) => Customer(
+        id: (j['id'] as num?)?.toInt() ?? 0,
+        name: (j['name'] as String?) ?? '',
+        phone: j['phone'] as String?,
+        passport: j['passport'] as String?,
+        photoUrl: j['photo_url'] as String?,
+        createdAt: j['created_at'] != null ? DateTime.tryParse(j['created_at'].toString()) : null,
+        totalSpent: parseNum(j['total_spent']),
+        totalDebt: parseNum(j['total_debt']),
+        salesCount: (j['sales_count'] as num?)?.toInt() ?? 0,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        if (phone != null && phone!.isNotEmpty) 'phone': phone,
+        if (passport != null && passport!.isNotEmpty) 'passport': passport,
+        if (photoUrl != null && photoUrl!.isNotEmpty) 'photo_url': photoUrl,
+      };
+
+  Customer copyWith({
+    int? id,
+    String? name,
+    String? phone,
+    String? passport,
+    String? photoUrl,
+    DateTime? createdAt,
+    double? totalSpent,
+    double? totalDebt,
+    int? salesCount,
+  }) =>
+      Customer(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        phone: phone ?? this.phone,
+        passport: passport ?? this.passport,
+        photoUrl: photoUrl ?? this.photoUrl,
+        createdAt: createdAt ?? this.createdAt,
+        totalSpent: totalSpent ?? this.totalSpent,
+        totalDebt: totalDebt ?? this.totalDebt,
+        salesCount: salesCount ?? this.salesCount,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Customer && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
+}
+
 class SaleResult {
   final int id;
   final double total;
   final double paid;
   final double debt;
+  final int? customerId;
   final String? customerName;
   final String? customerPhone;
+  final String? customerPassport;
+  final String? customerPhotoUrl;
   final DateTime? createdAt;
   final List<SaleItemRecord> items;
 
@@ -185,8 +262,11 @@ class SaleResult {
     required this.total,
     required this.paid,
     required this.debt,
+    this.customerId,
     this.customerName,
     this.customerPhone,
+    this.customerPassport,
+    this.customerPhotoUrl,
     this.createdAt,
     this.items = const [],
   });
@@ -199,8 +279,11 @@ class SaleResult {
       total: parseNum(j['total']),
       paid: parseNum(j['paid']),
       debt: parseNum(j['debt']),
+      customerId: cust != null ? (cust['id'] as num?)?.toInt() : (j['customer_id'] as num?)?.toInt(),
       customerName: cust != null ? (cust['name'] as String?) : (j['customer_name'] as String?),
       customerPhone: cust != null ? (cust['phone'] as String?) : (j['customer_phone'] as String?),
+      customerPassport: cust != null ? (cust['passport'] as String?) : (j['customer_passport'] as String?),
+      customerPhotoUrl: cust != null ? (cust['photo_url'] as String?) : (j['customer_photo_url'] as String?),
       createdAt: j['created_at'] != null ? DateTime.tryParse(j['created_at'].toString()) : null,
       items: itemsRaw != null
           ? itemsRaw.map((e) => SaleItemRecord.fromJson(e as Map<String, dynamic>)).toList()

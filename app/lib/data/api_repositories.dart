@@ -104,8 +104,11 @@ class ApiSalesRepository implements SalesRepository {
   Future<SaleResult> createSale({
     required List<CartLine> lines,
     required double paidAmount,
+    int? customerId,
     String? customerName,
     String? customerPhone,
+    String? customerPassport,
+    String? customerPhotoUrl,
   }) async {
     final j = await _api.post('/sales', body: {
       'items': [
@@ -117,8 +120,11 @@ class ApiSalesRepository implements SalesRepository {
           }
       ],
       'paid_amount': paidAmount,
+      if (customerId != null) 'customer_id': customerId,
       if (customerName != null && customerName.isNotEmpty) 'customer_name': customerName,
       if (customerPhone != null && customerPhone.isNotEmpty) 'customer_phone': customerPhone,
+      if (customerPassport != null && customerPassport.isNotEmpty) 'customer_passport': customerPassport,
+      if (customerPhotoUrl != null && customerPhotoUrl.isNotEmpty) 'customer_photo_url': customerPhotoUrl,
     });
     return SaleResult.fromJson(j as Map<String, dynamic>);
   }
@@ -350,6 +356,51 @@ class ApiNotificationRepository implements NotificationRepository {
     for (int i = 0; i < _localFallback.length; i++) {
       _localFallback[i] = _localFallback[i].copyWith(isRead: true);
     }
+  }
+}
+
+class ApiCustomerRepository implements CustomerRepository {
+  ApiCustomerRepository(this._api);
+  final ApiClient _api;
+
+  @override
+  Future<List<Customer>> listCustomers({String? query}) async {
+    final q = <String, String>{};
+    if (query != null && query.trim().isNotEmpty) {
+      q['q'] = query.trim();
+    }
+    final j = await _api.get('/customers', query: q) as List;
+    return j.map((e) => Customer.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  @override
+  Future<Customer> getCustomer(int id) async {
+    final j = await _api.get('/customers/$id') as Map<String, dynamic>;
+    return Customer.fromJson(j);
+  }
+
+  @override
+  Future<Customer> createCustomer(Customer customer) async {
+    final j = await _api.post('/customers', body: customer.toJson()) as Map<String, dynamic>;
+    return Customer.fromJson(j);
+  }
+
+  @override
+  Future<Customer> updateCustomer(Customer customer) async {
+    final j = await _api.put('/customers/${customer.id}', body: customer.toJson()) as Map<String, dynamic>;
+    return Customer.fromJson(j);
+  }
+
+  @override
+  Future<String> uploadCustomerImage(List<int> bytes, String filename) async {
+    final j = await _api.uploadFile('/customers/upload-image', bytes, filename);
+    final url = j['image_url'] as String? ?? '';
+    return ApiClient.resolveUrl(url);
+  }
+
+  @override
+  Future<void> deleteCustomer(int id) async {
+    await _api.delete('/customers/$id');
   }
 }
 

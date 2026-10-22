@@ -20,12 +20,24 @@ abstract class SalesRepository {
   Future<SaleResult> createSale({
     required List<CartLine> lines,
     required double paidAmount,
+    int? customerId,
     String? customerName,
     String? customerPhone,
+    String? customerPassport,
+    String? customerPhotoUrl,
   });
   Future<List<SaleResult>> listSales({int limit = 50});
   Future<List<SaleResult>> listDebts();
   Future<SaleResult> payDebt(int saleId, double amount, {String method = 'cash'});
+}
+
+abstract class CustomerRepository {
+  Future<List<Customer>> listCustomers({String? query});
+  Future<Customer> getCustomer(int id);
+  Future<Customer> createCustomer(Customer customer);
+  Future<Customer> updateCustomer(Customer customer);
+  Future<String> uploadCustomerImage(List<int> bytes, String filename);
+  Future<void> deleteCustomer(int id);
 }
 
 abstract class FinanceRepository {
@@ -86,6 +98,7 @@ class AppRepositories {
   final UserRepository users;
   final StockRepository stock;
   final NotificationRepository notifications;
+  final CustomerRepository customers;
 
   const AppRepositories({
     required this.auth,
@@ -96,6 +109,7 @@ class AppRepositories {
     required this.users,
     required this.stock,
     required this.notifications,
+    required this.customers,
   });
 }
 

@@ -39,12 +39,25 @@ class CartController extends ChangeNotifier {
   }
 
   /// Muvaffaqiyatli bo'lsa savatni tozalaydi; xato bo'lsa savat saqlanadi va xato yuqoriga uzatiladi.
-  Future<SaleResult> checkout({required double paid, String? customerName, String? customerPhone}) async {
+  Future<SaleResult> checkout({
+    required double paid,
+    int? customerId,
+    String? customerName,
+    String? customerPhone,
+    String? customerPassport,
+    String? customerPhotoUrl,
+  }) async {
     busy = true;
     notifyListeners();
     try {
       final res = await _sales.createSale(
-        lines: List.of(lines), paidAmount: paid, customerName: customerName, customerPhone: customerPhone,
+        lines: List.of(lines),
+        paidAmount: paid,
+        customerId: customerId,
+        customerName: customerName,
+        customerPhone: customerPhone,
+        customerPassport: customerPassport,
+        customerPhotoUrl: customerPhotoUrl,
       );
       lines.clear();
       return res;

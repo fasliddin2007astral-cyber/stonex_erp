@@ -19,6 +19,7 @@ AppRepositories buildRepositories() {
       users: MockUserRepository(s),
       stock: MockStockRepository(s),
       notifications: MockNotificationRepository(s),
+      customers: MockCustomerRepository(s),
     );
   }
   return AppRepositories(
@@ -30,5 +31,6 @@ AppRepositories buildRepositories() {
     users: ApiUserRepository(appApiClient),
     stock: ApiStockRepository(appApiClient),
     notifications: ApiNotificationRepository(appApiClient),
+    customers: ApiCustomerRepository(appApiClient),
   );
 }

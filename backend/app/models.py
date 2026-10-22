@@ -71,7 +71,11 @@ class Customer(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(128), index=True)
     phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    passport: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    photo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    sales: Mapped[list["Sale"]] = relationship(back_populates="customer")
 
 
 class Sale(Base):
@@ -86,7 +90,7 @@ class Sale(Base):
 
     items: Mapped[list["SaleItem"]] = relationship(cascade="all, delete-orphan")
     payments: Mapped[list["Payment"]] = relationship(cascade="all, delete-orphan")
-    customer: Mapped["Customer | None"] = relationship()
+    customer: Mapped["Customer | None"] = relationship(back_populates="sales")
 
     @property
     def debt(self) -> Decimal:

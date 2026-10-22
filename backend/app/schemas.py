@@ -112,12 +112,20 @@ class MovementOut(ORM):
 class CustomerIn(BaseModel):
     name: str = Field(min_length=1, max_length=128)
     phone: str | None = None
+    passport: str | None = None
+    photo_url: str | None = None
 
 
 class CustomerOut(ORM):
     id: int
     name: str
-    phone: str | None
+    phone: str | None = None
+    passport: str | None = None
+    photo_url: str | None = None
+    created_at: datetime | None = None
+    total_spent: Decimal | None = None
+    total_debt: Decimal | None = None
+    sales_count: int | None = None
 
 
 # ---------- sales ----------
@@ -133,6 +141,8 @@ class SaleIn(BaseModel):
     customer_id: int | None = None
     customer_name: str | None = None
     customer_phone: str | None = None
+    customer_passport: str | None = None
+    customer_photo_url: str | None = None
 
 
 class SaleItemOut(ORM):
