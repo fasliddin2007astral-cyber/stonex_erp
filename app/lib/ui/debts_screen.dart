@@ -265,14 +265,15 @@ class _DebtsScreenState extends State<DebtsScreen> {
                 }
 
                 final totalDebt = list.fold<double>(0, (a, b) => a + b.debt);
+                final isDesktop = MediaQuery.sizeOf(context).width >= 900;
 
                 return RefreshIndicator(
                   onRefresh: _reload,
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(28, 0, 28, 28),
+                    padding: EdgeInsets.fromLTRB(isDesktop ? 28.0 : 12.0, 0, isDesktop ? 28.0 : 12.0, 28),
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(18),
+                        padding: EdgeInsets.all(isDesktop ? 18 : 14),
                         margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
                           color: AppColors.darkCard,
@@ -281,37 +282,43 @@ class _DebtsScreenState extends State<DebtsScreen> {
                         child: Row(
                           children: [
                             Container(
-                              width: 48,
-                              height: 48,
+                              width: isDesktop ? 48 : 42,
+                              height: isDesktop ? 48 : 42,
                               decoration: BoxDecoration(
                                 color: const Color(0xFF1D3A2B),
                                 borderRadius: BorderRadius.circular(14),
                               ),
-                              child: const Icon(Icons.pending_actions_rounded, color: AppColors.greenBright, size: 26),
+                              child: Icon(Icons.pending_actions_rounded, color: AppColors.greenBright, size: isDesktop ? 26 : 22),
                             ),
-                            const SizedBox(width: 16),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('Jami undirilishi kerak bo‘lgan nasiyalar',
-                                    style: TextStyle(color: Color(0xFFA9BDB0), fontSize: 13)),
-                                const SizedBox(height: 4),
-                                Text(
-                                  money(totalDebt),
-                                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800),
-                                ),
-                              ],
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Jami nasiyalar',
+                                      style: TextStyle(color: Color(0xFFA9BDB0), fontSize: 12)),
+                                  const SizedBox(height: 2),
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      money(totalDebt),
+                                      style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            const Spacer(),
+                            const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF1D3A2B),
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: Text(
-                                '${list.length} ta nasiya',
-                                style: const TextStyle(color: AppColors.greenBright, fontWeight: FontWeight.w700),
+                                '${list.length} ta',
+                                style: const TextStyle(color: AppColors.greenBright, fontWeight: FontWeight.w700, fontSize: 12),
                               ),
                             ),
                           ],
@@ -345,12 +352,16 @@ class _DebtsScreenState extends State<DebtsScreen> {
                                     children: [
                                       Row(
                                         children: [
-                                          Text(
-                                            s.customerName?.isNotEmpty == true ? s.customerName! : 'Nomsiz mijoz',
-                                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                                          Flexible(
+                                            child: Text(
+                                              s.customerName?.isNotEmpty == true ? s.customerName! : 'Nomsiz mijoz',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                                            ),
                                           ),
-                                          const SizedBox(width: 8),
-                                          Text('•  Savdo #${s.id}', style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                                          const SizedBox(width: 6),
+                                          Text('• #${s.id}', style: const TextStyle(color: AppColors.muted, fontSize: 11)),
                                         ],
                                       ),
                                       const SizedBox(height: 4),

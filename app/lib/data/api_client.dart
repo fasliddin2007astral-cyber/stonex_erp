@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import '../core/config.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -12,15 +13,51 @@ class ApiException implements Exception {
 
 class ApiClient {
   ApiClient(this.baseUrl);
-  final String baseUrl;
+  String baseUrl;
   String? token;
 
   Future<dynamic> get(String path, {Map<String, String>? query}) => _send('GET', path, query: query);
   Future<dynamic> post(String path, {Object? body}) => _send('POST', path, body: body);
+  Future<dynamic> put(String path, {Object? body}) => _send('PUT', path, body: body);
   Future<dynamic> patch(String path, {Object? body}) => _send('PATCH', path, body: body);
   Future<dynamic> delete(String path) => _send('DELETE', path);
 
+  Future<dynamic> uploadFile(String path, List<int> bytes, String filename, {String fieldName = 'file'}) async {
+    baseUrl = AppConfig.apiBaseUrl;
+    final uri = Uri.parse('$baseUrl$path');
+    final req = http.MultipartRequest('POST', uri);
+    if (token != null) req.headers['Authorization'] = 'Bearer $token';
+    req.files.add(http.MultipartFile.fromBytes(fieldName, bytes, filename: filename));
+
+    http.Response res;
+    try {
+      final streamedRes = await req.send().timeout(const Duration(seconds: 30));
+      res = await http.Response.fromStream(streamedRes);
+    } on Exception {
+      throw ApiException('Rasm serverga yuklanmadi. Internet va server holatini tekshiring.');
+    }
+
+    final text = utf8.decode(res.bodyBytes);
+    final data = text.isEmpty ? null : jsonDecode(text);
+    if (res.statusCode >= 400) {
+      throw ApiException(_detail(data) ?? 'Rasm yuklashda xatolik (${res.statusCode})', res.statusCode);
+    }
+    return data;
+  }
+
+  static String resolveUrl(String? url) {
+    if (url == null || url.trim().isEmpty) return '';
+    final trimmed = url.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    final base = AppConfig.apiBaseUrl.endsWith('/')
+        ? AppConfig.apiBaseUrl.substring(0, AppConfig.apiBaseUrl.length - 1)
+        : AppConfig.apiBaseUrl;
+    final path = trimmed.startsWith('/') ? trimmed : '/$trimmed';
+    return '$base$path';
+  }
+
   Future<dynamic> _send(String method, String path, {Map<String, String>? query, Object? body}) async {
+    baseUrl = AppConfig.apiBaseUrl;
     final uri = Uri.parse('$baseUrl$path').replace(queryParameters: query);
     final req = http.Request(method, uri)
       ..headers['Content-Type'] = 'application/json; charset=utf-8'

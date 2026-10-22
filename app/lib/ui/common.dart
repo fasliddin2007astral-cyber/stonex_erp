@@ -1,6 +1,11 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../core/theme.dart';
+import '../data/api_client.dart';
 
 void showMessage(BuildContext context, String text, {bool error = false}) {
   ScaffoldMessenger.of(context)
@@ -73,7 +78,110 @@ class ErrorView extends StatelessWidget {
       );
 }
 
-/// Hali ishlab chiqilmagan modullar uchun belgi
+/// Mahsulot rasmi yoki rasmi yo'q bo'lsa zamonaviy default mahsulot belgisi
+class ProductThumbnail extends StatelessWidget {
+  const ProductThumbnail({
+    super.key,
+    this.imageUrl,
+    required this.name,
+    this.size = 42,
+    this.borderRadius = 12,
+  });
+
+  final String? imageUrl;
+  final String name;
+  final double size;
+  final double borderRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget fallbackAvatar() => Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: context.isDark ? const Color(0xFF1E2822) : AppColors.neonLimeSoft,
+            borderRadius: BorderRadius.circular(borderRadius),
+            border: Border.all(
+              color: context.borderColor,
+              width: 0.8,
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Icon(
+            Icons.inventory_2_outlined,
+            color: context.isDark ? AppColors.neonLime : AppColors.ink,
+            size: size * 0.52,
+          ),
+        );
+
+    final raw = imageUrl?.trim() ?? '';
+    if (raw.isEmpty) {
+      return fallbackAvatar();
+    }
+
+    Widget imageWidget;
+    try {
+      if (raw.startsWith('data:image/') || raw.contains(';base64,')) {
+        // Base64 Data URI
+        final comma = raw.indexOf(',');
+        final b64 = comma != -1 ? raw.substring(comma + 1).trim() : raw;
+        final bytes = base64Decode(b64);
+        imageWidget = Image.memory(
+          Uint8List.fromList(bytes),
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => fallbackAvatar(),
+        );
+      } else if (!raw.startsWith('http://') &&
+          !raw.startsWith('https://') &&
+          !raw.startsWith('/') &&
+          File(raw).existsSync()) {
+        // Mahalliy kompyuter / telefon fayl yo'li
+        imageWidget = Image.file(
+          File(raw),
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => fallbackAvatar(),
+        );
+      } else {
+        // Server URL
+        final resolvedUrl = ApiClient.resolveUrl(raw);
+        imageWidget = Image.network(
+          resolvedUrl,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Center(
+              child: SizedBox(
+                width: size * 0.35,
+                height: size * 0.35,
+                child: const CircularProgressIndicator(strokeWidth: 2),
+              ),
+            );
+          },
+          errorBuilder: (_, __, ___) => fallbackAvatar(),
+        );
+      }
+    } catch (_) {
+      return fallbackAvatar();
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: Container(
+        width: size,
+        height: size,
+        color: context.isDark ? const Color(0xFF1E2822) : const Color(0xFFF1F5F9),
+        child: imageWidget,
+      ),
+    );
+  }
+}
+
 class NotImplementedView extends StatelessWidget {
   const NotImplementedView({super.key, required this.title, required this.note});
   final String title;
@@ -90,15 +198,15 @@ class NotImplementedView extends StatelessWidget {
                 width: 70,
                 height: 70,
                 decoration: BoxDecoration(
-                  color: AppColors.darkCard.withValues(alpha: 0.08),
+                  color: context.isDark ? AppColors.neonLime.withValues(alpha: 0.15) : AppColors.darkCard.withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.videocam_outlined, size: 36, color: AppColors.ink),
+                child: Icon(Icons.videocam_outlined, size: 36, color: context.isDark ? AppColors.neonLime : AppColors.ink),
               ),
               const SizedBox(height: 16),
               Text(
                 title,
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: context.inkColor),
               ),
               const SizedBox(height: 8),
               Text(

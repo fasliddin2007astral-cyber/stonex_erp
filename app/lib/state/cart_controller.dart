@@ -12,12 +12,12 @@ class CartController extends ChangeNotifier {
 
   double get total => lines.fold(0, (a, l) => a + l.lineTotal);
 
-  void add(Product p) {
+  void add(Product p, {double quantity = 1}) {
     final existing = lines.where((l) => l.product.id == p.id);
     if (existing.isNotEmpty) {
-      existing.first.quantity += 1;
+      existing.first.quantity += quantity;
     } else {
-      lines.add(CartLine(p));
+      lines.add(CartLine(p, quantity: quantity));
     }
     notifyListeners();
   }

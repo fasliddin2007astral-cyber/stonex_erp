@@ -1,4 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+import os
+import shutil
+import uuid
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -12,11 +17,14 @@ from ..services.stock import add_movement, get_stock, stock_map
 
 router = APIRouter(prefix="/products", tags=["products"])
 
+UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads" / "products"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
 
 def to_out(p: m.Product, stock) -> ProductOut:
     return ProductOut(id=p.id, name=p.name, sku=p.sku, qr_code=p.qr_code, unit=p.unit,
                       dona_m2=p.dona_m2, price=p.price, cost_price=p.cost_price,
-                      is_active=p.is_active, stock=stock)
+                      image_url=p.image_url, is_active=p.is_active, stock=stock)
 
 
 @router.get("", response_model=list[ProductOut])
@@ -40,12 +48,43 @@ def by_code(code: str, db: Session = Depends(get_db), _: m.User = Depends(get_cu
     return to_out(p, get_stock(db, p.id))
 
 
+@router.post("/upload-image")
+def upload_image(file: UploadFile = File(...), _: m.User = Depends(require_roles(roles.ADMIN))):
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
+        ext = ".jpg"
+    filename = f"{uuid.uuid4().hex}{ext}"
+    dest_path = UPLOAD_DIR / filename
+    with open(dest_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return {"image_url": f"/uploads/products/{filename}"}
+
+
+@router.post("/{product_id}/image", response_model=ProductOut)
+def upload_product_image(product_id: int, file: UploadFile = File(...),
+                         db: Session = Depends(get_db),
+                         _: m.User = Depends(require_roles(roles.ADMIN))):
+    p = db.get(m.Product, product_id)
+    if p is None:
+        raise HTTPException(404, "Mahsulot topilmadi")
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
+        ext = ".jpg"
+    filename = f"prod_{product_id}_{uuid.uuid4().hex[:8]}{ext}"
+    dest_path = UPLOAD_DIR / filename
+    with open(dest_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    p.image_url = f"/uploads/products/{filename}"
+    db.commit()
+    return to_out(p, get_stock(db, p.id))
+
+
 @router.post("", response_model=ProductOut, status_code=201)
 def create_product(data: ProductIn, db: Session = Depends(get_db),
                    admin: m.User = Depends(require_roles(roles.ADMIN))):
     p = m.Product(name=data.name.strip(), sku=data.sku or None, qr_code=data.qr_code or None,
                   unit=data.unit, dona_m2=data.dona_m2, price=data.price,
-                  cost_price=data.cost_price)
+                  cost_price=data.cost_price, image_url=data.image_url)
     db.add(p)
     try:
         db.flush()

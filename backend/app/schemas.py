@@ -53,6 +53,7 @@ class ProductIn(BaseModel):
     dona_m2: Decimal | None = Field(default=None, gt=0)
     price: Decimal = Field(ge=0)
     cost_price: Decimal = Field(default=Decimal(0), ge=0)
+    image_url: str | None = None
     initial_stock: Decimal = Field(default=Decimal(0), ge=0)  # faqat yaratishda
 
 
@@ -64,6 +65,7 @@ class ProductUpdate(BaseModel):
     dona_m2: Decimal | None = Field(default=None, gt=0)
     price: Decimal | None = Field(default=None, ge=0)
     cost_price: Decimal | None = Field(default=None, ge=0)
+    image_url: str | None = None
 
 
 class ProductOut(BaseModel):
@@ -75,6 +77,7 @@ class ProductOut(BaseModel):
     dona_m2: Decimal | None
     price: Decimal
     cost_price: Decimal
+    image_url: str | None = None
     is_active: bool
     stock: Decimal
 
@@ -204,3 +207,20 @@ class FinanceSummary(BaseModel):
     expenses: Decimal
     net_profit: Decimal
     receivables: Decimal  # umumiy qarzdorlik (nasiya)
+
+
+# ---------- notifications ----------
+class NotificationIn(BaseModel):
+    title: str = Field(min_length=1, max_length=128)
+    message: str = Field(min_length=1)
+    kind: str = Field(default="system")  # warning | payment | sale | production | system
+
+
+class NotificationOut(ORM):
+    id: int
+    title: str
+    message: str
+    kind: str
+    is_read: bool
+    created_at: datetime
+

@@ -74,6 +74,23 @@ def create_sale(db: Session, cashier: m.User, data: SaleIn) -> m.Sale:
     if paid > 0:
         db.add(m.Payment(sale_id=sale.id, amount=paid, received_by=cashier.id))
 
+    # Avtomatik bildirishnoma yaratish
+    db.add(m.Notification(
+        title="Yangi savdo amalga oshirildi",
+        message=f"Kassir {cashier.full_name} tomonidan {int(total):,} so‘mlik savdo qilindi (Chek #{sale.id}).".replace(",", " "),
+        kind="sale",
+    ))
+
+    # Kam qolgan tovarlar bo'yicha ogohlantirish
+    for product, _ in lines:
+        curr_stock = get_stock(db, product.id)
+        if curr_stock <= Decimal("20"):
+            db.add(m.Notification(
+                title="Ombor ogohlantirishi: Zaxira kam",
+                message=f"{product.name} qoldig‘i {curr_stock} {product.unit} qoldi. Yangi partiya xaridini rejalashtiring.",
+                kind="warning",
+            ))
+
     db.commit()
     db.refresh(sale)
     return sale
@@ -88,6 +105,14 @@ def add_payment(db: Session, user: m.User, sale_id: int, amount: Decimal, method
         raise HTTPException(400, "To'lov qolgan qarzdan oshib ketdi")
     db.add(m.Payment(sale_id=sale.id, amount=amount, method=method, received_by=user.id))
     sale.paid = sale.paid + amount
+
+    c_name = sale.customer.name if sale.customer else f"Mijoz (Savdo #{sale.id})"
+    db.add(m.Notification(
+        title="Qarz to‘lovi qabul qilindi",
+        message=f"{c_name} {int(amount):,} so‘m qarzini {method} orqali to‘ladi.".replace(",", " "),
+        kind="payment",
+    ))
+
     db.commit()
     db.refresh(sale)
     return sale

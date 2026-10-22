@@ -12,6 +12,8 @@ abstract class ProductRepository {
   Future<Product> create(Product p, {double initialStock = 0});
   Future<Product> update(Product p);
   Future<void> deactivate(int id);
+  Future<String> uploadImage(List<int> bytes, String filename);
+  Future<Product> uploadProductImage(int productId, List<int> bytes, String filename);
 }
 
 abstract class SalesRepository {
@@ -21,6 +23,7 @@ abstract class SalesRepository {
     String? customerName,
     String? customerPhone,
   });
+  Future<List<SaleResult>> listSales({int limit = 50});
   Future<List<SaleResult>> listDebts();
   Future<SaleResult> payDebt(int saleId, double amount, {String method = 'cash'});
 }
@@ -68,6 +71,12 @@ abstract class StockRepository {
   });
 }
 
+abstract class NotificationRepository {
+  Future<List<AppNotification>> list({int limit = 50});
+  Future<void> markRead(int id);
+  Future<void> markAllRead();
+}
+
 class AppRepositories {
   final AuthRepository auth;
   final ProductRepository products;
@@ -76,6 +85,7 @@ class AppRepositories {
   final ProductionRepository production;
   final UserRepository users;
   final StockRepository stock;
+  final NotificationRepository notifications;
 
   const AppRepositories({
     required this.auth,
@@ -85,5 +95,7 @@ class AppRepositories {
     required this.production,
     required this.users,
     required this.stock,
+    required this.notifications,
   });
 }
+

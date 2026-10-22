@@ -17,6 +17,7 @@ class StockScreen extends StatefulWidget {
 class _StockScreenState extends State<StockScreen> {
   late Future<List<StockMovementRecord>> _movementsFuture;
   late Future<List<Product>> _productsFuture;
+  late Future<List<dynamic>> _combinedFuture;
   String _selectedFilter = 'Barchasi';
   final _searchCtrl = TextEditingController();
 
@@ -28,6 +29,7 @@ class _StockScreenState extends State<StockScreen> {
     super.initState();
     _movementsFuture = _stockRepo.movements();
     _productsFuture = _productRepo.list();
+    _combinedFuture = Future.wait([_movementsFuture, _productsFuture]);
   }
 
   @override
@@ -41,6 +43,7 @@ class _StockScreenState extends State<StockScreen> {
       setState(() {
         _movementsFuture = _stockRepo.movements();
         _productsFuture = _productRepo.list();
+        _combinedFuture = Future.wait([_movementsFuture, _productsFuture]);
       });
     }
   }
@@ -75,7 +78,7 @@ class _StockScreenState extends State<StockScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: context.dialogBg,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           title: const Text('Qoldiqni Tuzatish (Inventarizatsiya)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
           content: SizedBox(
@@ -165,7 +168,10 @@ class _StockScreenState extends State<StockScreen> {
                         });
                       }
                     },
-              style: FilledButton.styleFrom(backgroundColor: AppColors.darkCard),
+              style: FilledButton.styleFrom(
+                backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                foregroundColor: context.isDark ? AppColors.ink : Colors.white,
+              ),
               child: busy
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Text('Tuzatish'),
@@ -189,29 +195,44 @@ class _StockScreenState extends State<StockScreen> {
     final filters = ['Barchasi', 'Xaridlar', 'Sotuvlar', 'Ishlab chiqarish', 'Tuzatishlar'];
 
     return Scaffold(
-      backgroundColor: AppColors.panel,
-      floatingActionButton: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FloatingActionButton.extended(
-            heroTag: 'adjust_btn',
-            backgroundColor: Colors.white,
-            foregroundColor: AppColors.ink,
-            onPressed: _adjustDialog,
-            icon: const Icon(Icons.tune_rounded),
-            label: const Text('Inventarizatsiya'),
-          ),
-          const SizedBox(width: 12),
-          FloatingActionButton.extended(
-            heroTag: 'purchase_btn',
-            onPressed: _purchaseDialog,
-            icon: const Icon(Icons.add_shopping_cart_rounded, color: AppColors.neonLime),
-            label: const Text('Xarid kirimi'),
-          ),
-        ],
+      backgroundColor: context.scaffoldBg,
+      floatingActionButton: Builder(
+        builder: (context) {
+          final isNarrow = MediaQuery.sizeOf(context).width < 450;
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isNarrow)
+                FloatingActionButton(
+                  heroTag: 'adjust_btn',
+                  backgroundColor: context.cardColor,
+                  foregroundColor: context.inkColor,
+                  tooltip: 'Inventarizatsiya',
+                  onPressed: _adjustDialog,
+                  child: const Icon(Icons.tune_rounded),
+                )
+              else
+                FloatingActionButton.extended(
+                  heroTag: 'adjust_btn',
+                  backgroundColor: context.cardColor,
+                  foregroundColor: context.inkColor,
+                  onPressed: _adjustDialog,
+                  icon: const Icon(Icons.tune_rounded),
+                  label: const Text('Inventarizatsiya'),
+                ),
+              const SizedBox(width: 10),
+              FloatingActionButton.extended(
+                heroTag: 'purchase_btn',
+                onPressed: _purchaseDialog,
+                icon: const Icon(Icons.add_shopping_cart_rounded, color: AppColors.neonLime),
+                label: const Text('Xarid kirimi'),
+              ),
+            ],
+          );
+        },
       ),
       body: FutureBuilder<List<dynamic>>(
-        future: Future.wait([_movementsFuture, _productsFuture]),
+        future: _combinedFuture,
         builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
@@ -257,7 +278,7 @@ class _StockScreenState extends State<StockScreen> {
                 final isDesktop = constraints.maxWidth >= 900;
 
                 return ListView(
-                  padding: const EdgeInsets.fromLTRB(28, 8, 28, 80),
+                  padding: EdgeInsets.fromLTRB(isDesktop ? 28.0 : 12.0, 8, isDesktop ? 28.0 : 12.0, 80),
                   children: [
                     // Yuqori statistika paneli
                     if (isDesktop)
@@ -265,6 +286,7 @@ class _StockScreenState extends State<StockScreen> {
                         children: [
                           Expanded(
                             child: _buildStat(
+                              context,
                               'Jami Harakatlar',
                               '${allMovements.length} ta',
                               Icons.history_rounded,
@@ -275,6 +297,7 @@ class _StockScreenState extends State<StockScreen> {
                           const SizedBox(width: 14),
                           Expanded(
                             child: _buildStat(
+                              context,
                               'Xarid Kirimlari',
                               '$purchaseTotal ta partiya',
                               Icons.input_rounded,
@@ -285,6 +308,7 @@ class _StockScreenState extends State<StockScreen> {
                           const SizedBox(width: 14),
                           Expanded(
                             child: _buildStat(
+                              context,
                               'Sotuv Chiqimlari',
                               '$saleTotal ta operatsiya',
                               Icons.output_rounded,
@@ -295,6 +319,7 @@ class _StockScreenState extends State<StockScreen> {
                           const SizedBox(width: 14),
                           Expanded(
                             child: _buildStat(
+                              context,
                               'Ishlab Chiqarish',
                               '$prodTotal ta qabul',
                               Icons.precision_manufacturing_rounded,
@@ -305,13 +330,13 @@ class _StockScreenState extends State<StockScreen> {
                         ],
                       )
                     else ...[
-                      _buildStat('Jami Harakatlar', '${allMovements.length} ta', Icons.history_rounded, AppColors.neonLime, true),
+                      _buildStat(context, 'Jami Harakatlar', '${allMovements.length} ta', Icons.history_rounded, AppColors.neonLime, true),
                       const SizedBox(height: 10),
                       Row(
                         children: [
-                          Expanded(child: _buildStat('Kirimlar', '$purchaseTotal ta', Icons.input_rounded, AppColors.green, false)),
+                          Expanded(child: _buildStat(context, 'Kirimlar', '$purchaseTotal ta', Icons.input_rounded, AppColors.green, false)),
                           const SizedBox(width: 10),
-                          Expanded(child: _buildStat('Chiqimlar', '$saleTotal ta', Icons.output_rounded, const Color(0xFFC77700), false)),
+                          Expanded(child: _buildStat(context, 'Chiqimlar', '$saleTotal ta', Icons.output_rounded, const Color(0xFFC77700), false)),
                         ],
                       ),
                     ],
@@ -322,32 +347,43 @@ class _StockScreenState extends State<StockScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: Container(
+                          child: SizedBox(
                             height: 44,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(30),
-                              border: Border.all(color: AppColors.border),
-                            ),
                             child: TextField(
                               controller: _searchCtrl,
+                              style: TextStyle(fontSize: 13, color: context.inkColor, fontWeight: FontWeight.w500),
+                              textAlignVertical: TextAlignVertical.center,
                               decoration: InputDecoration(
+                                filled: true,
+                                fillColor: context.cardColor,
+                                isDense: true,
                                 hintText: 'Mahsulot nomi yoki izoh bo‘yicha qidirish...',
-                                hintStyle: const TextStyle(fontSize: 13, color: AppColors.muted),
+                                hintStyle: const TextStyle(fontSize: 13, color: AppColors.muted, fontWeight: FontWeight.normal),
                                 prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.muted),
                                 suffixIcon: _searchCtrl.text.isEmpty
                                     ? null
                                     : IconButton(
-                                        icon: const Icon(Icons.close_rounded, size: 18),
+                                        icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.muted),
                                         onPressed: () {
                                           _searchCtrl.clear();
                                           setState(() {});
                                         },
+                                        splashRadius: 18,
+                                        padding: EdgeInsets.zero,
                                       ),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                  borderSide: BorderSide(color: context.borderColor),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                  borderSide: BorderSide(color: context.borderColor),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                  borderSide: BorderSide(color: context.isDark ? AppColors.neonLime : AppColors.ink, width: 1.5),
+                                ),
                               ),
                               onChanged: (_) => setState(() {}),
                             ),
@@ -357,10 +393,11 @@ class _StockScreenState extends State<StockScreen> {
                         FilledButton.icon(
                           onPressed: _purchaseDialog,
                           style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.darkCard,
+                            backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                            foregroundColor: context.isDark ? AppColors.ink : Colors.white,
                             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                           ),
-                          icon: const Icon(Icons.add, size: 18, color: AppColors.neonLime),
+                          icon: Icon(Icons.add, size: 18, color: context.isDark ? AppColors.ink : AppColors.neonLime),
                           label: const Text('Xarid kirimi', style: TextStyle(fontWeight: FontWeight.w700)),
                         ),
                       ],
@@ -380,14 +417,22 @@ class _StockScreenState extends State<StockScreen> {
                                 duration: const Duration(milliseconds: 200),
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                                 decoration: BoxDecoration(
-                                  color: _selectedFilter == f ? AppColors.darkCard : Colors.white,
+                                  color: _selectedFilter == f
+                                      ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+                                      : context.cardColor,
                                   borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: _selectedFilter == f ? AppColors.darkCard : AppColors.border),
+                                  border: Border.all(
+                                    color: _selectedFilter == f
+                                        ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+                                        : context.borderColor,
+                                  ),
                                 ),
                                 child: Text(
                                   f,
                                   style: TextStyle(
-                                    color: _selectedFilter == f ? Colors.white : AppColors.ink,
+                                    color: _selectedFilter == f
+                                        ? (context.isDark ? AppColors.ink : Colors.white)
+                                        : context.inkColor,
                                     fontSize: 12,
                                     fontWeight: _selectedFilter == f ? FontWeight.w700 : FontWeight.w500,
                                   ),
@@ -407,9 +452,9 @@ class _StockScreenState extends State<StockScreen> {
                       Container(
                         padding: const EdgeInsets.all(48),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: context.cardColor,
                           borderRadius: BorderRadius.circular(22),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(color: context.borderColor),
                         ),
                         child: const Center(
                           child: Column(
@@ -468,9 +513,9 @@ class _StockScreenState extends State<StockScreen> {
                           return Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: context.cardColor,
                               borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: AppColors.border),
+                              border: Border.all(color: context.borderColor),
                             ),
                             child: Row(
                               children: [
@@ -490,9 +535,13 @@ class _StockScreenState extends State<StockScreen> {
                                     children: [
                                       Row(
                                         children: [
-                                          Text(
-                                            p?.name ?? 'Mahsulot #${m.productId}',
-                                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                                          Expanded(
+                                            child: Text(
+                                              p?.name ?? 'Mahsulot #${m.productId}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                                            ),
                                           ),
                                           const SizedBox(width: 8),
                                           Container(
@@ -511,6 +560,8 @@ class _StockScreenState extends State<StockScreen> {
                                       const SizedBox(height: 4),
                                       Text(
                                         '${m.note ?? 'Izohsiz'}  ·  ${m.createdAt.day.toString().padLeft(2, '0')}.${m.createdAt.month.toString().padLeft(2, '0')}.${m.createdAt.year} ${m.createdAt.hour.toString().padLeft(2, '0')}:${m.createdAt.minute.toString().padLeft(2, '0')}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(color: AppColors.muted, fontSize: 12),
                                       ),
                                     ],
@@ -539,13 +590,16 @@ class _StockScreenState extends State<StockScreen> {
     );
   }
 
-  Widget _buildStat(String title, String value, IconData icon, Color color, bool isDark) {
+  Widget _buildStat(BuildContext context, String title, String value, IconData icon, Color color, bool isHeroCard) {
+    final isDarkTheme = context.isDark;
+    final isHero = isHeroCard && !isDarkTheme;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : Colors.white,
+        color: isHero ? AppColors.darkCard : context.cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: isDark ? null : Border.all(color: AppColors.border),
+        border: Border.all(color: isHero ? AppColors.darkCard : context.borderColor),
       ),
       child: Row(
         children: [
@@ -553,7 +607,7 @@ class _StockScreenState extends State<StockScreen> {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF22262B) : color.withValues(alpha: 0.14),
+              color: isHero ? const Color(0xFF22262B) : color.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -566,13 +620,13 @@ class _StockScreenState extends State<StockScreen> {
               children: [
                 Text(
                   title,
-                  style: TextStyle(color: isDark ? const Color(0xFF8E959E) : AppColors.muted, fontSize: 11),
+                  style: TextStyle(color: isHero ? const Color(0xFF8E959E) : context.mutedColor, fontSize: 11),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
                   style: TextStyle(
-                    color: isDark ? Colors.white : AppColors.ink,
+                    color: isHero ? Colors.white : context.inkColor,
                     fontSize: 17,
                     fontWeight: FontWeight.w900,
                   ),
@@ -688,7 +742,7 @@ class _StockPurchaseDialogState extends State<StockPurchaseDialog> {
         _selected ??= products.first;
 
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: context.dialogBg,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           title: const Text('Yangi Xarid Kirimi (Partiya)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
           content: SizedBox(
@@ -747,7 +801,8 @@ class _StockPurchaseDialogState extends State<StockPurchaseDialog> {
             FilledButton(
               onPressed: _busy ? null : _submit,
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.darkCard,
+                backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                foregroundColor: context.isDark ? AppColors.ink : Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
               ),
               child: _busy

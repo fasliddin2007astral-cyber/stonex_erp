@@ -5,4 +5,5 @@ pymysql>=1.1
 cryptography>=42
 pydantic>=2.6
 psycopg2-binary>=2.9.9
+python-multipart>=0.0.9
 httpx>=0.27   # faqat testlar uchun (TestClient)

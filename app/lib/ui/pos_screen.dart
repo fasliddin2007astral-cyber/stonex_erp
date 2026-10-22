@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../core/format.dart';
@@ -7,10 +10,11 @@ import '../data/repositories.dart';
 import '../domain/models.dart';
 import '../state/cart_controller.dart';
 import 'common.dart';
+import 'qr_scanner_screen.dart';
 
 String _u(String unit) => unit == 'm2' ? 'm²' : unit;
 
-BoxDecoration _cardBox({Color color = Colors.white, double radius = 22}) => BoxDecoration(
+BoxDecoration _cardBox({Color? color, double radius = 22}) => BoxDecoration(
       color: color,
       borderRadius: BorderRadius.circular(radius),
       boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 12, offset: Offset(0, 4))],
@@ -18,8 +22,6 @@ BoxDecoration _cardBox({Color color = Colors.white, double radius = 22}) => BoxD
 
 ShapeBorder get _dialogShape => RoundedRectangleBorder(borderRadius: BorderRadius.circular(24));
 
-/// Kassa. QR skaner (kamera) keyin ulanadi; hozircha QR/SKU kodni qo'lda yoki
-/// USB skaner (klaviatura sifatida ishlaydi) bilan kiritish + Enter.
 class PosScreen extends StatefulWidget {
   const PosScreen({super.key});
   @override
@@ -31,6 +33,7 @@ class _PosScreenState extends State<PosScreen> {
   late Future<List<Product>> _future;
   String _selectedCategory = 'Barchasi';
   int _mobileTab = 0; // 0: Katalog, 1: Savat
+  bool _isScannerOpen = false;
 
   static const _categories = ['Barchasi', 'Marmar', 'Granit', 'Travertin', 'Onyx', 'Boshqa'];
 
@@ -39,19 +42,67 @@ class _PosScreenState extends State<PosScreen> {
   @override
   void initState() {
     super.initState();
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     _future = context.read<AppRepositories>().products.list();
   }
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     _search.dispose();
     super.dispose();
   }
 
+  bool _handleKeyEvent(KeyEvent event) {
+    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.f2) {
+      if (!_isScannerOpen && mounted) {
+        _openQrScanner();
+      }
+      return true;
+    }
+    return false;
+  }
+
   void _reload() {
     setState(() {
-      _future = _repo.list(query: _search.text);
+      _future = _repo.list();
     });
+  }
+
+  Future<void> _openQrScanner() async {
+    if (_isScannerOpen) return;
+    _isScannerOpen = true;
+    final wide = MediaQuery.sizeOf(context).width >= 900;
+    if (wide && Platform.isWindows) {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        builder: (ctx) => _DesktopQrScannerDialog(
+          onCartUpdated: () {
+            if (mounted) setState(() {});
+          },
+        ),
+      );
+    } else {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (ctx) => QrScannerScreen(
+            onCartUpdated: () {
+              if (mounted) setState(() {});
+            },
+            onGoToCart: () {
+              if (mounted) {
+                setState(() {
+                  _mobileTab = 1;
+                });
+              }
+            },
+          ),
+        ),
+      );
+    }
+    _isScannerOpen = false;
+    if (mounted) _reload();
   }
 
   Future<void> _onSubmit(String text) async {
@@ -80,38 +131,63 @@ class _PosScreenState extends State<PosScreen> {
     final searchAndFilter = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Vault qidiruv paneli
-        Container(
-          height: 44,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: TextField(
-            controller: _search,
-            autofocus: wide,
-            decoration: InputDecoration(
-              hintText: 'QR / kod (Enter) yoki nom bo‘yicha qidirish...',
-              hintStyle: const TextStyle(fontSize: 13, color: AppColors.muted),
-              prefixIcon: const Icon(Icons.qr_code_scanner_rounded, size: 20, color: AppColors.muted),
-              suffixIcon: _search.text.isEmpty
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 18),
-                      onPressed: () {
-                        _search.clear();
-                        _reload();
-                      },
-                    ),
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+        // Vault qidiruv paneli va QR Skaner
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 44,
+                child: TextField(
+                  controller: _search,
+                  autofocus: wide,
+                  style: TextStyle(fontSize: 13, color: context.inkColor, fontWeight: FontWeight.w500),
+                  textAlignVertical: TextAlignVertical.center,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: context.cardColor,
+                    isDense: true,
+                    hintText: 'Qidirish yoki kod yozing...',
+                    hintStyle: const TextStyle(fontSize: 13, color: AppColors.muted),
+                    prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.muted),
+                    suffixIcon: _search.text.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.close_rounded, size: 18),
+                            onPressed: () {
+                              _search.clear();
+                              _reload();
+                            },
+                          ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide(color: context.borderColor)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide(color: context.borderColor)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide(color: context.isDark ? AppColors.neonLime : AppColors.ink, width: 1.5)),
+                  ),
+                  onChanged: (_) => _reload(),
+                  onSubmitted: _onSubmit,
+                ),
+              ),
             ),
-            onChanged: (_) => _reload(),
-            onSubmitted: _onSubmit,
-          ),
+            const SizedBox(width: 10),
+            SizedBox(
+              height: 44,
+              child: FilledButton.icon(
+                onPressed: _openQrScanner,
+                icon: const Icon(Icons.qr_code_scanner_rounded, size: 19),
+                label: Text(
+                  wide ? 'QR Skaner (F2)' : 'QR',
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                  foregroundColor: context.isDark ? AppColors.ink : Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  padding: EdgeInsets.symmetric(horizontal: wide ? 18 : 14),
+                  elevation: 0,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 10),
 
@@ -329,21 +405,27 @@ class _PosScreenState extends State<PosScreen> {
               ),
               child: Row(
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '${cartController.lines.length} ta mahsulot',
-                        style: const TextStyle(color: Color(0xFFA9BDB0), fontSize: 11),
-                      ),
-                      Text(
-                        money(cartController.total),
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15),
-                      ),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${cartController.lines.length} ta mahsulot',
+                          style: const TextStyle(color: Color(0xFFA9BDB0), fontSize: 11),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          money(cartController.total),
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   FilledButton.icon(
                     onPressed: () => setState(() => _mobileTab = 1),
                     style: FilledButton.styleFrom(
@@ -352,7 +434,7 @@ class _PosScreenState extends State<PosScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     ),
                     icon: const Icon(Icons.shopping_cart_checkout_rounded, size: 16),
-                    label: const Text('Savatga o‘tish', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+                    label: const Text('Savat', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
                   ),
                 ],
               ),
@@ -387,7 +469,6 @@ class _ProductCardState extends State<_ProductCard> {
     final out = p.stock <= 0;
     final lifted = _hover && !out;
     final intro = Duration(milliseconds: 320 + widget.index.clamp(0, 10) * 45);
-    final initial = p.name.isNotEmpty ? p.name[0].toUpperCase() : '?';
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
@@ -430,13 +511,11 @@ class _ProductCardState extends State<_ProductCard> {
                 opacity: out ? 0.55 : 1,
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(color: AppColors.greenSoft, borderRadius: BorderRadius.circular(12)),
-                      child: Text(initial,
-                          style: const TextStyle(color: AppColors.green, fontWeight: FontWeight.w800, fontSize: 17)),
+                    ProductThumbnail(
+                      imageUrl: p.imageUrl,
+                      name: p.name,
+                      size: 46,
+                      borderRadius: 12,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -706,6 +785,13 @@ class _CartLineTile extends StatelessWidget {
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
+            ProductThumbnail(
+              imageUrl: p.imageUrl,
+              name: p.name,
+              size: 32,
+              borderRadius: 8,
+            ),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
@@ -909,6 +995,394 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
           child: const Text('Tasdiqlash', style: TextStyle(fontWeight: FontWeight.w700)),
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Windows / Katta ekranlar uchun USB Skaner dialogi (F2)
+// ---------------------------------------------------------------------------
+
+class _DesktopQrScannerDialog extends StatefulWidget {
+  const _DesktopQrScannerDialog({required this.onCartUpdated});
+  final VoidCallback onCartUpdated;
+
+  @override
+  State<_DesktopQrScannerDialog> createState() => _DesktopQrScannerDialogState();
+}
+
+class _DesktopQrScannerDialogState extends State<_DesktopQrScannerDialog> {
+  final _inputCtrl = TextEditingController();
+  final _focusNode = FocusNode();
+
+  String? _statusMessage;
+  bool _isError = false;
+  Product? _lastProduct;
+  double _lastQty = 1.0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _inputCtrl.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _processCode(String rawCode) async {
+    final code = rawCode.trim();
+    if (code.isEmpty) return;
+
+    try {
+      final repo = context.read<AppRepositories>().products;
+      final p = await repo.findByCode(code);
+      if (!mounted) return;
+
+      if (p != null) {
+        HapticFeedback.mediumImpact();
+        SystemSound.play(SystemSoundType.click);
+
+        context.read<CartController>().add(p, quantity: 1);
+        widget.onCartUpdated();
+
+        setState(() {
+          _isError = false;
+          _statusMessage = '“${p.name}” savatga qo‘shildi (+1 ${_u(p.unit)})';
+          _lastProduct = p;
+          _lastQty = 1.0;
+          _inputCtrl.clear();
+        });
+        _focusNode.requestFocus();
+      } else {
+        HapticFeedback.vibrate();
+        setState(() {
+          _isError = true;
+          _statusMessage = 'Mahsulot topilmadi: "$code"';
+        });
+        _focusNode.requestFocus();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isError = true;
+          _statusMessage = 'Xatolik: $e';
+        });
+      }
+    }
+  }
+
+  void _updateLastQty(double delta) {
+    if (_lastProduct == null) return;
+    final cart = context.read<CartController>();
+    final p = _lastProduct!;
+
+    if (delta > 0) {
+      cart.add(p, quantity: delta);
+      setState(() {
+        _lastQty += delta;
+      });
+    } else if (delta < 0) {
+      final existing = cart.lines.where((l) => l.product.id == p.id);
+      if (existing.isNotEmpty) {
+        final l = existing.first;
+        if (l.quantity + delta > 0.001) {
+          cart.update(l, quantity: l.quantity + delta);
+          setState(() {
+            _lastQty += delta;
+          });
+        } else {
+          cart.remove(l);
+          setState(() {
+            _lastProduct = null;
+            _lastQty = 1.0;
+          });
+        }
+      }
+    }
+    widget.onCartUpdated();
+    _focusNode.requestFocus();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cart = context.watch<CartController>();
+
+    return Dialog(
+      backgroundColor: context.dialogBg,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: context.isDark ? const Color(0xFF132D21) : AppColors.greenSoft,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.green, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'QR / Barkod skaneri',
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          'USB skaner yoki kod kiritish (F2)',
+                          style: TextStyle(fontSize: 12, color: context.mutedColor),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: context.isDark ? const Color(0xFF0F1A24) : const Color(0xFFF1F6FB),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.usb_rounded, color: AppColors.info, size: 20),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'USB 2D / Lazer skaner tayyor. Shtrix-kod yoki QR kodni skanerlang',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 44,
+                      child: TextField(
+                        controller: _inputCtrl,
+                        focusNode: _focusNode,
+                        textInputAction: TextInputAction.done,
+                        style: TextStyle(fontSize: 13, color: context.inkColor, fontWeight: FontWeight.w600),
+                        textAlignVertical: TextAlignVertical.center,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: context.cardColor,
+                          hintText: 'Skanerlang yoki kod yozing (masalan: STX-ANGOLA)...',
+                          hintStyle: const TextStyle(fontSize: 12, color: AppColors.muted),
+                          prefixIcon: const Icon(Icons.qr_code_rounded, size: 20, color: AppColors.muted),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide(color: context.borderColor)),
+                        ),
+                        onSubmitted: _processCode,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    height: 44,
+                    child: FilledButton.icon(
+                      onPressed: () => _processCode(_inputCtrl.text),
+                      icon: const Icon(Icons.add_shopping_cart_rounded, size: 17),
+                      label: const Text('Qo‘shish', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                        foregroundColor: context.isDark ? AppColors.ink : Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (_statusMessage != null && _isError) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: context.isDark ? const Color(0xFF331616) : const Color(0xFFFCE4E3),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.danger.withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline_rounded, size: 18, color: AppColors.danger),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _statusMessage!,
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.danger),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              if (_lastProduct != null) ...[
+                const SizedBox(height: 14),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.check_circle_rounded, size: 14, color: AppColors.green),
+                        SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            'Oxirgi skanerlangan mahsulot',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.green),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: context.isDark ? const Color(0xFF132D21) : const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: (context.isDark ? AppColors.greenBright : AppColors.green).withValues(alpha: 0.4),
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: context.isDark ? const Color(0xFF0C2016) : Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              _lastProduct!.name.isNotEmpty ? _lastProduct!.name[0].toUpperCase() : '?',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.green),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _lastProduct!.name,
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${money(_lastProduct!.price)} / ${_u(_lastProduct!.unit)} • Qoldiq: ${qty(_lastProduct!.stock)} ${_u(_lastProduct!.unit)}',
+                                  style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: context.isDark ? const Color(0xFF0E2218) : Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: context.borderColor),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.remove_rounded, size: 16),
+                                  padding: const EdgeInsets.all(4),
+                                  constraints: const BoxConstraints(),
+                                  splashRadius: 14,
+                                  onPressed: () => _updateLastQty(-1),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                                  child: Text(
+                                    qty(_lastQty),
+                                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.add_rounded, size: 16),
+                                  padding: const EdgeInsets.all(4),
+                                  constraints: const BoxConstraints(),
+                                  splashRadius: 14,
+                                  onPressed: () => _updateLastQty(1),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      cart.lines.isNotEmpty ? 'Savatda: ${cart.lines.length} ta tovar • ${money(cart.total)}' : 'Savat bo‘sh',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: cart.lines.isNotEmpty ? AppColors.green : context.mutedColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                      foregroundColor: context.isDark ? AppColors.ink : Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    ),
+                    child: const Text('Tayyor (Yopish)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -42,6 +42,17 @@ def create_task(data: TaskCreate, db: Session = Depends(get_db),
     t = m.ProductionTask(product_id=data.product_id, assigned_to=data.assigned_to,
                          planned_qty=data.planned_qty, note=data.note)
     db.add(t)
+
+    # Bildirishnoma yaratish
+    prod = db.get(m.Product, data.product_id)
+    p_name = prod.name if prod else "Mahsulot"
+    p_unit = prod.unit if prod else "m²"
+    db.add(m.Notification(
+        title="Yangi ishlab chiqarish topshirig‘i",
+        message=f"{worker.full_name} ga {t.planned_qty} {p_unit} {p_name} topshirig‘i biriktirildi.",
+        kind="production",
+    ))
+
     db.commit()
     db.refresh(t)
     return to_out(t)
@@ -58,10 +69,18 @@ def report(task_id: int, data: TaskReport, db: Session = Depends(get_db),
         raise HTTPException(400, "Topshiriq yopilgan")
     qty = q3(data.produced_qty)
     t.produced_qty = t.produced_qty + qty
-    if t.produced_qty >= t.planned_qty:
+    is_completed = t.produced_qty >= t.planned_qty
+    if is_completed:
         t.status = "done"
     add_movement(db, product_id=t.product_id, qty_delta=qty, kind=m.MV_PRODUCTION,
                  ref_type="task", ref_id=t.id, user_id=user.id)
+
+    db.add(m.Notification(
+        title="Ishlab chiqarish yakunlandi" if is_completed else "Ishlab chiqarish qayd etildi",
+        message=f"{user.full_name} tomonidan {qty} {t.product.unit} {t.product.name} qabul qilindi.",
+        kind="production",
+    ))
+
     db.commit()
     db.refresh(t)
     return to_out(t)

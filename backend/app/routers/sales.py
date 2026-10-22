@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from .. import models as m
 from .. import roles
@@ -25,16 +25,25 @@ def create(data: SaleIn, db: Session = Depends(get_db), user: m.User = Depends(_
 
 @router.get("", response_model=list[SaleOut])
 def list_sales(limit: int = 100, db: Session = Depends(get_db), user: m.User = Depends(_sellers)):
-    stmt = select(m.Sale).order_by(m.Sale.id.desc()).limit(min(limit, 500))
+    stmt = (
+        select(m.Sale)
+        .options(selectinload(m.Sale.items), selectinload(m.Sale.customer))
+        .order_by(m.Sale.id.desc())
+        .limit(min(limit, 500))
+    )
     if user.role != roles.ADMIN:  # kassir faqat o'z savdolarini ko'radi
         stmt = stmt.where(m.Sale.cashier_id == user.id)
     return [to_out(s) for s in db.scalars(stmt).all()]
 
 
-# Diqqat: "/debts" "/{sale_id}" dan OLDIN e'lon qilinishi shart.
 @router.get("/debts", response_model=list[SaleOut])
 def debts(db: Session = Depends(get_db), _: m.User = Depends(_sellers)):
-    stmt = select(m.Sale).where(m.Sale.paid < m.Sale.total).order_by(m.Sale.id)
+    stmt = (
+        select(m.Sale)
+        .options(selectinload(m.Sale.items), selectinload(m.Sale.customer))
+        .where(m.Sale.paid < m.Sale.total)
+        .order_by(m.Sale.id)
+    )
     return [to_out(s) for s in db.scalars(stmt).all()]
 
 

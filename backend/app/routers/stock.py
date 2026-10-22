@@ -38,6 +38,12 @@ def purchase(data: PurchaseIn, db: Session = Depends(get_db), admin: m.User = De
     p.cost_price = q2((old_stock * p.cost_price + qty * data.unit_cost) / new_stock)
     mv = add_movement(db, product_id=p.id, qty_delta=qty, kind=m.MV_PURCHASE, note=data.note,
                       user_id=admin.id)
+    db.add(m.Notification(
+        title="Omborga tovar kirimi",
+        message=f"{p.name}: +{qty} {p.unit} qabul qilindi ({admin.full_name or admin.username})",
+        kind="system",
+        is_read=False,
+    ))
     db.commit()
     return mv
 
@@ -53,5 +59,12 @@ def adjust(data: AdjustIn, db: Session = Depends(get_db), admin: m.User = Depend
         raise HTTPException(400, "Qoldiq manfiy bo'lib qoladi")
     mv = add_movement(db, product_id=p.id, qty_delta=data.delta, kind=m.MV_ADJUST,
                       note=data.note, user_id=admin.id)
+    sign = "+" if data.delta > 0 else ""
+    db.add(m.Notification(
+        title="Ombor qoldig‘i tuzatildi",
+        message=f"{p.name}: {sign}{data.delta} {p.unit} ({admin.full_name or admin.username})",
+        kind="warning",
+        is_read=False,
+    ))
     db.commit()
     return mv

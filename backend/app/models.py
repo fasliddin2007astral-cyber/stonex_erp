@@ -48,6 +48,7 @@ class Product(Base):
     dona_m2: Mapped[Decimal | None] = mapped_column(QTY, nullable=True)  # faqat toshlar: 0.25
     price: Mapped[Decimal] = mapped_column(MONEY, default=0)  # bazaviy birlik uchun sotuv narxi
     cost_price: Mapped[Decimal] = mapped_column(MONEY, default=0)  # o'rtacha tannarx
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
@@ -138,3 +139,14 @@ class ProductionTask(Base):
 
     product: Mapped["Product"] = relationship()
     worker: Mapped["User"] = relationship()
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(128))
+    message: Mapped[str] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(String(32), default="system")  # warning, payment, sale, production, system
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+

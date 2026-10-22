@@ -78,6 +78,30 @@ class ApiTest(unittest.TestCase):
             "customer_name": "Z"})
         self.assertEqual(r.status_code, 400)
 
+    def test_product_image_upload(self):
+        # 1. Rasm faylini yuklash
+        fake_image = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00`\x00`\x00\x00"
+        r = self.c.post("/products/upload-image", headers=self.h,
+                        files={"file": ("granit.jpg", fake_image, "image/jpeg")})
+        self.assertEqual(r.status_code, 200)
+        img_url = r.json()["image_url"]
+        self.assertTrue(img_url.startswith("/uploads/products/"))
+
+        # 2. Yangi mahsulotni ushbu rasm bilan yaratish
+        r = self.c.post("/products", headers=self.h, json={
+            "name": "Granit Plita", "unit": "m2", "price": 220000, "image_url": img_url
+        })
+        self.assertEqual(r.status_code, 201)
+        created = r.json()
+        self.assertEqual(created["image_url"], img_url)
+
+        # 3. Mavjud mahsulotga to'g'ridan-to'g'ri rasm yuklash
+        r = self.c.post(f"/products/{created['id']}/image", headers=self.h,
+                        files={"file": ("granit_new.png", fake_image, "image/png")})
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()["image_url"].endswith(".png"))
+
+
 
 if __name__ == "__main__":
     unittest.main()

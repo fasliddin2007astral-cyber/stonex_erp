@@ -34,21 +34,27 @@ class AppColors {
   static const infoSoft = Color(0xFFDBEAFE);
 }
 
-ThemeData buildTheme() {
+ThemeData buildTheme([Brightness brightness = Brightness.light]) {
+  final isDark = brightness == Brightness.dark;
+
   final scheme = ColorScheme.fromSeed(
     seedColor: AppColors.neonLime,
-    brightness: Brightness.light,
+    brightness: brightness,
   ).copyWith(
-    primary: AppColors.ink,
+    primary: isDark ? AppColors.neonLime : AppColors.ink,
     secondary: AppColors.neonLime,
-    surface: AppColors.cardBg,
+    surface: isDark ? const Color(0xFF161B22) : AppColors.cardBg,
     error: AppColors.danger,
+    onSurface: isDark ? const Color(0xFFF0F3F6) : AppColors.ink,
   );
 
   final base = ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    scaffoldBackgroundColor: AppColors.panel,
+    brightness: brightness,
+    scaffoldBackgroundColor: isDark ? const Color(0xFF0D1015) : AppColors.panel,
+    cardColor: isDark ? const Color(0xFF161B22) : Colors.white,
+    dialogTheme: DialogThemeData(backgroundColor: isDark ? const Color(0xFF161B22) : Colors.white),
     fontFamily: 'Inter',
   );
 
@@ -57,50 +63,50 @@ ThemeData buildTheme() {
 
   return base.copyWith(
     textTheme: base.textTheme.apply(
-      bodyColor: AppColors.ink,
-      displayColor: AppColors.ink,
+      bodyColor: isDark ? const Color(0xFFF0F3F6) : AppColors.ink,
+      displayColor: isDark ? const Color(0xFFF0F3F6) : AppColors.ink,
     ),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.panel,
-      foregroundColor: AppColors.ink,
+    appBarTheme: AppBarTheme(
+      backgroundColor: isDark ? const Color(0xFF0D1015) : AppColors.panel,
+      foregroundColor: isDark ? const Color(0xFFF0F3F6) : AppColors.ink,
       elevation: 0,
       scrolledUnderElevation: 0,
       titleTextStyle: TextStyle(
-        color: AppColors.ink,
+        color: isDark ? const Color(0xFFF0F3F6) : AppColors.ink,
         fontSize: 22,
         fontWeight: FontWeight.w800,
         letterSpacing: -0.5,
       ),
     ),
     cardTheme: CardThemeData(
-      color: Colors.white,
+      color: isDark ? const Color(0xFF161B22) : Colors.white,
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: radius16,
-        side: const BorderSide(color: AppColors.border, width: 1),
+        side: BorderSide(color: isDark ? const Color(0xFF262C36) : AppColors.border, width: 1),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Colors.white,
+      fillColor: isDark ? const Color(0xFF21262D) : Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: radius30,
-        borderSide: const BorderSide(color: AppColors.border),
+        borderSide: BorderSide(color: isDark ? const Color(0xFF262C36) : AppColors.border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: radius30,
-        borderSide: const BorderSide(color: AppColors.border),
+        borderSide: BorderSide(color: isDark ? const Color(0xFF262C36) : AppColors.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: radius30,
-        borderSide: const BorderSide(color: AppColors.ink, width: 1.6),
+        borderSide: BorderSide(color: isDark ? AppColors.neonLime : AppColors.ink, width: 1.6),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: AppColors.darkCard,
-        foregroundColor: Colors.white,
+        backgroundColor: isDark ? AppColors.neonLime : AppColors.darkCard,
+        foregroundColor: isDark ? AppColors.ink : Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: radius30),
         textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
@@ -108,23 +114,40 @@ ThemeData buildTheme() {
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.ink,
-        side: const BorderSide(color: AppColors.border),
+        foregroundColor: isDark ? const Color(0xFFF0F3F6) : AppColors.ink,
+        side: BorderSide(color: isDark ? const Color(0xFF262C36) : AppColors.border),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: radius30),
         textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
       ),
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
-      backgroundColor: AppColors.darkCard,
-      foregroundColor: Colors.white,
+      backgroundColor: isDark ? AppColors.neonLime : AppColors.darkCard,
+      foregroundColor: isDark ? AppColors.ink : Colors.white,
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: radius30),
     ),
-    dividerTheme: const DividerThemeData(color: AppColors.borderLight, space: 1),
+    dividerTheme: DividerThemeData(
+      color: isDark ? const Color(0xFF262C36) : AppColors.borderLight,
+      space: 1,
+    ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: radius16),
     ),
   );
+}
+
+/// Dynamic theme extension for consistent styling across light and dark modes
+extension ThemeX on BuildContext {
+  bool get isDark => Theme.of(this).brightness == Brightness.dark;
+  Color get cardColor => isDark ? const Color(0xFF161B22) : Colors.white;
+  Color get scaffoldBg => isDark ? const Color(0xFF0D1015) : AppColors.panel;
+  Color get inkColor => isDark ? const Color(0xFFF0F3F6) : AppColors.ink;
+  Color get mutedColor => isDark ? const Color(0xFF8B949E) : AppColors.muted;
+  Color get borderColor => isDark ? const Color(0xFF262C36) : AppColors.border;
+  Color get borderLightColor => isDark ? const Color(0xFF202630) : AppColors.borderLight;
+  Color get pillColor => isDark ? const Color(0xFF21262D) : AppColors.panel;
+  Color get dialogBg => isDark ? const Color(0xFF161B22) : Colors.white;
+  Color get cardSubtle => isDark ? const Color(0xFF1B2129) : const Color(0xFFF9FAFB);
 }

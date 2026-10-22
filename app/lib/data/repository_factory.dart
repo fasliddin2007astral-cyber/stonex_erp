@@ -5,6 +5,8 @@ import 'mock_repositories.dart';
 import 'repositories.dart';
 
 /// Mock <-> API almashtirish FAQAT shu yerda. Ekranlar o'zgarmaydi.
+final appApiClient = ApiClient(AppConfig.apiBaseUrl);
+
 AppRepositories buildRepositories() {
   if (AppConfig.useMock) {
     final s = MockStore();
@@ -16,16 +18,17 @@ AppRepositories buildRepositories() {
       production: MockProductionRepository(s),
       users: MockUserRepository(s),
       stock: MockStockRepository(s),
+      notifications: MockNotificationRepository(s),
     );
   }
-  final api = ApiClient(AppConfig.apiBaseUrl);
   return AppRepositories(
-    auth: ApiAuthRepository(api),
-    products: ApiProductRepository(api),
-    sales: ApiSalesRepository(api),
-    finance: ApiFinanceRepository(api),
-    production: ApiProductionRepository(api),
-    users: ApiUserRepository(api),
-    stock: ApiStockRepository(api),
+    auth: ApiAuthRepository(appApiClient),
+    products: ApiProductRepository(appApiClient),
+    sales: ApiSalesRepository(appApiClient),
+    finance: ApiFinanceRepository(appApiClient),
+    production: ApiProductionRepository(appApiClient),
+    users: ApiUserRepository(appApiClient),
+    stock: ApiStockRepository(appApiClient),
+    notifications: ApiNotificationRepository(appApiClient),
   );
 }

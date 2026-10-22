@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../core/format.dart';
@@ -6,6 +9,7 @@ import '../core/theme.dart';
 import '../data/repositories.dart';
 import '../domain/models.dart';
 import '../state/auth_controller.dart';
+import '../state/theme_controller.dart';
 import 'common.dart';
 import 'dashboard_screen.dart';
 import 'debts_screen.dart';
@@ -21,25 +25,41 @@ class _Dest {
   final Widget Function() build;
   final bool isGeneral;
   final String actionLabel;
-  const _Dest(this.label, this.icon, this.build, {this.isGeneral = false, this.actionLabel = 'Qo‘shish'});
+  const _Dest(this.label, this.icon, this.build,
+      {this.isGeneral = false, this.actionLabel = 'Qo‘shish'});
 }
 
-List<_Dest> _destinationsFor(Role role, {void Function(int index)? onNavigate}) {
-  final dash = _Dest('Dashboard', Icons.grid_view_rounded, () => DashboardScreen(onNavigate: onNavigate), actionLabel: '+ Yangi Savdo');
-  const pos = _Dest('Savdo (POS)', Icons.point_of_sale_rounded, PosScreen.new, actionLabel: 'Savdoga o‘tish');
-  const debts = _Dest('Nasiyalar', Icons.pending_actions_rounded, DebtsScreen.new, actionLabel: 'Qarz undirish');
-  const products = _Dest('Mahsulotlar', Icons.inventory_2_rounded, ProductsScreen.new, actionLabel: '+ Mahsulot');
-  const stock = _Dest('Ombor', Icons.warehouse_rounded, StockScreen.new, actionLabel: '+ Xarid kirimi');
+List<_Dest> _destinationsFor(Role role,
+    {void Function(int index)? onNavigate}) {
+  final dash = _Dest('Dashboard', Icons.grid_view_rounded,
+      () => DashboardScreen(onNavigate: onNavigate),
+      actionLabel: '+ Yangi Savdo');
+  const pos = _Dest('Savdo (POS)', Icons.point_of_sale_rounded, PosScreen.new,
+      actionLabel: 'Savdoga o‘tish');
+  const debts = _Dest(
+      'Nasiyalar', Icons.pending_actions_rounded, DebtsScreen.new,
+      actionLabel: 'Qarz undirish');
+  const products = _Dest(
+      'Mahsulotlar', Icons.inventory_2_rounded, ProductsScreen.new,
+      actionLabel: '+ Mahsulot');
+  const stock = _Dest('Ombor', Icons.warehouse_rounded, StockScreen.new,
+      actionLabel: '+ Xarid kirimi');
   final prod = _Dest(
     'Ishlab chiqarish',
     Icons.precision_manufacturing_rounded,
     ProductionScreen.new,
     actionLabel: role == Role.admin ? '+ Topshiriq' : '',
   );
-  const staff = _Dest('Xodimlar', Icons.badge_rounded, UsersScreen.new, isGeneral: true, actionLabel: '+ Xodim');
-  final cams = _Dest('Kameralar', Icons.videocam_rounded,
-      () => const NotImplementedView(title: 'Kameralar', note: 'IP-kamera / DVR oqimlari keyingi bosqichda ulanadi.'),
-      isGeneral: true, actionLabel: 'Sozlash');
+  const staff = _Dest('Xodimlar', Icons.badge_rounded, UsersScreen.new,
+      isGeneral: true, actionLabel: '+ Xodim');
+  final cams = _Dest(
+      'Kameralar',
+      Icons.videocam_rounded,
+      () => const NotImplementedView(
+          title: 'Kameralar',
+          note: 'IP-kamera / DVR oqimlari keyingi bosqichda ulanadi.'),
+      isGeneral: true,
+      actionLabel: 'Sozlash');
 
   switch (role) {
     case Role.admin:
@@ -63,9 +83,50 @@ class _HomeShellState extends State<HomeShell> {
   int _index = 0;
   int _refreshKey = 0;
   final _searchCtrl = TextEditingController();
+  List<AppNotification> _notifications = [];
+  Timer? _notifTimer;
+  bool _isSearchOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadNotifications());
+    _notifTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (mounted) _loadNotifications();
+    });
+  }
+
+  bool _handleKeyEvent(KeyEvent event) {
+    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.keyK) {
+      final isMeta = HardwareKeyboard.instance.isMetaPressed;
+      final isCtrl = HardwareKeyboard.instance.isControlPressed;
+      if (isMeta || isCtrl) {
+        if (!_isSearchOpen && mounted) {
+          _openGlobalSearch();
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Future<void> _loadNotifications() async {
+    try {
+      final repos = context.read<AppRepositories>();
+      final list = await repos.notifications.list(limit: 50);
+      if (mounted) {
+        setState(() {
+          _notifications = list;
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    _notifTimer?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -88,12 +149,14 @@ class _HomeShellState extends State<HomeShell> {
         });
       }
     } else if (cur.label.startsWith('Savdo')) {
-      showMessage(context, 'Kassa faol. Mahsulotni tanlang yoki kodini skaner qiling.');
+      showMessage(
+          context, 'Kassa faol. Mahsulotni tanlang yoki kodini skaner qiling.');
     } else if (cur.label == 'Nasiyalar') {
       final debts = await repos.sales.listDebts();
       if (!mounted) return;
       if (debts.isEmpty) {
-        showMessage(context, 'Hozircha undirilishi kerak bo‘lgan qarzdorliklar yo‘q');
+        showMessage(
+            context, 'Hozircha undirilishi kerak bo‘lgan qarzdorliklar yo‘q');
         return;
       }
 
@@ -102,9 +165,12 @@ class _HomeShellState extends State<HomeShell> {
           : await showDialog<SaleResult>(
               context: context,
               builder: (ctx) => AlertDialog(
-                backgroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-                title: const Text('Qarz undirish: Mijozni tanlang', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
+                backgroundColor: context.dialogBg,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(22)),
+                title: const Text('Qarz undirish: Mijozni tanlang',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
                 content: SizedBox(
                   width: 360,
                   child: SingleChildScrollView(
@@ -113,18 +179,34 @@ class _HomeShellState extends State<HomeShell> {
                       children: [
                         for (final d in debts)
                           ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 4),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                             leading: CircleAvatar(
-                              backgroundColor: const Color(0xFFFFF1DC),
+                              backgroundColor: context.isDark
+                                  ? const Color(0xFF2C2210)
+                                  : const Color(0xFFFFF1DC),
                               child: Text(
-                                d.customerName?.isNotEmpty == true ? d.customerName![0].toUpperCase() : '#',
-                                style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFFC77700)),
+                                d.customerName?.isNotEmpty == true
+                                    ? d.customerName![0].toUpperCase()
+                                    : '#',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  color: context.isDark
+                                      ? const Color(0xFFFFB03A)
+                                      : const Color(0xFFC77700),
+                                ),
                               ),
                             ),
-                            title: Text(d.customerName ?? 'Mijoz #${d.id}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                            title: Text(d.customerName ?? 'Mijoz #${d.id}',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: context.inkColor)),
                             subtitle: Text('Qarz: ${money(d.debt)}'),
-                            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                            trailing: const Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 14),
                             onTap: () => Navigator.pop(ctx, d),
                           ),
                       ],
@@ -132,13 +214,16 @@ class _HomeShellState extends State<HomeShell> {
                   ),
                 ),
                 actions: [
-                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Bekor')),
+                  TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Bekor')),
                 ],
               ),
             );
 
       if (selected != null && mounted) {
-        final ctrl = TextEditingController(text: selected.debt.round().toString());
+        final ctrl =
+            TextEditingController(text: selected.debt.round().toString());
         String method = 'cash';
         String? error;
         bool busy = false;
@@ -147,11 +232,13 @@ class _HomeShellState extends State<HomeShell> {
           context: context,
           builder: (ctx) => StatefulBuilder(
             builder: (ctx, setS) => AlertDialog(
-              backgroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+              backgroundColor: context.dialogBg,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(22)),
               title: Text(
                 'Qarz to‘lovi: ${selected.customerName ?? 'Savdo #${selected.id}'}',
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+                style:
+                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
               ),
               content: SizedBox(
                 width: 360,
@@ -161,14 +248,35 @@ class _HomeShellState extends State<HomeShell> {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: const Color(0xFFFFF1DC), borderRadius: BorderRadius.circular(14)),
+                      decoration: BoxDecoration(
+                        color: context.isDark
+                            ? const Color(0xFF2C2210)
+                            : const Color(0xFFFFF1DC),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                       child: Row(children: [
-                        const Icon(Icons.pending_actions_rounded, color: Color(0xFFC77700)),
+                        Icon(Icons.pending_actions_rounded,
+                            color: context.isDark
+                                ? const Color(0xFFFFB03A)
+                                : const Color(0xFFC77700)),
                         const SizedBox(width: 10),
-                        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          const Text('Qoldiq qarz', style: TextStyle(fontSize: 12, color: AppColors.muted)),
-                          Text(money(selected.debt), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFFC77700))),
-                        ]),
+                        Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Qoldiq qarz',
+                                  style: TextStyle(
+                                      fontSize: 12, color: AppColors.muted)),
+                              Text(
+                                money(selected.debt),
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: context.isDark
+                                      ? const Color(0xFFFFB03A)
+                                      : const Color(0xFFC77700),
+                                ),
+                              ),
+                            ]),
                       ]),
                     ),
                     const SizedBox(height: 14),
@@ -176,7 +284,8 @@ class _HomeShellState extends State<HomeShell> {
                       controller: ctrl,
                       autofocus: true,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'To‘lanayotgan summa'),
+                      decoration: const InputDecoration(
+                          labelText: 'To‘lanayotgan summa'),
                       onChanged: (_) {
                         setS(() {
                           error = null;
@@ -186,11 +295,15 @@ class _HomeShellState extends State<HomeShell> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       value: method,
-                      decoration: const InputDecoration(labelText: 'To‘lov usuli'),
+                      decoration:
+                          const InputDecoration(labelText: 'To‘lov usuli'),
                       items: const [
-                        DropdownMenuItem(value: 'cash', child: Text('Naqd pul')),
-                        DropdownMenuItem(value: 'card', child: Text('Bank kartasi')),
-                        DropdownMenuItem(value: 'transfer', child: Text('O‘tkazma')),
+                        DropdownMenuItem(
+                            value: 'cash', child: Text('Naqd pul')),
+                        DropdownMenuItem(
+                            value: 'card', child: Text('Bank kartasi')),
+                        DropdownMenuItem(
+                            value: 'transfer', child: Text('O‘tkazma')),
                       ],
                       onChanged: (v) {
                         setS(() {
@@ -201,13 +314,17 @@ class _HomeShellState extends State<HomeShell> {
                     if (error != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 10),
-                        child: Text(error!, style: const TextStyle(color: AppColors.danger, fontSize: 12)),
+                        child: Text(error!,
+                            style: const TextStyle(
+                                color: AppColors.danger, fontSize: 12)),
                       ),
                   ],
                 ),
               ),
               actions: [
-                TextButton(onPressed: busy ? null : () => Navigator.pop(ctx, false), child: const Text('Bekor')),
+                TextButton(
+                    onPressed: busy ? null : () => Navigator.pop(ctx, false),
+                    child: const Text('Bekor')),
                 FilledButton(
                   onPressed: busy
                       ? null
@@ -221,7 +338,8 @@ class _HomeShellState extends State<HomeShell> {
                           }
                           if (val > selected.debt + 0.01) {
                             setS(() {
-                              error = 'To‘lov qarzdan ko‘p bo‘lishi mumkin emas';
+                              error =
+                                  'To‘lov qarzdan ko‘p bo‘lishi mumkin emas';
                             });
                             return;
                           }
@@ -230,7 +348,8 @@ class _HomeShellState extends State<HomeShell> {
                             error = null;
                           });
                           try {
-                            await repos.sales.payDebt(selected.id, val, method: method);
+                            await repos.sales
+                                .payDebt(selected.id, val, method: method);
                             if (ctx.mounted) Navigator.pop(ctx, true);
                           } catch (e) {
                             setS(() {
@@ -239,8 +358,22 @@ class _HomeShellState extends State<HomeShell> {
                             });
                           }
                         },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: context.isDark
+                        ? AppColors.neonLime
+                        : AppColors.darkCard,
+                    foregroundColor:
+                        context.isDark ? AppColors.ink : Colors.white,
+                  ),
                   child: busy
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: context.isDark
+                                  ? AppColors.ink
+                                  : Colors.white))
                       : const Text('Qabul qilish'),
                 ),
               ],
@@ -306,98 +439,264 @@ class _HomeShellState extends State<HomeShell> {
         });
       }
     } else if (cur.label == 'Kameralar') {
-      showMessage(context, 'IP-kamera / DVR oqimlari keyingi bosqichda ulanadi.');
+      showMessage(
+          context, 'IP-kamera / DVR oqimlari keyingi bosqichda ulanadi.');
     }
   }
 
-  void _showNotifications(BuildContext context) {
-    showDialog(
+  String _formatTimeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'Hozirgina';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} daqiqa oldin';
+    if (diff.inHours < 24) return '${diff.inHours} soat oldin';
+    return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  void _showNotifications() async {
+    await _loadNotifications();
+    if (!mounted) return;
+    final repos = context.read<AppRepositories>();
+
+    await showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: const Row(
-          children: [
-            Icon(Icons.notifications_active_rounded, color: AppColors.ink),
-            SizedBox(width: 10),
-            Text('Bildirishnomalar', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-          ],
-        ),
-        content: SizedBox(
-          width: 360,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildNotifItem(
-                title: 'Ombor ogohlantirishi',
-                desc: 'Metalogranit zaxirasi 80 m² qoldi.',
-                time: '12 daqiqa oldin',
-                color: const Color(0xFFC77700),
-                icon: Icons.inventory_2_outlined,
-              ),
-              const Divider(height: 16),
-              _buildNotifItem(
-                title: 'Qarz to‘lovi',
-                desc: 'Akmal aka 300 000 so‘m to‘lov qildi.',
-                time: '1 soat oldin',
-                color: AppColors.green,
-                icon: Icons.payments_outlined,
-              ),
-              const Divider(height: 16),
-              _buildNotifItem(
-                title: 'Ishlab chiqarish',
-                desc: 'Ishchi Bobur Angola kesish topshirig‘ini boshladi.',
-                time: 'Bugun, 09:30',
-                color: const Color(0xFF245580),
-                icon: Icons.precision_manufacturing_rounded,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final unreadList = _notifications.where((n) => !n.isRead).toList();
+
+          return AlertDialog(
+            backgroundColor: context.dialogBg,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.notifications_active_rounded,
+                        color: context.isDark
+                            ? AppColors.neonLime
+                            : AppColors.ink),
+                    const SizedBox(width: 10),
+                    Text('Bildirishnomalar',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            color: context.inkColor)),
+                  ],
+                ),
+                if (unreadList.isNotEmpty)
+                  TextButton.icon(
+                    onPressed: () async {
+                      await repos.notifications.markAllRead();
+                      await _loadNotifications();
+                      setDialogState(() {});
+                    },
+                    icon: const Icon(Icons.done_all_rounded, size: 16),
+                    label: const Text('Barchasini o‘qish',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w700)),
+                  ),
+              ],
+            ),
+            content: SizedBox(
+              width: 420,
+              height: 380,
+              child: _notifications.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.notifications_off_outlined,
+                              size: 40, color: context.mutedColor),
+                          const SizedBox(height: 12),
+                          Text('Hozircha bildirishnomalar yo‘q',
+                              style: TextStyle(
+                                  color: context.mutedColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: _notifications.length,
+                      separatorBuilder: (_, __) =>
+                          Divider(height: 12, color: context.borderColor),
+                      itemBuilder: (ctx, i) {
+                        final n = _notifications[i];
+                        Color color = AppColors.green;
+                        IconData icon = Icons.info_outline_rounded;
+                        if (n.kind == 'warning') {
+                          color = const Color(0xFFC77700);
+                          icon = Icons.inventory_2_outlined;
+                        } else if (n.kind == 'payment') {
+                          color = AppColors.green;
+                          icon = Icons.payments_outlined;
+                        } else if (n.kind == 'production') {
+                          color = const Color(0xFF245580);
+                          icon = Icons.precision_manufacturing_rounded;
+                        } else if (n.kind == 'sale') {
+                          color = const Color(0xFF10B981);
+                          icon = Icons.shopping_bag_outlined;
+                        }
+
+                        return InkWell(
+                          onTap: n.isRead
+                              ? null
+                              : () async {
+                                  await repos.notifications.markRead(n.id);
+                                  await _loadNotifications();
+                                  setDialogState(() {});
+                                },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: n.isRead
+                                  ? Colors.transparent
+                                  : (context.isDark
+                                      ? AppColors.neonLime
+                                          .withValues(alpha: 0.12)
+                                      : AppColors.neonLimeSoft
+                                          .withValues(alpha: 0.4)),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: n.isRead
+                                    ? Colors.transparent
+                                    : AppColors.neonLime.withValues(
+                                        alpha: context.isDark ? 0.35 : 0.45),
+                              ),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: color.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(icon, color: color, size: 18),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              n.title,
+                                              style: TextStyle(
+                                                fontWeight: n.isRead
+                                                    ? FontWeight.w600
+                                                    : FontWeight.w800,
+                                                fontSize: 13,
+                                                color: context.inkColor,
+                                              ),
+                                            ),
+                                          ),
+                                          if (!n.isRead)
+                                            Container(
+                                              width: 7,
+                                              height: 7,
+                                              decoration: const BoxDecoration(
+                                                color: AppColors.green,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        n.message,
+                                        style: TextStyle(
+                                            color: context.mutedColor,
+                                            fontSize: 12),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _formatTimeAgo(n.createdAt),
+                                        style: TextStyle(
+                                            color: context.mutedColor,
+                                            fontSize: 10),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: FilledButton.styleFrom(
+                  backgroundColor:
+                      context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                  foregroundColor:
+                      context.isDark ? AppColors.ink : Colors.white,
+                ),
+                child: const Text('Yopish'),
               ),
             ],
-          ),
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.darkCard),
-            child: const Text('Yopish'),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildNotifItem({
-    required String title,
-    required String desc,
-    required String time,
-    required Color color,
-    required IconData icon,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: color, size: 18),
+  void _openGlobalSearch() {
+    if (_isSearchOpen) return;
+    _isSearchOpen = true;
+
+    final dests = _destinationsFor(widget.user.role, onNavigate: (i) {
+      setState(() {
+        _index = i;
+      });
+    });
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      builder: (ctx) => _GlobalSearchDialog(
+        dests: dests,
+        userRole: widget.user.role,
+        onNavigate: (destLabel, {String? filterQuery}) {
+          final idx = dests.indexWhere(
+              (d) => d.label.toLowerCase().startsWith(destLabel.toLowerCase()));
+          if (idx >= 0) {
+            setState(() {
+              _index = idx;
+              if (filterQuery != null && filterQuery.isNotEmpty) {
+                _searchCtrl.text = filterQuery;
+              }
+            });
+          }
+        },
+      ),
+    ).whenComplete(() {
+      _isSearchOpen = false;
+    });
+  }
+
+  void _openSettingsBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: _SettingsBottomSheet(user: widget.user),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-              const SizedBox(height: 2),
-              Text(desc, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
-              const SizedBox(height: 4),
-              Text(time, style: const TextStyle(color: Color(0xFF9EA3A8), fontSize: 10)),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -418,6 +717,7 @@ class _HomeShellState extends State<HomeShell> {
     );
 
     void logout() => context.read<AuthController>().logout();
+    final unreadCount = _notifications.where((n) => !n.isRead).length;
 
     if (isDesktop) {
       return Scaffold(
@@ -437,6 +737,7 @@ class _HomeShellState extends State<HomeShell> {
                   });
                 },
                 onLogout: logout,
+                onOpenSettings: _openSettingsBottomSheet,
               ),
             ),
 
@@ -447,7 +748,7 @@ class _HomeShellState extends State<HomeShell> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(26),
                   child: ColoredBox(
-                    color: AppColors.panel,
+                    color: Theme.of(context).scaffoldBackgroundColor,
                     child: Column(
                       children: [
                         _VaultHeader(
@@ -455,8 +756,12 @@ class _HomeShellState extends State<HomeShell> {
                           user: widget.user,
                           searchCtrl: _searchCtrl,
                           actionLabel: dests[_index].actionLabel,
-                          onActionPressed: () => _onAction(dests[_index].actionLabel),
-                          onNotificationPressed: () => _showNotifications(context),
+                          unreadCount: unreadCount,
+                          onActionPressed: () =>
+                              _onAction(dests[_index].actionLabel),
+                          onNotificationPressed: _showNotifications,
+                          onSearchPressed: _openGlobalSearch,
+                          onSettingsPressed: _openSettingsBottomSheet,
                         ),
                         Expanded(child: body),
                       ],
@@ -470,41 +775,98 @@ class _HomeShellState extends State<HomeShell> {
       );
     }
 
+    final isDashboard = dests[_index].label == 'Dashboard';
+
     // Mobil va planshet ekrani
     return Scaffold(
-      backgroundColor: AppColors.panel,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: AppColors.neonLime,
-                borderRadius: BorderRadius.circular(8),
+        title: isDashboard
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: AppColors.neonLime,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.token_rounded,
+                        color: AppColors.ink, size: 18),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      dests[_index].label,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
+              )
+            : Text(
+                dests[_index].label,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
               ),
-              child: const Icon(Icons.token_rounded, color: AppColors.ink, size: 18),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              dests[_index].label,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Bildirishnomalar',
-            icon: const Icon(Icons.notifications_none_rounded, size: 22),
-            onPressed: () => _showNotifications(context),
-          ),
-          IconButton(
-            tooltip: 'Chiqish',
-            icon: const Icon(Icons.logout_rounded, size: 20),
-            onPressed: logout,
-          ),
-          const SizedBox(width: 4),
-        ],
+        actions: isDashboard
+            ? [
+                IconButton(
+                  tooltip: 'Tizim bo‘yicha qidiruv',
+                  icon: const Icon(Icons.search_rounded, size: 22),
+                  onPressed: _openGlobalSearch,
+                ),
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    IconButton(
+                      tooltip: 'Bildirishnomalar',
+                      icon: const Icon(Icons.notifications_none_rounded,
+                          size: 22),
+                      onPressed: _showNotifications,
+                    ),
+                    if (unreadCount > 0)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFEF4444),
+                            shape: BoxShape.circle,
+                          ),
+                          constraints:
+                              const BoxConstraints(minWidth: 16, minHeight: 16),
+                          child: Text(
+                            unreadCount > 9 ? '9+' : '$unreadCount',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                IconButton(
+                  tooltip: 'Sozlamalar',
+                  icon: const Icon(Icons.settings_outlined, size: 21),
+                  onPressed: _openSettingsBottomSheet,
+                ),
+                IconButton(
+                  tooltip: 'Chiqish',
+                  icon: const Icon(Icons.logout_rounded, size: 20),
+                  onPressed: logout,
+                ),
+                const SizedBox(width: 4),
+              ]
+            : null,
       ),
       drawer: Drawer(
         backgroundColor: AppColors.sidebar,
@@ -520,6 +882,10 @@ class _HomeShellState extends State<HomeShell> {
               Navigator.pop(context);
             },
             onLogout: logout,
+            onOpenSettings: () {
+              Navigator.pop(context);
+              _openSettingsBottomSheet();
+            },
           ),
         ),
       ),
@@ -531,8 +897,10 @@ class _HomeShellState extends State<HomeShell> {
                   _index = i;
                 });
               },
-              backgroundColor: Colors.white,
-              indicatorColor: AppColors.neonLimeSoft,
+              backgroundColor: context.cardColor,
+              indicatorColor: context.isDark
+                  ? AppColors.neonLime.withValues(alpha: 0.25)
+                  : AppColors.neonLimeSoft,
               destinations: [
                 for (final d in dests)
                   NavigationDestination(
@@ -557,109 +925,126 @@ class _VaultHeader extends StatelessWidget {
     required this.user,
     required this.searchCtrl,
     required this.actionLabel,
+    required this.unreadCount,
     required this.onActionPressed,
     required this.onNotificationPressed,
+    required this.onSearchPressed,
+    required this.onSettingsPressed,
   });
 
   final String title;
   final AppUser user;
   final TextEditingController searchCtrl;
   final String actionLabel;
+  final int unreadCount;
   final VoidCallback onActionPressed;
   final VoidCallback onNotificationPressed;
+  final VoidCallback onSearchPressed;
+  final VoidCallback onSettingsPressed;
 
   @override
   Widget build(BuildContext context) {
+    final isDashboard = title == 'Dashboard';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(28, 20, 28, 14),
-      color: AppColors.panel,
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: Row(
         children: [
           // Sahifa nomi
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w900,
-              color: AppColors.ink,
+              color: isDark ? Colors.white : AppColors.ink,
               letterSpacing: -0.6,
             ),
           ),
 
           const Spacer(),
 
-          // Qidiruv paneli (Vault oval shape)
-          Container(
-            width: 260,
-            height: 42,
-            decoration: BoxDecoration(
-              color: Colors.white,
+          if (isDashboard) ...[
+            // Qidiruv paneli (Vault oval shape - faqat Dashboardda tizim bo‘yicha qidiruv)
+            InkWell(
+              onTap: onSearchPressed,
               borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: TextField(
-              controller: searchCtrl,
-              decoration: const InputDecoration(
-                hintText: 'Tizim bo‘yicha qidirish...',
-                hintStyle: TextStyle(fontSize: 13, color: AppColors.muted),
-                prefixIcon: Icon(Icons.search_rounded, size: 20, color: AppColors.muted),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(vertical: 10),
-              ),
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          // Filtr tugmasi
-          _HeaderIconBtn(
-            icon: Icons.tune_rounded,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Filtrlar avtomatik tarzda qo‘llanadi')),
-              );
-            },
-          ),
-
-          const SizedBox(width: 8),
-
-          // Bildirishnoma (qo'ng'iroqcha)
-          Stack(
-            children: [
-              _HeaderIconBtn(
-                icon: Icons.notifications_none_rounded,
-                onTap: onNotificationPressed,
-              ),
-              Positioned(
-                top: 8,
-                right: 9,
-                child: Container(
-                  width: 7,
-                  height: 7,
-                  decoration: const BoxDecoration(
-                    color: AppColors.neonLime,
-                    shape: BoxShape.circle,
-                  ),
+              child: Container(
+                width: 280,
+                height: 42,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                      color:
+                          isDark ? const Color(0xFF282D34) : AppColors.border),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.search_rounded,
+                        size: 20, color: AppColors.muted),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Tizim bo‘yicha qidirish...',
+                        style: TextStyle(fontSize: 13, color: AppColors.muted),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    _SearchKeyBadge(),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
 
-          if (actionLabel.isNotEmpty) ...[
-            const SizedBox(width: 16),
-            // Qora oval tugma
-            FilledButton.icon(
-              onPressed: onActionPressed,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.darkCard,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-              ),
-              icon: const Icon(Icons.add_circle_outline_rounded, size: 17, color: AppColors.neonLime),
-              label: Text(actionLabel, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            const SizedBox(width: 10),
+
+            // Bildirishnoma (qo'ng'iroqcha)
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                _HeaderIconBtn(
+                  icon: Icons.notifications_none_rounded,
+                  onTap: onNotificationPressed,
+                ),
+                if (unreadCount > 0)
+                  Positioned(
+                    top: 2,
+                    right: 2,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            width: 1.5),
+                      ),
+                      constraints:
+                          const BoxConstraints(minWidth: 18, minHeight: 18),
+                      child: Text(
+                        unreadCount > 9 ? '9+' : '$unreadCount',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+
+            const SizedBox(width: 8),
+
+            // Sozlamalar tugmasi
+            _HeaderIconBtn(
+              icon: Icons.settings_outlined,
+              onTap: onSettingsPressed,
             ),
           ],
         ],
@@ -675,16 +1060,20 @@ class _HeaderIconBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       width: 42,
       height: 42,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.border),
+        border: Border.all(
+            color: isDark ? const Color(0xFF282D34) : AppColors.border),
       ),
       child: IconButton(
-        icon: Icon(icon, size: 19, color: AppColors.ink),
+        icon:
+            Icon(icon, size: 19, color: isDark ? Colors.white : AppColors.ink),
         onPressed: onTap,
         padding: EdgeInsets.zero,
       ),
@@ -703,6 +1092,7 @@ class _VaultSidebar extends StatelessWidget {
     required this.user,
     required this.onSelect,
     required this.onLogout,
+    required this.onOpenSettings,
   });
 
   final List<_Dest> dests;
@@ -710,6 +1100,7 @@ class _VaultSidebar extends StatelessWidget {
   final AppUser user;
   final ValueChanged<int> onSelect;
   final VoidCallback onLogout;
+  final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -724,7 +1115,8 @@ class _VaultSidebar extends StatelessWidget {
       }
     }
 
-    final initial = user.fullName.isNotEmpty ? user.fullName[0].toUpperCase() : '?';
+    final initial =
+        user.fullName.isNotEmpty ? user.fullName[0].toUpperCase() : '?';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 18, 14, 14),
@@ -741,7 +1133,8 @@ class _VaultSidebar extends StatelessWidget {
                   color: AppColors.neonLime,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.token_rounded, color: AppColors.ink, size: 22),
+                child: const Icon(Icons.token_rounded,
+                    color: AppColors.ink, size: 22),
               ),
               const SizedBox(width: 10),
               const Text(
@@ -783,7 +1176,6 @@ class _VaultSidebar extends StatelessWidget {
                       selected: i == index,
                       onTap: () => onSelect(i),
                     ),
-
                   if (generalItems.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     const Padding(
@@ -804,6 +1196,13 @@ class _VaultSidebar extends StatelessWidget {
                         selected: i == index,
                         onTap: () => onSelect(i),
                       ),
+                    _VaultNavItem(
+                      dest: const _Dest(
+                          'Sozlamalar', Icons.settings_rounded, SizedBox.shrink,
+                          isGeneral: true),
+                      selected: false,
+                      onTap: onOpenSettings,
+                    ),
                   ],
                 ],
               ),
@@ -829,7 +1228,8 @@ class _VaultSidebar extends StatelessWidget {
                     color: AppColors.neonLime,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.workspace_premium_rounded, color: AppColors.ink, size: 17),
+                  child: const Icon(Icons.workspace_premium_rounded,
+                      color: AppColors.ink, size: 17),
                 ),
                 const SizedBox(width: 8),
                 const Expanded(
@@ -838,11 +1238,15 @@ class _VaultSidebar extends StatelessWidget {
                     children: [
                       Text(
                         'STONEX PRO',
-                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800),
                       ),
                       Text(
                         'Tizim barqaror faol',
-                        style: TextStyle(color: Color(0xFF8E959E), fontSize: 10),
+                        style:
+                            TextStyle(color: Color(0xFF8E959E), fontSize: 10),
                       ),
                     ],
                   ),
@@ -867,7 +1271,10 @@ class _VaultSidebar extends StatelessWidget {
                   backgroundColor: AppColors.neonLime,
                   child: Text(
                     initial,
-                    style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w800, fontSize: 12),
+                    style: const TextStyle(
+                        color: AppColors.ink,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -880,18 +1287,29 @@ class _VaultSidebar extends StatelessWidget {
                         user.fullName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700),
                       ),
                       Text(
                         user.role.label,
-                        style: const TextStyle(color: Color(0xFF8E959E), fontSize: 10),
+                        style: const TextStyle(
+                            color: Color(0xFF8E959E), fontSize: 10),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
+                  tooltip: 'Sozlamalar',
+                  icon: const Icon(Icons.settings_outlined,
+                      color: Color(0xFF8E959E), size: 18),
+                  onPressed: onOpenSettings,
+                ),
+                IconButton(
                   tooltip: 'Chiqish',
-                  icon: const Icon(Icons.logout_rounded, color: Color(0xFF8E959E), size: 18),
+                  icon: const Icon(Icons.logout_rounded,
+                      color: Color(0xFF8E959E), size: 18),
                   onPressed: onLogout,
                 ),
               ],
@@ -946,7 +1364,8 @@ class _VaultNavItem extends StatelessWidget {
                 Icon(
                   dest.icon,
                   size: 19,
-                  color: selected ? AppColors.neonLime : const Color(0xFF8E959E),
+                  color:
+                      selected ? AppColors.neonLime : const Color(0xFF8E959E),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -964,6 +1383,915 @@ class _VaultNavItem extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Tizim bo'yicha global qidiruv komponentlari
+// ---------------------------------------------------------------------------
+
+class _SearchKeyBadge extends StatelessWidget {
+  const _SearchKeyBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+      decoration: BoxDecoration(
+        color: context.isDark ? const Color(0xFF282828) : const Color(0xFFF1F3F5),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: context.isDark ? const Color(0xFF383838) : const Color(0xFFE2E8F0),
+          width: 0.8,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.window_rounded,
+              size: 11, color: context.mutedColor),
+          const SizedBox(width: 3),
+          Text('Win + K',
+              style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.2,
+                  color: context.mutedColor)),
+        ],
+      ),
+    );
+  }
+}
+
+class _GlobalItem {
+  final String title;
+  final String subtitle;
+  final String category;
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBg;
+  final String destLabel;
+  final String? filterQuery;
+
+  const _GlobalItem({
+    required this.title,
+    required this.subtitle,
+    required this.category,
+    required this.icon,
+    required this.iconColor,
+    required this.iconBg,
+    required this.destLabel,
+    this.filterQuery,
+  });
+}
+
+class _GlobalSearchDialog extends StatefulWidget {
+  final List<_Dest> dests;
+  final Role userRole;
+  final void Function(String destLabel, {String? filterQuery}) onNavigate;
+
+  const _GlobalSearchDialog({
+    required this.dests,
+    required this.userRole,
+    required this.onNavigate,
+  });
+
+  @override
+  State<_GlobalSearchDialog> createState() => _GlobalSearchDialogState();
+}
+
+class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
+  final _searchCtrl = TextEditingController();
+  final _focusNode = FocusNode();
+  bool _loading = false;
+  String _selectedCategory = 'Barchasi';
+
+  List<Product> _products = [];
+  List<SaleResult> _debts = [];
+  List<SaleResult> _sales = [];
+  List<ProductionTask> _tasks = [];
+  List<AppUser> _users = [];
+  List<_GlobalItem> _allItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _searchCtrl.addListener(_filter);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+      _fetchData();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.removeListener(_filter);
+    _searchCtrl.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchData() async {
+    setState(() => _loading = true);
+    try {
+      final repos = context.read<AppRepositories>();
+      final fProducts = repos.products.list().catchError((_) => <Product>[]);
+      final fDebts = repos.sales.listDebts().catchError((_) => <SaleResult>[]);
+      final fSales =
+          repos.sales.listSales(limit: 50).catchError((_) => <SaleResult>[]);
+      final fTasks =
+          repos.production.list().catchError((_) => <ProductionTask>[]);
+      final fUsers = widget.userRole == Role.admin
+          ? repos.users.list().catchError((_) => <AppUser>[])
+          : Future.value(<AppUser>[]);
+
+      final results =
+          await Future.wait([fProducts, fDebts, fSales, fTasks, fUsers]);
+      if (!mounted) return;
+      _products = results[0] as List<Product>;
+      _debts = results[1] as List<SaleResult>;
+      _sales = results[2] as List<SaleResult>;
+      _tasks = results[3] as List<ProductionTask>;
+      _users = results[4] as List<AppUser>;
+      _filter();
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _filter() {
+    final q = _searchCtrl.text.trim().toLowerCase();
+    final items = <_GlobalItem>[];
+
+    // 1. Bo'limlar
+    for (final d in widget.dests) {
+      final labelLower = d.label.toLowerCase();
+      if (q.isEmpty ||
+          labelLower.contains(q) ||
+          (labelLower.startsWith('savdo') &&
+              (q.contains('pos') || q.contains('kassa'))) ||
+          (labelLower.startsWith('nasiya') && q.contains('qarz')) ||
+          (labelLower.startsWith('ishlab') && q.contains('ish'))) {
+        items.add(_GlobalItem(
+          title: d.label,
+          subtitle: 'Tizim bo‘limiga o‘tish',
+          category: 'Bo‘lim',
+          icon: d.icon,
+          iconColor: AppColors.ink,
+          iconBg: AppColors.neonLimeSoft,
+          destLabel: d.label,
+        ));
+      }
+    }
+
+    // 2. Mahsulotlar
+    for (final p in _products) {
+      if (q.isEmpty ||
+          p.name.toLowerCase().contains(q) ||
+          p.sku.toLowerCase().contains(q) ||
+          p.qrCode.toLowerCase().contains(q)) {
+        items.add(_GlobalItem(
+          title: p.name,
+          subtitle: 'Qoldiq: ${p.stock} ${p.unit} • Narxi: ${money(p.price)}',
+          category: 'Mahsulot',
+          icon: Icons.inventory_2_rounded,
+          iconColor: const Color(0xFF2563EB),
+          iconBg: const Color(0xFFEFF6FF),
+          destLabel: 'Mahsulotlar',
+          filterQuery: p.name,
+        ));
+      }
+    }
+
+    // 3. Nasiyalar
+    for (final s in _debts) {
+      final name = (s.customerName ?? '').toLowerCase();
+      final phone = (s.customerPhone ?? '').toLowerCase();
+      if (q.isEmpty ||
+          name.contains(q) ||
+          phone.contains(q) ||
+          s.id.toString() == q) {
+        items.add(_GlobalItem(
+          title: s.customerName ?? 'Mijoz #${s.id}',
+          subtitle:
+              'Qarz: ${money(s.debt)}${s.customerPhone?.isNotEmpty == true ? ' • ${s.customerPhone}' : ''}',
+          category: 'Nasiya',
+          icon: Icons.pending_actions_rounded,
+          iconColor: const Color(0xFFD97706),
+          iconBg: const Color(0xFFFFFBEB),
+          destLabel: 'Nasiyalar',
+          filterQuery: s.customerName,
+        ));
+      }
+    }
+
+    // 4. Savdolar
+    for (final s in _sales) {
+      final name = (s.customerName ?? '').toLowerCase();
+      if (q.isEmpty ||
+          name.contains(q) ||
+          s.id.toString() == q ||
+          'savdo #${s.id}'.contains(q)) {
+        items.add(_GlobalItem(
+          title:
+              'Savdo #${s.id} ${s.customerName?.isNotEmpty == true ? '(${s.customerName})' : ''}',
+          subtitle: 'Jami: ${money(s.total)} • To‘langan: ${money(s.paid)}',
+          category: 'Savdo',
+          icon: Icons.point_of_sale_rounded,
+          iconColor: const Color(0xFF059669),
+          iconBg: const Color(0xFFECFDF5),
+          destLabel: 'Savdo (POS)',
+          filterQuery: s.customerName,
+        ));
+      }
+    }
+
+    // 5. Ishlab chiqarish
+    for (final t in _tasks) {
+      if (q.isEmpty ||
+          t.productName.toLowerCase().contains(q) ||
+          t.workerName.toLowerCase().contains(q) ||
+          t.id.toString() == q) {
+        items.add(_GlobalItem(
+          title: '${t.productName} (${t.planned} ${t.unit})',
+          subtitle:
+              'Ishchi: ${t.workerName} • Tayyor: ${t.produced} • Holat: ${t.status == 'done' ? 'Bajarildi' : 'Jarayonda'}',
+          category: 'Topshiriq',
+          icon: Icons.precision_manufacturing_rounded,
+          iconColor: const Color(0xFF7C3AED),
+          iconBg: const Color(0xFFF5F3FF),
+          destLabel: 'Ishlab chiqarish',
+          filterQuery: t.productName,
+        ));
+      }
+    }
+
+    // 6. Xodimlar
+    for (final u in _users) {
+      if (q.isEmpty ||
+          u.fullName.toLowerCase().contains(q) ||
+          u.username.toLowerCase().contains(q) ||
+          u.role.label.toLowerCase().contains(q)) {
+        items.add(_GlobalItem(
+          title: u.fullName,
+          subtitle: '@${u.username} • ${u.role.label}',
+          category: 'Xodim',
+          icon: Icons.badge_rounded,
+          iconColor: const Color(0xFFDB2777),
+          iconBg: const Color(0xFFFDF2F8),
+          destLabel: 'Xodimlar',
+          filterQuery: u.fullName,
+        ));
+      }
+    }
+
+    setState(() {
+      _allItems = items;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final categories = [
+      'Barchasi',
+      'Bo‘lim',
+      'Mahsulot',
+      'Nasiya',
+      'Savdo',
+      'Topshiriq',
+      if (widget.userRole == Role.admin) 'Xodim',
+    ];
+
+    final displayItems = _selectedCategory == 'Barchasi'
+        ? _allItems
+        : _allItems.where((i) => i.category == _selectedCategory).toList();
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        width: 640,
+        constraints: const BoxConstraints(maxHeight: 560),
+        decoration: BoxDecoration(
+          color: context.dialogBg,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: context.borderColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 32,
+              offset: const Offset(0, 16),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Qidiruv maydoni
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 16, 12),
+              child: Row(
+                children: [
+                  Icon(Icons.search_rounded,
+                      size: 24,
+                      color:
+                          context.isDark ? AppColors.neonLime : AppColors.ink),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchCtrl,
+                      focusNode: _focusNode,
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: context.inkColor),
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        hintText:
+                            'Tizim bo‘yicha qidirish (Mahsulot, Mijoz, Savdo, Xodim)...',
+                        hintStyle: TextStyle(
+                            color: context.mutedColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.normal),
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ),
+                  if (_searchCtrl.text.isNotEmpty)
+                    IconButton(
+                      icon: Icon(Icons.clear_rounded,
+                          size: 20, color: context.mutedColor),
+                      onPressed: () {
+                        _searchCtrl.clear();
+                        _filter();
+                      },
+                    ),
+                  IconButton(
+                    tooltip: 'Yopish',
+                    icon: Icon(Icons.close_rounded,
+                        size: 22, color: context.inkColor),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            if (_loading)
+              const LinearProgressIndicator(
+                  minHeight: 2,
+                  backgroundColor: Colors.transparent,
+                  color: AppColors.neonLime)
+            else
+              Divider(height: 1, color: context.borderColor),
+
+            // Kategoriya chipslari
+            SizedBox(
+              height: 48,
+              child: ListView.separated(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                scrollDirection: Axis.horizontal,
+                itemCount: categories.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (ctx, i) {
+                  final cat = categories[i];
+                  final isSel = _selectedCategory == cat;
+                  final count = cat == 'Barchasi'
+                      ? _allItems.length
+                      : _allItems.where((x) => x.category == cat).length;
+
+                  return InkWell(
+                    onTap: () => setState(() => _selectedCategory = cat),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isSel
+                            ? (context.isDark
+                                ? AppColors.neonLime
+                                : AppColors.ink)
+                            : context.pillColor,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            cat,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight:
+                                  isSel ? FontWeight.w700 : FontWeight.w600,
+                              color: isSel
+                                  ? (context.isDark
+                                      ? AppColors.ink
+                                      : Colors.white)
+                                  : context.inkColor,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: isSel
+                                  ? (context.isDark
+                                      ? AppColors.ink.withValues(alpha: 0.2)
+                                      : Colors.white.withValues(alpha: 0.25))
+                                  : (context.isDark
+                                      ? Colors.white.withValues(alpha: 0.1)
+                                      : Colors.black.withValues(alpha: 0.08)),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '$count',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: isSel
+                                    ? (context.isDark
+                                        ? AppColors.ink
+                                        : Colors.white)
+                                    : context.mutedColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            Divider(height: 1, color: context.borderColor),
+
+            // Natijalar ro'yxati
+            Expanded(
+              child: displayItems.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.search_off_rounded,
+                              size: 48, color: context.mutedColor),
+                          const SizedBox(height: 12),
+                          Text(
+                            _searchCtrl.text.isEmpty
+                                ? 'Qidiruv so‘zini kiriting'
+                                : 'Hech qanday natija topilmadi',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                                color: context.inkColor),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Mahsulot nomi, kodi, mijoz ismi yoki xodim loginini qidiring',
+                            style: TextStyle(
+                                fontSize: 12, color: context.mutedColor),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      itemCount: displayItems.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 4),
+                      itemBuilder: (ctx, i) {
+                        final item = displayItems[i];
+                        return InkWell(
+                          onTap: () {
+                            Navigator.pop(context);
+                            widget.onNavigate(item.destLabel,
+                                filterQuery: item.filterQuery);
+                          },
+                          borderRadius: BorderRadius.circular(14),
+                          hoverColor: context.isDark
+                              ? const Color(0xFF222832)
+                              : const Color(0xFFF8FAFC),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 8),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: item.iconBg,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(item.icon,
+                                      color: item.iconColor, size: 20),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.title,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14,
+                                          color: context.inkColor,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        item.subtitle,
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: context.mutedColor),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: context.pillColor,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    item.category,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: context.inkColor,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Icon(Icons.arrow_forward_ios_rounded,
+                                    size: 12, color: context.mutedColor),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+
+            // Pastki footer
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: context.cardSubtle,
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(24)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Jami: ${displayItems.length} ta natija',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: context.mutedColor),
+                  ),
+                  Text(
+                    'Tanlash uchun ustiga bosing',
+                    style: TextStyle(fontSize: 11, color: context.mutedColor),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Tizim Sozlamalari (Pastdan ochiluvchi ixcham Modal va Day/Night Mavzu)
+// ---------------------------------------------------------------------------
+
+class _SettingsBottomSheet extends StatelessWidget {
+  const _SettingsBottomSheet({required this.user});
+  final AppUser user;
+
+  @override
+  Widget build(BuildContext context) {
+    final themeCtrl = context.watch<ThemeController>();
+    final isDark = themeCtrl.isDark;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+      decoration: BoxDecoration(
+        color: context.dialogBg,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: context.borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 36,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color:
+                    isDark ? const Color(0xFF374151) : const Color(0xFFE5E7EB),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Sarlavha
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.neonLime,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.tune_rounded,
+                    color: AppColors.ink, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tizim Sozlamalari',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: context.inkColor,
+                      ),
+                    ),
+                    Text(
+                      'STONEX ERP ko‘rinishi va parametrlari',
+                      style:
+                          TextStyle(fontSize: 11.5, color: context.mutedColor),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Yopish',
+                icon: Icon(Icons.close_rounded,
+                    color: context.inkColor, size: 20),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+
+          // Day / Night Theme bo'limi
+          Text(
+            'INTERFEYS MAVZUSI (DAY / NIGHT)',
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
+              color: context.mutedColor,
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Segmented controller
+          Container(
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: context.pillColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: context.borderColor),
+            ),
+            child: Row(
+              children: [
+                // ☀️ Kunduzgi (Day) tab
+                Expanded(
+                  child: _ThemeTabButton(
+                    title: 'Kunduzgi (Day)',
+                    icon: Icons.wb_sunny_rounded,
+                    iconColor: const Color(0xFFF59E0B),
+                    isSelected: !isDark,
+                    onTap: () => themeCtrl.setMode(ThemeMode.light),
+                  ),
+                ),
+                const SizedBox(width: 6),
+
+                // 🌙 Tungi (Night) tab
+                Expanded(
+                  child: _ThemeTabButton(
+                    title: 'Tungi (Night)',
+                    icon: Icons.nightlight_round,
+                    iconColor: AppColors.neonLime,
+                    isSelected: isDark,
+                    onTap: () => themeCtrl.setMode(ThemeMode.dark),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Faol rejim haqida qisqa izoh
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              children: [
+                Icon(
+                  isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+                  size: 15,
+                  color: isDark ? AppColors.neonLime : const Color(0xFFF59E0B),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isDark
+                        ? 'Tungi rejim faol: ko‘zga qulay chuqur qorong‘i interfeys'
+                        : 'Kunduzgi rejim faol: klassik yorug‘ Vault ERP interfeysi',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        color: context.mutedColor,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Tizim ma'lumotlari (ixcham qatorlar)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: context.cardSubtle,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: context.borderColor),
+            ),
+            child: Column(
+              children: [
+                _SettingsCompactRow(
+                  icon: Icons.person_outline_rounded,
+                  label: 'Foydalanuvchi',
+                  value: '${user.fullName} (${user.role.label})',
+                ),
+                const SizedBox(height: 8),
+                const _SettingsCompactRow(
+                  icon: Icons.cloud_done_outlined,
+                  label: 'Server holati',
+                  value: 'Onlayn (Bulutli API)',
+                  valueColor: AppColors.green,
+                ),
+                const SizedBox(height: 8),
+                const _SettingsCompactRow(
+                  icon: Icons.verified_outlined,
+                  label: 'ERP versiyasi',
+                  value: 'v2.4 Vault Pro',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            style: FilledButton.styleFrom(
+              backgroundColor: isDark ? AppColors.neonLime : AppColors.darkCard,
+              foregroundColor: isDark ? AppColors.ink : Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30)),
+            ),
+            child: const Text('Tayyor / Yopish',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThemeTabButton extends StatelessWidget {
+  const _ThemeTabButton({
+    required this.title,
+    required this.icon,
+    required this.iconColor,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String title;
+  final IconData icon;
+  final Color iconColor;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = context.isDark;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark ? const Color(0xFF282F39) : Colors.white)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: isSelected
+              ? Border.all(
+                  color: isDark
+                      ? AppColors.neonLime.withValues(alpha: 0.7)
+                      : AppColors.border,
+                  width: 1.2)
+              : null,
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: iconColor),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected ? context.inkColor : context.mutedColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsCompactRow extends StatelessWidget {
+  const _SettingsCompactRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: context.mutedColor),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, color: context.mutedColor),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: valueColor ?? context.inkColor,
+          ),
+        ),
+      ],
     );
   }
 }

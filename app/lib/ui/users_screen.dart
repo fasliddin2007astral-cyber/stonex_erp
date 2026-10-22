@@ -67,7 +67,7 @@ class _UsersScreenState extends State<UsersScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: context.dialogBg,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
         title: Text(
           user.isActive ? 'Xodimni bloklash' : 'Xodimni faollashtirish',
@@ -120,12 +120,12 @@ class _UsersScreenState extends State<UsersScreen> {
     final filterOptions = ['Barchasi', 'Adminlar', 'Kassirlar', 'Ishchilar', 'Bloklanganlar'];
 
     return Scaffold(
-      backgroundColor: AppColors.panel,
+      backgroundColor: context.scaffoldBg,
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppColors.darkCard,
-        foregroundColor: Colors.white,
+        backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+        foregroundColor: context.isDark ? AppColors.ink : Colors.white,
         onPressed: _addUser,
-        icon: const Icon(Icons.person_add_rounded, color: AppColors.neonLime),
+        icon: Icon(Icons.person_add_rounded, color: context.isDark ? AppColors.ink : AppColors.neonLime),
         label: const Text('Xodim qo‘shish', style: TextStyle(fontWeight: FontWeight.w700)),
       ),
       body: FutureBuilder<List<AppUser>>(
@@ -175,7 +175,7 @@ class _UsersScreenState extends State<UsersScreen> {
                 final isDesktop = constraints.maxWidth >= 900;
 
                 return ListView(
-                  padding: const EdgeInsets.fromLTRB(28, 8, 28, 80),
+                  padding: EdgeInsets.fromLTRB(isDesktop ? 28.0 : 12.0, 8, isDesktop ? 28.0 : 12.0, 80),
                   children: [
                     // 1. Yuqori statistika kartalari (Vault uslubida)
                     if (isDesktop)
@@ -183,6 +183,7 @@ class _UsersScreenState extends State<UsersScreen> {
                         children: [
                           Expanded(
                             child: _buildStat(
+                              context,
                               'Jami Xodimlar',
                               '$totalCount nafar',
                               Icons.groups_rounded,
@@ -193,6 +194,7 @@ class _UsersScreenState extends State<UsersScreen> {
                           const SizedBox(width: 14),
                           Expanded(
                             child: _buildStat(
+                              context,
                               'Adminlar',
                               '$adminCount nafar',
                               Icons.admin_panel_settings_rounded,
@@ -203,6 +205,7 @@ class _UsersScreenState extends State<UsersScreen> {
                           const SizedBox(width: 14),
                           Expanded(
                             child: _buildStat(
+                              context,
                               'Kassirlar',
                               '$cashierCount nafar',
                               Icons.point_of_sale_rounded,
@@ -213,6 +216,7 @@ class _UsersScreenState extends State<UsersScreen> {
                           const SizedBox(width: 14),
                           Expanded(
                             child: _buildStat(
+                              context,
                               'Ishchilar',
                               '$workerCount nafar',
                               Icons.precision_manufacturing_rounded,
@@ -223,12 +227,13 @@ class _UsersScreenState extends State<UsersScreen> {
                         ],
                       )
                     else ...[
-                      _buildStat('Jami Xodimlar', '$totalCount nafar', Icons.groups_rounded, AppColors.neonLime, true),
+                      _buildStat(context, 'Jami Xodimlar', '$totalCount nafar', Icons.groups_rounded, AppColors.neonLime, true),
                       const SizedBox(height: 10),
                       Row(
                         children: [
                           Expanded(
                             child: _buildStat(
+                              context,
                               'Admin / Kassir',
                               '$adminCount / $cashierCount',
                               Icons.badge_rounded,
@@ -239,6 +244,7 @@ class _UsersScreenState extends State<UsersScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: _buildStat(
+                              context,
                               'Ishchilar',
                               '$workerCount nafar',
                               Icons.precision_manufacturing_rounded,
@@ -256,47 +262,61 @@ class _UsersScreenState extends State<UsersScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: Container(
+                          child: SizedBox(
                             height: 44,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(30),
-                              border: Border.all(color: AppColors.border),
-                            ),
                             child: TextField(
                               controller: _searchCtrl,
+                              style: TextStyle(fontSize: 13, color: context.inkColor, fontWeight: FontWeight.w500),
+                              textAlignVertical: TextAlignVertical.center,
                               decoration: InputDecoration(
+                                filled: true,
+                                fillColor: context.cardColor,
+                                isDense: true,
                                 hintText: 'Xodim ismi, login yoki lavozimi bo‘yicha...',
-                                hintStyle: const TextStyle(fontSize: 13, color: AppColors.muted),
+                                hintStyle: const TextStyle(fontSize: 13, color: AppColors.muted, fontWeight: FontWeight.normal),
                                 prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.muted),
                                 suffixIcon: _searchCtrl.text.isEmpty
                                     ? null
                                     : IconButton(
-                                        icon: const Icon(Icons.close_rounded, size: 18),
+                                        icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.muted),
                                         onPressed: () {
                                           _searchCtrl.clear();
                                           setState(() {});
                                         },
+                                        splashRadius: 18,
+                                        padding: EdgeInsets.zero,
                                       ),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                  borderSide: BorderSide(color: context.borderColor),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                  borderSide: BorderSide(color: context.borderColor),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                  borderSide: BorderSide(color: context.isDark ? AppColors.neonLime : AppColors.ink, width: 1.5),
+                                ),
                               ),
                               onChanged: (_) => setState(() {}),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        FilledButton.icon(
-                          onPressed: _addUser,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.darkCard,
-                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                        if (isDesktop) ...[
+                          const SizedBox(width: 12),
+                          FilledButton.icon(
+                            onPressed: _addUser,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                              foregroundColor: context.isDark ? AppColors.ink : Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                            ),
+                            icon: Icon(Icons.add, size: 18, color: context.isDark ? AppColors.ink : AppColors.neonLime),
+                            label: const Text('Xodim qo‘shish', style: TextStyle(fontWeight: FontWeight.w700)),
                           ),
-                          icon: const Icon(Icons.add, size: 18, color: AppColors.neonLime),
-                          label: const Text('Xodim qo‘shish', style: TextStyle(fontWeight: FontWeight.w700)),
-                        ),
+                        ],
                       ],
                     ),
 
@@ -316,16 +336,20 @@ class _UsersScreenState extends State<UsersScreen> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                                  color: selected ? Colors.white : AppColors.ink,
+                                  color: selected
+                                      ? (context.isDark ? AppColors.ink : Colors.white)
+                                      : context.inkColor,
                                 ),
                               ),
                               selected: selected,
-                              selectedColor: AppColors.darkCard,
-                              backgroundColor: Colors.white,
+                              selectedColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                              backgroundColor: context.cardColor,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                                 side: BorderSide(
-                                  color: selected ? AppColors.darkCard : AppColors.border,
+                                  color: selected
+                                      ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+                                      : context.borderColor,
                                 ),
                               ),
                               showCheckmark: false,
@@ -343,9 +367,9 @@ class _UsersScreenState extends State<UsersScreen> {
                       Container(
                         padding: const EdgeInsets.all(40),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: context.cardColor,
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(color: context.borderColor),
                         ),
                         child: Column(
                           children: [
@@ -379,7 +403,7 @@ class _UsersScreenState extends State<UsersScreen> {
                           IconData roleIcon;
                           switch (u.role) {
                             case Role.admin:
-                              roleColor = const Color(0xFF1D3A2B);
+                              roleColor = context.isDark ? AppColors.neonLime : const Color(0xFF1D3A2B);
                               roleIcon = Icons.shield_rounded;
                               break;
                             case Role.kassir:
@@ -387,73 +411,233 @@ class _UsersScreenState extends State<UsersScreen> {
                               roleIcon = Icons.point_of_sale_rounded;
                               break;
                             case Role.ishchi:
-                              roleColor = const Color(0xFF245580);
+                              roleColor = context.isDark ? const Color(0xFF60A5FA) : const Color(0xFF245580);
                               roleIcon = Icons.precision_manufacturing_rounded;
                               break;
                           }
 
                           return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                            padding: EdgeInsets.symmetric(horizontal: isDesktop ? 18 : 12, vertical: 12),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: context.cardColor,
                               borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: AppColors.border),
+                              border: Border.all(color: context.borderColor),
                             ),
-                            child: Row(
-                              children: [
-                                // Profil avatari
-                                Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: BoxDecoration(
-                                    color: u.isActive
-                                        ? roleColor.withValues(alpha: 0.12)
-                                        : const Color(0xFFFFECEB),
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    initial,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                      color: u.isActive ? roleColor : AppColors.danger,
-                                      fontSize: 18,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
+                            child: isDesktop
+                                ? Row(
+                                    children: [
+                                      // Profil avatari
+                                      Container(
+                                        width: 44,
+                                        height: 44,
+                                        decoration: BoxDecoration(
+                                          color: u.isActive
+                                              ? roleColor.withValues(alpha: 0.12)
+                                              : (context.isDark ? const Color(0xFF331616) : const Color(0xFFFFECEB)),
+                                          borderRadius: BorderRadius.circular(14),
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: Text(
+                                          initial,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w900,
+                                            color: u.isActive ? roleColor : AppColors.danger,
+                                            fontSize: 18,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
 
-                                // F.I.O va Login
-                                Expanded(
-                                  flex: 3,
-                                  child: Column(
+                                      // F.I.O va Login
+                                      Expanded(
+                                        flex: 3,
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Flexible(
+                                                  child: Text(
+                                                    u.fullName,
+                                                    style: TextStyle(
+                                                      fontWeight: FontWeight.w700,
+                                                      fontSize: 15,
+                                                      color: u.isActive ? context.inkColor : context.mutedColor,
+                                                      decoration: u.isActive ? null : TextDecoration.lineThrough,
+                                                    ),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                                                  decoration: BoxDecoration(
+                                                    color: roleColor.withValues(alpha: 0.12),
+                                                    borderRadius: BorderRadius.circular(12),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(roleIcon, size: 11, color: roleColor),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        u.role.label,
+                                                        style: TextStyle(
+                                                          color: roleColor,
+                                                          fontWeight: FontWeight.w700,
+                                                          fontSize: 10,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              'Login: @${u.username}',
+                                              style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+
+                                      // Holat nishoni (Faol / Bloklangan)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: u.isActive
+                                              ? AppColors.green.withValues(alpha: 0.12)
+                                              : AppColors.danger.withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              width: 6,
+                                              height: 6,
+                                              decoration: BoxDecoration(
+                                                color: u.isActive ? AppColors.green : AppColors.danger,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              u.isActive ? 'Faol' : 'Bloklangan',
+                                              style: TextStyle(
+                                                color: u.isActive ? AppColors.green : AppColors.danger,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+
+                                      const SizedBox(width: 14),
+
+                                      // Boshqaruv tugmalari
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(Icons.edit_outlined, size: 19),
+                                            tooltip: 'Tahrirlash',
+                                            onPressed: () => _editUser(u),
+                                          ),
+                                          IconButton(
+                                            icon: Icon(
+                                              u.isActive ? Icons.block_rounded : Icons.check_circle_outline_rounded,
+                                              size: 19,
+                                              color: u.isActive ? AppColors.danger : AppColors.green,
+                                            ),
+                                            tooltip: u.isActive ? 'Bloklash' : 'Faollashtirish',
+                                            onPressed: () => _toggleUserStatus(u),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  )
+                                : Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
-                                          Flexible(
+                                          Container(
+                                            width: 38,
+                                            height: 38,
+                                            decoration: BoxDecoration(
+                                              color: u.isActive
+                                                  ? roleColor.withValues(alpha: 0.12)
+                                                  : (context.isDark ? const Color(0xFF331616) : const Color(0xFFFFECEB)),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            alignment: Alignment.center,
                                             child: Text(
-                                              u.fullName,
+                                              initial,
                                               style: TextStyle(
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 15,
-                                                color: u.isActive ? AppColors.ink : AppColors.muted,
-                                                decoration: u.isActive ? null : TextDecoration.lineThrough,
+                                                fontWeight: FontWeight.w900,
+                                                color: u.isActive ? roleColor : AppColors.danger,
+                                                fontSize: 16,
                                               ),
-                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
-                                          const SizedBox(width: 8),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  u.fullName,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 14,
+                                                    color: u.isActive ? context.inkColor : context.mutedColor,
+                                                    decoration: u.isActive ? null : TextDecoration.lineThrough,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 1),
+                                                Text(
+                                                  '@${u.username}',
+                                                  style: const TextStyle(color: AppColors.muted, fontSize: 11),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.edit_outlined, size: 18),
+                                            tooltip: 'Tahrirlash',
+                                            visualDensity: VisualDensity.compact,
+                                            onPressed: () => _editUser(u),
+                                          ),
+                                          IconButton(
+                                            icon: Icon(
+                                              u.isActive ? Icons.block_rounded : Icons.check_circle_outline_rounded,
+                                              size: 18,
+                                              color: u.isActive ? AppColors.danger : AppColors.green,
+                                            ),
+                                            tooltip: u.isActive ? 'Bloklash' : 'Faollashtirish',
+                                            visualDensity: VisualDensity.compact,
+                                            onPressed: () => _toggleUserStatus(u),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                             decoration: BoxDecoration(
                                               color: roleColor.withValues(alpha: 0.12),
-                                              borderRadius: BorderRadius.circular(12),
+                                              borderRadius: BorderRadius.circular(10),
                                             ),
                                             child: Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                Icon(roleIcon, size: 11, color: roleColor),
+                                                Icon(roleIcon, size: 10, color: roleColor),
                                                 const SizedBox(width: 4),
                                                 Text(
                                                   u.role.label,
@@ -466,74 +650,42 @@ class _UsersScreenState extends State<UsersScreen> {
                                               ],
                                             ),
                                           ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: u.isActive
+                                                  ? AppColors.green.withValues(alpha: 0.12)
+                                                  : AppColors.danger.withValues(alpha: 0.12),
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Container(
+                                                  width: 5,
+                                                  height: 5,
+                                                  decoration: BoxDecoration(
+                                                    color: u.isActive ? AppColors.green : AppColors.danger,
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  u.isActive ? 'Faol' : 'Bloklangan',
+                                                  style: TextStyle(
+                                                    color: u.isActive ? AppColors.green : AppColors.danger,
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 10,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ],
                                       ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        'Login: @${u.username}',
-                                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
-                                      ),
                                     ],
                                   ),
-                                ),
-
-                                // Holat nishoni (Faol / Bloklangan)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: u.isActive
-                                        ? AppColors.green.withValues(alpha: 0.12)
-                                        : AppColors.danger.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        width: 6,
-                                        height: 6,
-                                        decoration: BoxDecoration(
-                                          color: u.isActive ? AppColors.green : AppColors.danger,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        u.isActive ? 'Faol' : 'Bloklangan',
-                                        style: TextStyle(
-                                          color: u.isActive ? AppColors.green : AppColors.danger,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-
-                                const SizedBox(width: 14),
-
-                                // Boshqaruv tugmalari
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.edit_outlined, size: 19),
-                                      tooltip: 'Tahrirlash',
-                                      onPressed: () => _editUser(u),
-                                    ),
-                                    IconButton(
-                                      icon: Icon(
-                                        u.isActive ? Icons.block_rounded : Icons.check_circle_outline_rounded,
-                                        size: 19,
-                                        color: u.isActive ? AppColors.danger : AppColors.green,
-                                      ),
-                                      tooltip: u.isActive ? 'Bloklash' : 'Faollashtirish',
-                                      onPressed: () => _toggleUserStatus(u),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
                           );
                         },
                       ),
@@ -547,13 +699,16 @@ class _UsersScreenState extends State<UsersScreen> {
     );
   }
 
-  Widget _buildStat(String title, String value, IconData icon, Color color, bool isDark) {
+  Widget _buildStat(BuildContext context, String title, String value, IconData icon, Color color, bool isHeroCard) {
+    final isDarkTheme = context.isDark;
+    final isHero = isHeroCard && !isDarkTheme;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : Colors.white,
+        color: isHero ? AppColors.darkCard : context.cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: isDark ? null : Border.all(color: AppColors.border),
+        border: Border.all(color: isHero ? AppColors.darkCard : context.borderColor),
       ),
       child: Row(
         children: [
@@ -561,7 +716,7 @@ class _UsersScreenState extends State<UsersScreen> {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF22262B) : color.withValues(alpha: 0.14),
+              color: isHero ? const Color(0xFF22262B) : color.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -574,13 +729,13 @@ class _UsersScreenState extends State<UsersScreen> {
               children: [
                 Text(
                   title,
-                  style: TextStyle(color: isDark ? const Color(0xFF8E959E) : AppColors.muted, fontSize: 11),
+                  style: TextStyle(color: isHero ? const Color(0xFF8E959E) : context.mutedColor, fontSize: 11),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
                   style: TextStyle(
-                    color: isDark ? Colors.white : AppColors.ink,
+                    color: isHero ? Colors.white : context.inkColor,
                     fontSize: 17,
                     fontWeight: FontWeight.w900,
                   ),
@@ -680,19 +835,19 @@ class _UserDialogState extends State<UserDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: Colors.white,
+      backgroundColor: context.dialogBg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       title: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.panel,
+              color: context.pillColor,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               _isEditing ? Icons.manage_accounts_rounded : Icons.person_add_rounded,
-              color: AppColors.ink,
+              color: context.inkColor,
               size: 20,
             ),
           ),
@@ -757,7 +912,7 @@ class _UserDialogState extends State<UserDialog> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: AppColors.panel,
+                    color: context.pillColor,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Row(
@@ -793,7 +948,7 @@ class _UserDialogState extends State<UserDialog> {
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFECEB),
+                      color: context.isDark ? const Color(0xFF331616) : const Color(0xFFFFECEB),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -814,7 +969,8 @@ class _UserDialogState extends State<UserDialog> {
         FilledButton(
           onPressed: _busy ? null : _submit,
           style: FilledButton.styleFrom(
-            backgroundColor: AppColors.darkCard,
+            backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+            foregroundColor: context.isDark ? AppColors.ink : Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
           ),
           child: _busy

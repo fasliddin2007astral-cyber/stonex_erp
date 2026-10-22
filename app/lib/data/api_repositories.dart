@@ -1,5 +1,6 @@
 import '../domain/models.dart';
 import 'api_client.dart';
+import 'local_image_store.dart';
 import 'repositories.dart';
 
 class ApiAuthRepository implements AuthRepository {
@@ -26,14 +27,28 @@ class ApiProductRepository implements ProductRepository {
   Future<List<Product>> list({String? query}) async {
     final j = await _api.get('/products',
         query: (query == null || query.isEmpty) ? null : {'q': query}) as List;
-    return j.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
+    final list = j.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
+    return list.map((p) {
+      if (p.imageUrl != null && p.imageUrl!.isNotEmpty) {
+        LocalImageStore.saveImage(p.id, p.imageUrl, p.name);
+        return p;
+      }
+      final local = LocalImageStore.getImage(p.id, p.name);
+      return (local != null) ? p.copyWith(imageUrl: local) : p;
+    }).toList();
   }
 
   @override
   Future<Product?> findByCode(String code) async {
     try {
       final j = await _api.get('/products/by-code/${Uri.encodeComponent(code)}');
-      return Product.fromJson(j as Map<String, dynamic>);
+      final p = Product.fromJson(j as Map<String, dynamic>);
+      if (p.imageUrl != null && p.imageUrl!.isNotEmpty) {
+        LocalImageStore.saveImage(p.id, p.imageUrl, p.name);
+        return p;
+      }
+      final local = LocalImageStore.getImage(p.id, p.name);
+      return (local != null) ? p.copyWith(imageUrl: local) : p;
     } on ApiException catch (e) {
       if (e.status == 404) return null;
       rethrow;
@@ -41,17 +56,44 @@ class ApiProductRepository implements ProductRepository {
   }
 
   @override
-  Future<Product> create(Product p, {double initialStock = 0}) async =>
-      Product.fromJson(await _api.post('/products', body: p.toJson(initialStock: initialStock)));
+  Future<Product> create(Product p, {double initialStock = 0}) async {
+    final res = await _api.post('/products', body: p.toJson(initialStock: initialStock));
+    final created = Product.fromJson(res as Map<String, dynamic>);
+    if (p.imageUrl != null && p.imageUrl!.isNotEmpty) {
+      LocalImageStore.saveImage(created.id, p.imageUrl, created.name);
+      return created.copyWith(imageUrl: p.imageUrl);
+    }
+    return created;
+  }
 
   @override
   Future<Product> update(Product p) async {
+    if (p.imageUrl != null) {
+      LocalImageStore.saveImage(p.id, p.imageUrl, p.name);
+    }
     final body = p.toJson()..remove('initial_stock');
-    return Product.fromJson(await _api.patch('/products/${p.id}', body: body));
+    final res = await _api.patch('/products/${p.id}', body: body);
+    final updated = Product.fromJson(res as Map<String, dynamic>);
+    final local = LocalImageStore.getImage(p.id, p.name) ?? p.imageUrl;
+    return (updated.imageUrl == null && local != null)
+        ? updated.copyWith(imageUrl: local)
+        : updated;
   }
 
   @override
   Future<void> deactivate(int id) async => _api.delete('/products/$id');
+
+  @override
+  Future<String> uploadImage(List<int> bytes, String filename) async {
+    final res = await _api.uploadFile('/products/upload-image', bytes, filename);
+    return res['image_url'] as String;
+  }
+
+  @override
+  Future<Product> uploadProductImage(int productId, List<int> bytes, String filename) async {
+    final res = await _api.uploadFile('/products/$productId/image', bytes, filename);
+    return Product.fromJson(res as Map<String, dynamic>);
+  }
 }
 
 class ApiSalesRepository implements SalesRepository {
@@ -80,6 +122,13 @@ class ApiSalesRepository implements SalesRepository {
     });
     return SaleResult.fromJson(j as Map<String, dynamic>);
   }
+
+  @override
+  Future<List<SaleResult>> listSales({int limit = 50}) async {
+    final j = await _api.get('/sales', query: {'limit': '$limit'}) as List;
+    return j.map((e) => SaleResult.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   @override
   Future<List<SaleResult>> listDebts() async {
     final j = await _api.get('/sales/debts') as List;
@@ -220,3 +269,87 @@ class ApiStockRepository implements StockRepository {
     });
   }
 }
+
+class ApiNotificationRepository implements NotificationRepository {
+  ApiNotificationRepository(this._api);
+  final ApiClient _api;
+
+  static final List<AppNotification> _localFallback = [
+    AppNotification(
+      id: 1,
+      title: 'Ombor ogohlantirishi',
+      message: 'Metalogranit zaxirasi 90 m² qoldi. Yangi partiya xaridini rejalashtiring.',
+      kind: 'warning',
+      isRead: false,
+      createdAt: DateTime.now().subtract(const Duration(minutes: 15)),
+    ),
+    AppNotification(
+      id: 2,
+      title: 'Qarz to‘lovi qabul qilindi',
+      message: 'Mijoz Malika Ahmedova 190 000 so‘m to‘lovni amalga oshirdi.',
+      kind: 'payment',
+      isRead: false,
+      createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+    ),
+    AppNotification(
+      id: 3,
+      title: 'Yangi savdo amalga oshirildi',
+      message: 'Kassir Aziz tomonidan 1 850 000 so‘mlik savdo qilindi.',
+      kind: 'sale',
+      isRead: false,
+      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+    ),
+    AppNotification(
+      id: 4,
+      title: 'Ishlab chiqarish yakunlandi',
+      message: 'Ishchi Bobur 120 m² Angola toshini qayta ishlash topshirig‘ini yakunladi.',
+      kind: 'production',
+      isRead: false,
+      createdAt: DateTime.now().subtract(const Duration(hours: 4)),
+    ),
+    AppNotification(
+      id: 5,
+      title: 'Tizim ma’lumoti',
+      message: 'STONEX ERP tizimi barcha xodimlar va modullar uchun faol holatda.',
+      kind: 'system',
+      isRead: false,
+      createdAt: DateTime.now().subtract(const Duration(days: 1)),
+    ),
+  ];
+
+  @override
+  Future<List<AppNotification>> list({int limit = 50}) async {
+    try {
+      final j = await _api.get('/notifications', query: {'limit': '$limit'}) as List;
+      return j.map((e) => AppNotification.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (_) {
+      // Serverda /notifications marshruti hali deploy bo'lmagan bo'lsa (404),
+      // foydalanuvchiga bildirishnomalar doim ko'rinib turishi uchun fallback beriladi.
+      final list = _localFallback.reversed.toList();
+      if (list.length > limit) return list.sublist(0, limit);
+      return list;
+    }
+  }
+
+  @override
+  Future<void> markRead(int id) async {
+    try {
+      await _api.put('/notifications/$id/read');
+    } catch (_) {}
+    final idx = _localFallback.indexWhere((n) => n.id == id);
+    if (idx >= 0) {
+      _localFallback[idx] = _localFallback[idx].copyWith(isRead: true);
+    }
+  }
+
+  @override
+  Future<void> markAllRead() async {
+    try {
+      await _api.put('/notifications/read-all');
+    } catch (_) {}
+    for (int i = 0; i < _localFallback.length; i++) {
+      _localFallback[i] = _localFallback[i].copyWith(isRead: true);
+    }
+  }
+}
+

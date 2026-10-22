@@ -58,6 +58,7 @@ class Product {
   final double price; // bazaviy birlik narxi
   final double costPrice;
   final double stock;
+  final String? imageUrl;
 
   const Product({
     required this.id,
@@ -69,9 +70,35 @@ class Product {
     required this.price,
     this.costPrice = 0,
     this.stock = 0,
+    this.imageUrl,
   });
 
   bool get hasDona => donaM2 != null && donaM2! > 0;
+
+  Product copyWith({
+    int? id,
+    String? name,
+    String? sku,
+    String? qrCode,
+    String? unit,
+    double? donaM2,
+    double? price,
+    double? costPrice,
+    double? stock,
+    String? imageUrl,
+  }) =>
+      Product(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        sku: sku ?? this.sku,
+        qrCode: qrCode ?? this.qrCode,
+        unit: unit ?? this.unit,
+        donaM2: donaM2 ?? this.donaM2,
+        price: price ?? this.price,
+        costPrice: costPrice ?? this.costPrice,
+        stock: stock ?? this.stock,
+        imageUrl: imageUrl ?? this.imageUrl,
+      );
 
   factory Product.fromJson(Map<String, dynamic> j) => Product(
         id: (j['id'] as num?)?.toInt() ?? 0,
@@ -83,6 +110,9 @@ class Product {
         price: parseNum(j['price']),
         costPrice: parseNum(j['cost_price']),
         stock: parseNum(j['stock']),
+        imageUrl: (j['image_url'] != null && j['image_url'].toString().isNotEmpty)
+            ? j['image_url'].toString()
+            : null,
       );
 
   @override
@@ -101,6 +131,7 @@ class Product {
         'dona_m2': donaM2,
         'price': price,
         'cost_price': costPrice,
+        'image_url': imageUrl,
         'initial_stock': initialStock,
       };
 }
@@ -115,6 +146,30 @@ class CartLine {
   double get lineTotal => baseQty * product.price;
 }
 
+class SaleItemRecord {
+  final int productId;
+  final String productName;
+  final double quantity;
+  final double unitPrice;
+  final double lineTotal;
+
+  const SaleItemRecord({
+    required this.productId,
+    required this.productName,
+    required this.quantity,
+    required this.unitPrice,
+    required this.lineTotal,
+  });
+
+  factory SaleItemRecord.fromJson(Map<String, dynamic> j) => SaleItemRecord(
+        productId: (j['product_id'] as num?)?.toInt() ?? 0,
+        productName: (j['product_name'] ?? '').toString(),
+        quantity: parseNum(j['quantity']),
+        unitPrice: parseNum(j['unit_price']),
+        lineTotal: parseNum(j['line_total']),
+      );
+}
+
 class SaleResult {
   final int id;
   final double total;
@@ -123,6 +178,7 @@ class SaleResult {
   final String? customerName;
   final String? customerPhone;
   final DateTime? createdAt;
+  final List<SaleItemRecord> items;
 
   const SaleResult({
     required this.id,
@@ -132,10 +188,12 @@ class SaleResult {
     this.customerName,
     this.customerPhone,
     this.createdAt,
+    this.items = const [],
   });
 
   factory SaleResult.fromJson(Map<String, dynamic> j) {
     final cust = j['customer'] as Map<String, dynamic>?;
+    final itemsRaw = j['items'] as List<dynamic>?;
     return SaleResult(
       id: (j['id'] as num?)?.toInt() ?? 0,
       total: parseNum(j['total']),
@@ -144,6 +202,9 @@ class SaleResult {
       customerName: cust != null ? (cust['name'] as String?) : (j['customer_name'] as String?),
       customerPhone: cust != null ? (cust['phone'] as String?) : (j['customer_phone'] as String?),
       createdAt: j['created_at'] != null ? DateTime.tryParse(j['created_at'].toString()) : null,
+      items: itemsRaw != null
+          ? itemsRaw.map((e) => SaleItemRecord.fromJson(e as Map<String, dynamic>)).toList()
+          : const [],
     );
   }
 
@@ -270,3 +331,50 @@ class ProductionTask {
   @override
   int get hashCode => id.hashCode;
 }
+
+class AppNotification {
+  final int id;
+  final String title;
+  final String message;
+  final String kind; // warning | payment | sale | production | system
+  final bool isRead;
+  final DateTime createdAt;
+
+  const AppNotification({
+    required this.id,
+    required this.title,
+    required this.message,
+    required this.kind,
+    required this.isRead,
+    required this.createdAt,
+  });
+
+  factory AppNotification.fromJson(Map<String, dynamic> j) => AppNotification(
+        id: (j['id'] as num?)?.toInt() ?? 0,
+        title: (j['title'] ?? '').toString(),
+        message: (j['message'] ?? '').toString(),
+        kind: (j['kind'] ?? 'system').toString(),
+        isRead: j['is_read'] == true,
+        createdAt: j['created_at'] != null
+            ? DateTime.tryParse(j['created_at'].toString()) ?? DateTime.now()
+            : DateTime.now(),
+      );
+
+  AppNotification copyWith({bool? isRead}) => AppNotification(
+        id: id,
+        title: title,
+        message: message,
+        kind: kind,
+        isRead: isRead ?? this.isRead,
+        createdAt: createdAt,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AppNotification && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
+}
+

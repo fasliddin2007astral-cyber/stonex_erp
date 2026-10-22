@@ -28,3 +28,15 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def ensure_migrations():
+    """Jadvallarga yangi ustunlarni xavfsiz qo'shish."""
+    from sqlalchemy import inspect, text
+    inspector = inspect(engine)
+    if "products" in inspector.get_table_names():
+        columns = [c["name"] for c in inspector.get_columns("products")]
+        with engine.begin() as conn:
+            if "image_url" not in columns:
+                conn.execute(text("ALTER TABLE products ADD COLUMN image_url TEXT NULL"))
+

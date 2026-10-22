@@ -17,11 +17,11 @@ class MockStore {
   int nextUserId = 10;
 
   final List<Product> products = [
-    const Product(id: 1, name: 'Angola', qrCode: 'STX-ANGOLA', unit: 'm2', donaM2: 0.25, price: 180000, costPrice: 120000, stock: 200),
-    const Product(id: 2, name: 'Miramir', qrCode: 'STX-MIRAMIR', unit: 'm2', donaM2: 0.25, price: 170000, costPrice: 110000, stock: 150),
-    const Product(id: 3, name: 'Tan Brown', qrCode: 'STX-TANBROWN', unit: 'm2', donaM2: 0.25, price: 190000, costPrice: 130000, stock: 120),
-    const Product(id: 4, name: 'Metalogranit', qrCode: 'STX-METALOGRANIT', unit: 'm2', price: 150000, costPrice: 95000, stock: 80),
-    const Product(id: 5, name: 'Kley', qrCode: 'STX-KLEY', unit: 'dona', price: 45000, costPrice: 30000, stock: 100),
+    const Product(id: 1, name: 'Angola', qrCode: 'STX-ANGOLA', unit: 'm2', donaM2: 0.25, price: 180000, costPrice: 120000, stock: 200, imageUrl: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=400&auto=format&fit=crop&q=80'),
+    const Product(id: 2, name: 'Miramir', qrCode: 'STX-MIRAMIR', unit: 'm2', donaM2: 0.25, price: 170000, costPrice: 110000, stock: 150, imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&auto=format&fit=crop&q=80'),
+    const Product(id: 3, name: 'Tan Brown', qrCode: 'STX-TANBROWN', unit: 'm2', donaM2: 0.25, price: 190000, costPrice: 130000, stock: 120, imageUrl: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=400&auto=format&fit=crop&q=80'),
+    const Product(id: 4, name: 'Metalogranit', qrCode: 'STX-METALOGRANIT', unit: 'm2', price: 150000, costPrice: 95000, stock: 80, imageUrl: 'https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=400&auto=format&fit=crop&q=80'),
+    const Product(id: 5, name: 'Kley', qrCode: 'STX-KLEY', unit: 'dona', price: 45000, costPrice: 30000, stock: 100, imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=400&auto=format&fit=crop&q=80'),
     const Product(id: 6, name: 'Sim', qrCode: 'STX-SIM', unit: 'm', price: 12000, costPrice: 7000, stock: 500),
     const Product(id: 7, name: 'Disk', qrCode: 'STX-DISK', unit: 'dona', price: 250000, costPrice: 170000, stock: 30),
   ];
@@ -36,15 +36,94 @@ class MockStore {
   final List<MockSaleEntry> sales = [
     MockSaleEntry(
       result: SaleResult(
+        id: 95,
+        total: 1800000,
+        paid: 1800000,
+        debt: 0,
+        customerName: 'Sardor Qodirov',
+        customerPhone: '+998 90 999 11 22',
+        createdAt: DateTime.now().subtract(const Duration(days: 6)),
+        items: const [
+          SaleItemRecord(productId: 1, productName: 'Angola', quantity: 10, unitPrice: 180000, lineTotal: 1800000),
+        ],
+      ),
+      cost: 1200000,
+    ),
+    MockSaleEntry(
+      result: SaleResult(
+        id: 96,
+        total: 900000,
+        paid: 900000,
+        debt: 0,
+        customerName: 'Farhod Usta',
+        customerPhone: '+998 91 888 22 33',
+        createdAt: DateTime.now().subtract(const Duration(days: 4)),
+        items: const [
+          SaleItemRecord(productId: 5, productName: 'Kley', quantity: 20, unitPrice: 45000, lineTotal: 900000),
+        ],
+      ),
+      cost: 600000,
+    ),
+    MockSaleEntry(
+      result: SaleResult(
+        id: 97,
+        total: 1500000,
+        paid: 1000000,
+        debt: 500000,
+        customerName: 'Javohir Toshkent',
+        customerPhone: '+998 93 777 33 44',
+        createdAt: DateTime.now().subtract(const Duration(days: 3)),
+        items: const [
+          SaleItemRecord(productId: 4, productName: 'Metalogranit', quantity: 10, unitPrice: 150000, lineTotal: 1500000),
+        ],
+      ),
+      cost: 950000,
+    ),
+    MockSaleEntry(
+      result: SaleResult(
+        id: 98,
+        total: 512000,
+        paid: 512000,
+        debt: 0,
+        customerName: 'Botir Qurilish',
+        customerPhone: '+998 94 666 44 55',
+        createdAt: DateTime.now().subtract(const Duration(days: 2)),
+        items: const [
+          SaleItemRecord(productId: 7, productName: 'Disk', quantity: 2, unitPrice: 250000, lineTotal: 500000),
+          SaleItemRecord(productId: 6, productName: 'Sim', quantity: 1, unitPrice: 12000, lineTotal: 12000),
+        ],
+      ),
+      cost: 347000,
+    ),
+    MockSaleEntry(
+      result: SaleResult(
         id: 99,
-        total: 540000,
-        paid: 300000,
-        debt: 240000,
+        total: 850000,
+        paid: 600000,
+        debt: 250000,
         customerName: 'Akmal aka',
         customerPhone: '+998 90 123 45 67',
         createdAt: DateTime.now().subtract(const Duration(days: 1)),
+        items: const [
+          SaleItemRecord(productId: 2, productName: 'Miramir', quantity: 5, unitPrice: 170000, lineTotal: 850000),
+        ],
       ),
-      cost: 360000,
+      cost: 550000,
+    ),
+    MockSaleEntry(
+      result: SaleResult(
+        id: 100,
+        total: 1900000,
+        paid: 1900000,
+        debt: 0,
+        customerName: 'Sobirjon',
+        customerPhone: '+998 99 555 12 34',
+        createdAt: DateTime.now(),
+        items: const [
+          SaleItemRecord(productId: 3, productName: 'Tan Brown', quantity: 10, unitPrice: 190000, lineTotal: 1900000),
+        ],
+      ),
+      cost: 1300000,
     ),
   ];
   final List<ProductionTask> tasks = [
@@ -87,6 +166,40 @@ class MockStore {
     StockMovementRecord(id: 2, productId: 2, qtyDelta: 150, kind: 'opening', note: 'Boshlang‘ich qoldiq', createdAt: DateTime.now().subtract(const Duration(days: 5))),
     StockMovementRecord(id: 3, productId: 3, qtyDelta: 120, kind: 'opening', note: 'Boshlang‘ich qoldiq', createdAt: DateTime.now().subtract(const Duration(days: 5))),
   ];
+  final List<AppNotification> notifications = [
+    AppNotification(
+      id: 1,
+      title: 'Ombor ogohlantirishi',
+      message: 'Metalogranit zaxirasi 80 m² qoldi. Yangi partiya xaridini rejalashtiring.',
+      kind: 'warning',
+      isRead: false,
+      createdAt: DateTime.now().subtract(const Duration(minutes: 12)),
+    ),
+    AppNotification(
+      id: 2,
+      title: 'Qarz to‘lovi qabul qilindi',
+      message: 'Mijoz Akmal aka 300 000 so‘m qarzini naqd to‘ladi.',
+      kind: 'payment',
+      isRead: false,
+      createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+    ),
+    AppNotification(
+      id: 3,
+      title: 'Yangi savdo amalga oshirildi',
+      message: 'Kassir Aziz tomonidan 1 850 000 so‘mlik savdo qilindi.',
+      kind: 'sale',
+      isRead: true,
+      createdAt: DateTime.now().subtract(const Duration(hours: 3)),
+    ),
+    AppNotification(
+      id: 4,
+      title: 'Ishlab chiqarish topshirig‘i',
+      message: 'Ishchi Bobur 50 m² Angola toshini qayta ishlashni yakunladi.',
+      kind: 'production',
+      isRead: true,
+      createdAt: DateTime.now().subtract(const Duration(hours: 5)),
+    ),
+  ];
 
   int indexOf(int productId) => products.indexWhere((p) => p.id == productId);
 
@@ -107,7 +220,6 @@ class MockAuthRepository implements AuthRepository {
 
   @override
   Future<AppUser> login(String username, String password, Role role) async {
-    await Future.delayed(const Duration(milliseconds: 250));
     final rec = _s.users[username.trim()];
     if (rec == null || rec.password != password) throw ApiException('Login yoki parol noto‘g‘ri', 401);
     if (rec.user.role != role) throw ApiException('Bu akkaunt tanlangan rol uchun emas', 403);
@@ -146,6 +258,7 @@ class MockProductRepository implements ProductRepository {
     final created = Product(
       id: _s.nextProductId++, name: p.name, sku: p.sku, qrCode: p.qrCode, unit: p.unit,
       donaM2: p.donaM2, price: p.price, costPrice: p.costPrice, stock: initialStock,
+      imageUrl: p.imageUrl,
     );
     _s.products.add(created);
     if (initialStock > 0) {
@@ -165,6 +278,7 @@ class MockProductRepository implements ProductRepository {
     final updated = Product(
       id: p.id, name: p.name, sku: p.sku, qrCode: p.qrCode, unit: p.unit, donaM2: p.donaM2,
       price: p.price, costPrice: p.costPrice, stock: old.stock, // qoldiq faqat harakatlar orqali o'zgaradi
+      imageUrl: p.imageUrl ?? old.imageUrl,
     );
     _s.products[i] = updated;
     return updated;
@@ -172,6 +286,20 @@ class MockProductRepository implements ProductRepository {
 
   @override
   Future<void> deactivate(int id) async => _s.products.removeWhere((p) => p.id == id);
+
+  @override
+  Future<String> uploadImage(List<int> bytes, String filename) async {
+    return 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&auto=format&fit=crop&q=80';
+  }
+
+  @override
+  Future<Product> uploadProductImage(int productId, List<int> bytes, String filename) async {
+    final p = _s.products.firstWhere((e) => e.id == productId);
+    final updated = p.copyWith(imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&auto=format&fit=crop&q=80');
+    final i = _s.products.indexWhere((e) => e.id == productId);
+    if (i >= 0) _s.products[i] = updated;
+    return updated;
+  }
 }
 
 class MockSalesRepository implements SalesRepository {
@@ -215,11 +343,54 @@ class MockSalesRepository implements SalesRepository {
     });
 
     final res = SaleResult(
-      id: saleId, total: total, paid: paidAmount, debt: debt,
-      customerName: customerName, customerPhone: customerPhone, createdAt: DateTime.now(),
+      id: saleId,
+      total: total,
+      paid: paidAmount,
+      debt: debt,
+      customerName: customerName,
+      customerPhone: customerPhone,
+      createdAt: DateTime.now(),
+      items: lines.map((l) => SaleItemRecord(
+        productId: l.product.id,
+        productName: l.product.name,
+        quantity: l.baseQty,
+        unitPrice: l.product.price,
+        lineTotal: l.lineTotal,
+      )).toList(),
     );
     _s.sales.add(MockSaleEntry(result: res, cost: cost));
+
+    _s.notifications.add(AppNotification(
+      id: _s.nextId++,
+      title: 'Yangi savdo amalga oshirildi',
+      message: 'Savdo #$saleId: ${total.round()} so‘m${customerName != null && customerName.isNotEmpty ? ' ($customerName)' : ''}',
+      kind: 'sale',
+      isRead: false,
+      createdAt: DateTime.now(),
+    ));
+
+    reserved.forEach((id, q) {
+      final p = _s.products[_s.indexOf(id)];
+      if (p.stock <= 20) {
+        _s.notifications.add(AppNotification(
+          id: _s.nextId++,
+          title: 'Ombor ogohlantirishi: Zaxira kam',
+          message: '${p.name} mahsulotidan atigi ${p.stock.toStringAsFixed(1)} ${p.unit} qoldi!',
+          kind: 'warning',
+          isRead: false,
+          createdAt: DateTime.now(),
+        ));
+      }
+    });
+
     return res;
+  }
+
+  @override
+  Future<List<SaleResult>> listSales({int limit = 50}) async {
+    final all = _s.sales.map((e) => e.result).toList().reversed.toList();
+    if (all.length > limit) return all.sublist(0, limit);
+    return all;
   }
 
   @override
@@ -253,6 +424,14 @@ class MockSalesRepository implements SalesRepository {
       createdAt: entry.result.createdAt,
     );
     entry.result = updated;
+    _s.notifications.add(AppNotification(
+      id: _s.nextId++,
+      title: 'Qarz to‘lovi qabul qilindi',
+      message: 'Mijoz ${entry.result.customerName ?? 'Mijoz'} ${amount.round()} so‘m to‘ladi ($method)',
+      kind: 'payment',
+      isRead: false,
+      createdAt: DateTime.now(),
+    ));
     return updated;
   }
 }
@@ -298,6 +477,14 @@ class MockProductionRepository implements ProductionRepository {
       id: _s.nextId++, productId: p.id, productName: p.name, unit: p.unit, assignedTo: w.id,
       workerName: w.fullName, planned: plannedQty, produced: 0, status: 'open',
     ));
+    _s.notifications.add(AppNotification(
+      id: _s.nextId++,
+      title: 'Yangi ishlab chiqarish topshirig‘i',
+      message: '${w.fullName}: ${p.name} ($plannedQty ${p.unit}) biriktirildi',
+      kind: 'production',
+      isRead: false,
+      createdAt: DateTime.now(),
+    ));
   }
 
   @override
@@ -319,6 +506,14 @@ class MockProductionRepository implements ProductionRepository {
     _s.movements.add(StockMovementRecord(
       id: _s.nextId++, productId: t.productId, qtyDelta: producedQty, kind: 'production',
       note: 'Topshiriq #${t.id} bajarilishi', createdAt: DateTime.now(),
+    ));
+    _s.notifications.add(AppNotification(
+      id: _s.nextId++,
+      title: produced >= t.planned ? 'Ishlab chiqarish yakunlandi' : 'Ishlab chiqarish qayd etildi',
+      message: '${t.workerName}: ${t.productName} ($producedQty ${t.unit} tayyorlandi)',
+      kind: 'production',
+      isRead: false,
+      createdAt: DateTime.now(),
     ));
   }
 }
@@ -418,6 +613,14 @@ class MockStockRepository implements StockRepository {
       id: _s.nextId++, productId: productId, qtyDelta: quantity, kind: 'purchase',
       note: note ?? 'Xarid kirimi', createdAt: DateTime.now(),
     ));
+    _s.notifications.add(AppNotification(
+      id: _s.nextId++,
+      title: 'Omborga tovar kirimi',
+      message: '${p.name}: +$quantity ${p.unit} qabul qilindi',
+      kind: 'system',
+      isRead: false,
+      createdAt: DateTime.now(),
+    ));
   }
 
   @override
@@ -437,5 +640,42 @@ class MockStockRepository implements StockRepository {
       id: _s.nextId++, productId: productId, qtyDelta: delta, kind: 'adjustment',
       note: note, createdAt: DateTime.now(),
     ));
+    final sign = delta > 0 ? '+' : '';
+    _s.notifications.add(AppNotification(
+      id: _s.nextId++,
+      title: 'Ombor qoldig‘i tuzatildi',
+      message: '${p.name}: $sign$delta ${p.unit} ($note)',
+      kind: 'warning',
+      isRead: false,
+      createdAt: DateTime.now(),
+    ));
   }
 }
+
+class MockNotificationRepository implements NotificationRepository {
+  MockNotificationRepository(this._s);
+  final MockStore _s;
+
+  @override
+  Future<List<AppNotification>> list({int limit = 50}) async {
+    final list = _s.notifications.reversed.toList();
+    if (list.length > limit) return list.sublist(0, limit);
+    return list;
+  }
+
+  @override
+  Future<void> markRead(int id) async {
+    final idx = _s.notifications.indexWhere((n) => n.id == id);
+    if (idx >= 0) {
+      _s.notifications[idx] = _s.notifications[idx].copyWith(isRead: true);
+    }
+  }
+
+  @override
+  Future<void> markAllRead() async {
+    for (int i = 0; i < _s.notifications.length; i++) {
+      _s.notifications[i] = _s.notifications[i].copyWith(isRead: true);
+    }
+  }
+}
+
