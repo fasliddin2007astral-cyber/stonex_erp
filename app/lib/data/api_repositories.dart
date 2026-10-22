@@ -1,6 +1,7 @@
 import '../domain/models.dart';
 import 'api_client.dart';
 import 'local_image_store.dart';
+import 'local_session_store.dart';
 import 'repositories.dart';
 
 class ApiAuthRepository implements AuthRepository {
@@ -11,12 +12,37 @@ class ApiAuthRepository implements AuthRepository {
   Future<AppUser> login(String username, String password, Role role) async {
     final j = await _api.post('/auth/login',
         body: {'username': username, 'password': password, 'role': role.code});
-    _api.token = j['access_token'] as String;
-    return AppUser.fromJson(j['user'] as Map<String, dynamic>);
+    final token = j['access_token'] as String;
+    _api.token = token;
+    final user = AppUser.fromJson(j['user'] as Map<String, dynamic>);
+    LocalSessionStore.saveSession(token: token, user: user);
+    return user;
   }
 
   @override
-  Future<void> logout() async => _api.token = null;
+  Future<AppUser?> tryRestoreSession() async {
+    final session = LocalSessionStore.loadSession();
+    if (session == null) return null;
+    _api.token = session.token;
+    try {
+      final j = await _api.get('/auth/me');
+      final user = AppUser.fromJson(j as Map<String, dynamic>);
+      LocalSessionStore.saveSession(token: session.token, user: user);
+      return user;
+    } catch (e) {
+      if (e is ApiException && (e.status == 401 || e.status == 403)) {
+        await logout();
+        return null;
+      }
+      return session.user;
+    }
+  }
+
+  @override
+  Future<void> logout() async {
+    _api.token = null;
+    LocalSessionStore.clearSession();
+  }
 }
 
 class ApiProductRepository implements ProductRepository {

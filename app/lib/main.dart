@@ -37,7 +37,17 @@ class StonexApp extends StatelessWidget {
           darkTheme: buildTheme(Brightness.dark),
           themeMode: themeCtrl.mode,
           home: Consumer<AuthController>(
-            builder: (_, auth, __) => auth.user == null ? const LoginScreen() : HomeShell(user: auth.user!),
+            builder: (_, auth, __) {
+              if (auth.loading && auth.user == null) {
+                return const Scaffold(
+                  backgroundColor: AppColors.panel,
+                  body: Center(
+                    child: CircularProgressIndicator(color: AppColors.neonLime),
+                  ),
+                );
+              }
+              return auth.user == null ? const LoginScreen() : HomeShell(user: auth.user!);
+            },
           ),
         ),
       ),

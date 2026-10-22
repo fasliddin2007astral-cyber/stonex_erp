@@ -10,6 +10,7 @@ import '../core/format.dart';
 import '../core/theme.dart';
 import '../data/repositories.dart';
 import '../domain/models.dart';
+import 'camera_capture_dialog.dart';
 import 'common.dart';
 
 class CustomersScreen extends StatefulWidget {
@@ -633,12 +634,8 @@ class _CustomerDialogState extends State<CustomerDialog> {
   Future<void> _pickImage(ImageSource source) async {
     try {
       final custRepo = context.read<AppRepositories>().customers;
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(source: source, maxWidth: 1200, maxHeight: 1200, imageQuality: 82);
-      if (picked == null) return;
-
-      final bytes = await picked.readAsBytes();
-      if (bytes.isEmpty) return;
+      final bytes = await pickOrCaptureCustomerImage(context, source);
+      if (bytes == null || bytes.isEmpty) return;
 
       String finalUrl;
       try {
@@ -658,7 +655,7 @@ class _CustomerDialogState extends State<CustomerDialog> {
 
       // Agar serverda upload mavjud bo'lsa
       try {
-        final filename = picked.name.isNotEmpty ? picked.name : 'customer_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final filename = 'customer_${DateTime.now().millisecondsSinceEpoch}.jpg';
         final uploaded = await custRepo.uploadCustomerImage(bytes, filename);
         if (uploaded.isNotEmpty) {
           finalUrl = uploaded;
@@ -668,11 +665,12 @@ class _CustomerDialogState extends State<CustomerDialog> {
       if (mounted) {
         setState(() {
           _photoUrl = finalUrl;
+          _error = null;
         });
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _error = 'Rasm tanlashda xatolik: $e');
+        setState(() => _error = 'Rasm olishda xatolik: $e');
       }
     }
   }

@@ -12,6 +12,7 @@ import '../core/theme.dart';
 import '../data/repositories.dart';
 import '../domain/models.dart';
 import '../state/cart_controller.dart';
+import 'camera_capture_dialog.dart';
 import 'common.dart';
 import 'qr_scanner_screen.dart';
 
@@ -1075,14 +1076,8 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       _error = null;
     });
     try {
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(source: source, maxWidth: 1200, maxHeight: 1200, imageQuality: 80);
-      if (picked == null) {
-        if (mounted) setState(() => _uploadingImage = false);
-        return;
-      }
-      final bytes = await picked.readAsBytes();
-      if (bytes.isEmpty) {
+      final bytes = await pickOrCaptureCustomerImage(context, source);
+      if (bytes == null || bytes.isEmpty) {
         if (mounted) setState(() => _uploadingImage = false);
         return;
       }
@@ -1104,7 +1099,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       }
 
       try {
-        final filename = picked.name.isNotEmpty ? picked.name : 'cust_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final filename = 'cust_${DateTime.now().millisecondsSinceEpoch}.jpg';
         final uploaded = await custRepo.uploadCustomerImage(bytes, filename);
         if (uploaded.isNotEmpty) {
           finalUrl = uploaded;

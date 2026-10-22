@@ -39,6 +39,14 @@ class AppUser {
         isActive: (j['is_active'] ?? true) as bool,
       );
 
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'username': username,
+        'full_name': fullName,
+        'role': role.code,
+        'is_active': isActive,
+      };
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
