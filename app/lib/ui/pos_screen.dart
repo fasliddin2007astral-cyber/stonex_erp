@@ -261,10 +261,10 @@ class _PosScreenState extends State<PosScreen> {
             return GridView.builder(
               padding: const EdgeInsets.only(bottom: 8),
               gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 240,
-                mainAxisExtent: 150,
-                mainAxisSpacing: 14,
-                crossAxisSpacing: 14,
+                maxCrossAxisExtent: 220,
+                mainAxisExtent: 214,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
               ),
               itemCount: items.length,
               itemBuilder: (_, i) => _ProductCard(
@@ -494,74 +494,160 @@ class _ProductCardState extends State<_ProductCard> {
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeOutCubic,
               transform: Matrix4.translationValues(0, lifted ? -4 : 0, 0),
-              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.cardColor,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: lifted ? AppColors.green : Colors.transparent, width: 1.4),
+                border: Border.all(color: lifted ? AppColors.green : context.borderColor, width: 1.4),
                 boxShadow: [
                   BoxShadow(
-                    color: Color(lifted ? 0x24000000 : 0x0F000000),
-                    blurRadius: lifted ? 22 : 12,
-                    offset: Offset(0, lifted ? 9 : 4),
+                    color: Color(lifted ? 0x24000000 : 0x0A000000),
+                    blurRadius: lifted ? 20 : 10,
+                    offset: Offset(0, lifted ? 8 : 4),
                   ),
                 ],
               ),
-              child: Opacity(
-                opacity: out ? 0.55 : 1,
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    ProductThumbnail(
-                      imageUrl: p.imageUrl,
-                      name: p.name,
-                      size: 46,
-                      borderRadius: 12,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: out ? const Color(0xFFFCE4E3) : AppColors.greenSoft,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            out ? 'Tugagan' : 'Qoldiq: ${qty(p.stock)} ${_u(p.unit)}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 11, fontWeight: FontWeight.w600, color: out ? AppColors.danger : AppColors.darkCard),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(19),
+                child: Opacity(
+                  opacity: out ? 0.55 : 1,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Katta rasm qismi (Image Banner)
+                      SizedBox(
+                        height: 114,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ProductThumbnail(
+                              imageUrl: p.imageUrl,
+                              name: p.name,
+                              width: double.infinity,
+                              height: 114,
+                              borderRadiusGeometry: const BorderRadius.vertical(top: Radius.circular(19)),
+                            ),
+                            // Qoldiq belgisi (Stock badge)
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: out
+                                      ? const Color(0xFFE53935)
+                                      : Colors.black.withValues(alpha: 0.65),
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: const [
+                                    BoxShadow(color: Color(0x22000000), blurRadius: 4, offset: Offset(0, 2)),
+                                  ],
+                                ),
+                                child: Text(
+                                  out ? 'Tugagan' : 'Qoldiq: ${qty(p.stock)} ${_u(p.unit)}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // Katta ko'rish (Zoom preview) tugmasi agar rasm bo'lsa
+                            if (p.imageUrl != null && p.imageUrl!.trim().isNotEmpty)
+                              Positioned(
+                                top: 8,
+                                left: 8,
+                                child: Material(
+                                  color: Colors.black.withValues(alpha: 0.45),
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(10),
+                                    onTap: () => showProductImagePreview(
+                                      context,
+                                      imageUrl: p.imageUrl,
+                                      name: p.name,
+                                      subtitle: '${money(p.price)} / ${_u(p.unit)} • Qoldiq: ${qty(p.stock)} ${_u(p.unit)}',
+                                    ),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(5),
+                                      child: Icon(Icons.fullscreen_rounded, color: Colors.white, size: 16),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      // Mahsulot matni va narxi
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                p.name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.22,
+                                  color: context.inkColor,
+                                ),
+                              ),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          money(p.price),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w800,
+                                            color: context.isDark ? AppColors.neonLime : AppColors.ink,
+                                          ),
+                                        ),
+                                        Text(
+                                          '/ ${_u(p.unit)}',
+                                          maxLines: 1,
+                                          style: TextStyle(fontSize: 11, color: context.mutedColor),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      color: lifted ? AppColors.neonLime : (context.isDark ? const Color(0xFF21262D) : AppColors.darkCard),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Icon(
+                                      Icons.add_shopping_cart_rounded,
+                                      color: lifted ? AppColors.ink : Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ),
-                  ]),
-                  const Spacer(),
-                  Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                        Text(p.name,
-                            maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 2),
-                        Text('${money(p.price)} / ${_u(p.unit)}',
-                            maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
-                      ]),
-                    ),
-                    const SizedBox(width: 8),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: lifted ? AppColors.neonLime : AppColors.darkCard,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(Icons.add_shopping_cart_rounded, color: lifted ? AppColors.ink : Colors.white, size: 18),
-                    ),
-                  ]),
-                ]),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -785,11 +871,19 @@ class _CartLineTile extends StatelessWidget {
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            ProductThumbnail(
-              imageUrl: p.imageUrl,
-              name: p.name,
-              size: 32,
-              borderRadius: 8,
+            GestureDetector(
+              onTap: () => showProductImagePreview(
+                context,
+                imageUrl: p.imageUrl,
+                name: p.name,
+                subtitle: '${money(p.price)} / ${_u(p.unit)} • Savatda: ${qty(line.quantity)} ${_u(p.unit)}',
+              ),
+              child: ProductThumbnail(
+                imageUrl: p.imageUrl,
+                name: p.name,
+                size: 38,
+                borderRadius: 10,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(

@@ -85,22 +85,34 @@ class ProductThumbnail extends StatelessWidget {
     this.imageUrl,
     required this.name,
     this.size = 42,
+    this.width,
+    this.height,
     this.borderRadius = 12,
+    this.borderRadiusGeometry,
+    this.fit = BoxFit.cover,
   });
 
   final String? imageUrl;
   final String name;
   final double size;
+  final double? width;
+  final double? height;
   final double borderRadius;
+  final BorderRadiusGeometry? borderRadiusGeometry;
+  final BoxFit fit;
 
   @override
   Widget build(BuildContext context) {
+    final w = width ?? size;
+    final h = height ?? size;
+    final r = borderRadiusGeometry ?? BorderRadius.circular(borderRadius);
+
     Widget fallbackAvatar() => Container(
-          width: size,
-          height: size,
+          width: w,
+          height: h,
           decoration: BoxDecoration(
             color: context.isDark ? const Color(0xFF1E2822) : AppColors.neonLimeSoft,
-            borderRadius: BorderRadius.circular(borderRadius),
+            borderRadius: r,
             border: Border.all(
               color: context.borderColor,
               width: 0.8,
@@ -110,7 +122,7 @@ class ProductThumbnail extends StatelessWidget {
           child: Icon(
             Icons.inventory_2_outlined,
             color: context.isDark ? AppColors.neonLime : AppColors.ink,
-            size: size * 0.52,
+            size: (w < h ? w : h) * 0.45,
           ),
         );
 
@@ -128,9 +140,9 @@ class ProductThumbnail extends StatelessWidget {
         final bytes = base64Decode(b64);
         imageWidget = Image.memory(
           Uint8List.fromList(bytes),
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
+          width: w,
+          height: h,
+          fit: fit,
           errorBuilder: (_, __, ___) => fallbackAvatar(),
         );
       } else if (!raw.startsWith('http://') &&
@@ -140,9 +152,9 @@ class ProductThumbnail extends StatelessWidget {
         // Mahalliy kompyuter / telefon fayl yo'li
         imageWidget = Image.file(
           File(raw),
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
+          width: w,
+          height: h,
+          fit: fit,
           errorBuilder: (_, __, ___) => fallbackAvatar(),
         );
       } else {
@@ -150,16 +162,16 @@ class ProductThumbnail extends StatelessWidget {
         final resolvedUrl = ApiClient.resolveUrl(raw);
         imageWidget = Image.network(
           resolvedUrl,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
+          width: w,
+          height: h,
+          fit: fit,
           loadingBuilder: (context, child, loadingProgress) {
             if (loadingProgress == null) return child;
-            return Center(
+            return const Center(
               child: SizedBox(
-                width: size * 0.35,
-                height: size * 0.35,
-                child: const CircularProgressIndicator(strokeWidth: 2),
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
             );
           },
@@ -171,15 +183,97 @@ class ProductThumbnail extends StatelessWidget {
     }
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
+      borderRadius: r,
       child: Container(
-        width: size,
-        height: size,
+        width: w,
+        height: h,
         color: context.isDark ? const Color(0xFF1E2822) : const Color(0xFFF1F5F9),
         child: imageWidget,
       ),
     );
   }
+}
+
+/// Mahsulot rasmini to'liq va katta hajmda ko'rish oynasi
+void showProductImagePreview(
+  BuildContext context, {
+  required String? imageUrl,
+  required String name,
+  String? subtitle,
+}) {
+  if (imageUrl == null || imageUrl.trim().isEmpty) return;
+  showDialog(
+    context: context,
+    builder: (ctx) => Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 460),
+        decoration: BoxDecoration(
+          color: ctx.cardColor,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: const [
+            BoxShadow(color: Color(0x55000000), blurRadius: 28, offset: Offset(0, 10)),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Stack(
+              children: [
+                ProductThumbnail(
+                  imageUrl: imageUrl,
+                  name: name,
+                  width: double.infinity,
+                  height: 320,
+                  fit: BoxFit.contain,
+                  borderRadiusGeometry: const BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Material(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    shape: const CircleBorder(),
+                    child: IconButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      icon: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                      tooltip: 'Yopish',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: ctx.inkColor,
+                    ),
+                  ),
+                  if (subtitle != null && subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(fontSize: 13, color: AppColors.muted, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class NotImplementedView extends StatelessWidget {

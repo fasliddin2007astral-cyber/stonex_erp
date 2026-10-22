@@ -1518,11 +1518,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Row(
                           children: [
-                            ProductThumbnail(
-                              imageUrl: p.imageUrl,
-                              name: p.name,
-                              size: 34,
-                              borderRadius: 10,
+                            GestureDetector(
+                              onTap: () => showProductImagePreview(
+                                context,
+                                imageUrl: p.imageUrl,
+                                name: p.name,
+                                subtitle: '${money(p.price)} / ${p.unit} • Qoldiq: ${qty(p.stock)} ${p.unit}',
+                              ),
+                              child: ProductThumbnail(
+                                imageUrl: p.imageUrl,
+                                name: p.name,
+                                size: 44,
+                                borderRadius: 10,
+                              ),
                             ),
                             const SizedBox(width: 10),
                             Expanded(

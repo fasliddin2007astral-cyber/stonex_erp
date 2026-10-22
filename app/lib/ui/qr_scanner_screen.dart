@@ -499,11 +499,19 @@ class _QrScannerScreenState extends State<QrScannerScreen>
           const SizedBox(height: 8),
           Row(
             children: [
-              ProductThumbnail(
-                imageUrl: p.imageUrl,
-                name: p.name,
-                size: 38,
-                borderRadius: 10,
+              GestureDetector(
+                onTap: () => showProductImagePreview(
+                  context,
+                  imageUrl: p.imageUrl,
+                  name: p.name,
+                  subtitle: '${money(p.price)} / ${p.unit} • Qoldiq: ${qty(p.stock)} ${p.unit}',
+                ),
+                child: ProductThumbnail(
+                  imageUrl: p.imageUrl,
+                  name: p.name,
+                  size: 50,
+                  borderRadius: 12,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(

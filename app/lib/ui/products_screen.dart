@@ -432,11 +432,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                   Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      ProductThumbnail(
-                                        imageUrl: p.imageUrl,
-                                        name: p.name,
-                                        size: 38,
-                                        borderRadius: 10,
+                                      GestureDetector(
+                                        onTap: () => showProductImagePreview(
+                                          context,
+                                          imageUrl: p.imageUrl,
+                                          name: p.name,
+                                          subtitle: '${money(p.price)} / ${p.unit} • Qoldiq: ${qty(p.stock)} ${p.unit}',
+                                        ),
+                                        child: ProductThumbnail(
+                                          imageUrl: p.imageUrl,
+                                          name: p.name,
+                                          size: 58,
+                                          borderRadius: 14,
+                                        ),
                                       ),
                                       const SizedBox(width: 10),
                                       Expanded(
@@ -574,11 +582,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             child: Row(
                               children: [
                                 // Mahsulot logosi
-                                ProductThumbnail(
-                                  imageUrl: p.imageUrl,
-                                  name: p.name,
-                                  size: 44,
-                                  borderRadius: 12,
+                                GestureDetector(
+                                  onTap: () => showProductImagePreview(
+                                    context,
+                                    imageUrl: p.imageUrl,
+                                    name: p.name,
+                                    subtitle: '${money(p.price)} / ${p.unit} • Qoldiq: ${qty(p.stock)} ${p.unit}',
+                                  ),
+                                  child: ProductThumbnail(
+                                    imageUrl: p.imageUrl,
+                                    name: p.name,
+                                    size: 58,
+                                    borderRadius: 14,
+                                  ),
                                 ),
                                 const SizedBox(width: 14),
 
