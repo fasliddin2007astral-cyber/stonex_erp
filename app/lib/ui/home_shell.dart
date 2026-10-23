@@ -17,6 +17,8 @@ import 'debts_screen.dart';
 import 'pos_screen.dart';
 import 'production_screen.dart';
 import 'products_screen.dart';
+import 'purchases_screen.dart';
+import 'sales_history_screen.dart';
 import 'stock_screen.dart';
 import 'users_screen.dart';
 
@@ -37,6 +39,12 @@ List<_Dest> _destinationsFor(Role role,
       actionLabel: '+ Yangi Savdo');
   const pos = _Dest('Savdo (POS)', Icons.point_of_sale_rounded, PosScreen.new,
       actionLabel: 'Savdoga o‘tish');
+  const salesHistory = _Dest(
+    'Savdolar',
+    Icons.receipt_long_rounded,
+    SalesHistoryScreen.new,
+    actionLabel: 'Savdolar jurnali',
+  );
   const customers = _Dest(
     'Mijozlar',
     Icons.people_alt_rounded,
@@ -46,6 +54,12 @@ List<_Dest> _destinationsFor(Role role,
   const debts = _Dest(
       'Nasiyalar', Icons.pending_actions_rounded, DebtsScreen.new,
       actionLabel: 'Qarz undirish');
+  const purchases = _Dest(
+    'Xaridlar',
+    Icons.shopping_bag_rounded,
+    PurchasesScreen.new,
+    actionLabel: '+ Yangi Xarid',
+  );
   const products = _Dest(
       'Mahsulotlar', Icons.inventory_2_rounded, ProductsScreen.new,
       actionLabel: '+ Mahsulot');
@@ -70,9 +84,9 @@ List<_Dest> _destinationsFor(Role role,
 
   switch (role) {
     case Role.admin:
-      return [dash, pos, customers, debts, products, stock, prod, staff, cams];
+      return [dash, pos, salesHistory, customers, debts, purchases, products, stock, prod, staff, cams];
     case Role.kassir:
-      return [pos, customers, debts, products];
+      return [pos, salesHistory, customers, debts, products];
     case Role.ishchi:
       return [prod];
   }

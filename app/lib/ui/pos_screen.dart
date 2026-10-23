@@ -15,6 +15,7 @@ import '../state/cart_controller.dart';
 import 'camera_capture_dialog.dart';
 import 'common.dart';
 import 'qr_scanner_screen.dart';
+import 'receipt_dialog.dart';
 
 String _u(String unit) => unit == 'm2' ? 'm²' : unit;
 
@@ -764,6 +765,7 @@ class _CartPanel extends StatelessWidget {
       showMessage(context, 'Savdo #${res.id} saqlandi. To‘landi: ${money(res.paid)}'
           '${res.debt > 0 ? ', nasiya: ${money(res.debt)}' : ''}');
       onSold();
+      await ReceiptDialog.show(context, res);
     } catch (e) {
       if (context.mounted) showMessage(context, e.toString(), error: true);
     }

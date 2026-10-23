@@ -262,6 +262,9 @@ class SaleResult {
   final String? customerPhone;
   final String? customerPassport;
   final String? customerPhotoUrl;
+  final int? cashierId;
+  final String? cashierName;
+  final String? paymentMethod;
   final DateTime? createdAt;
   final List<SaleItemRecord> items;
 
@@ -275,6 +278,9 @@ class SaleResult {
     this.customerPhone,
     this.customerPassport,
     this.customerPhotoUrl,
+    this.cashierId,
+    this.cashierName,
+    this.paymentMethod,
     this.createdAt,
     this.items = const [],
   });
@@ -292,6 +298,9 @@ class SaleResult {
       customerPhone: cust != null ? (cust['phone'] as String?) : (j['customer_phone'] as String?),
       customerPassport: cust != null ? (cust['passport'] as String?) : (j['customer_passport'] as String?),
       customerPhotoUrl: cust != null ? (cust['photo_url'] as String?) : (j['customer_photo_url'] as String?),
+      cashierId: (j['cashier_id'] as num?)?.toInt(),
+      cashierName: j['cashier_name'] as String?,
+      paymentMethod: (j['payment_method'] as String?) ?? 'cash',
       createdAt: j['created_at'] != null ? DateTime.tryParse(j['created_at'].toString()) : null,
       items: itemsRaw != null
           ? itemsRaw.map((e) => SaleItemRecord.fromJson(e as Map<String, dynamic>)).toList()
@@ -311,26 +320,35 @@ class SaleResult {
 class StockMovementRecord {
   final int id;
   final int productId;
+  final String? productName;
   final double qtyDelta;
   final String kind;
   final String? note;
+  final String? createdByName;
+  final double? unitCost;
   final DateTime createdAt;
 
   const StockMovementRecord({
     required this.id,
     required this.productId,
+    this.productName,
     required this.qtyDelta,
     required this.kind,
     this.note,
+    this.createdByName,
+    this.unitCost,
     required this.createdAt,
   });
 
   factory StockMovementRecord.fromJson(Map<String, dynamic> j) => StockMovementRecord(
         id: (j['id'] as num?)?.toInt() ?? 0,
         productId: (j['product_id'] as num?)?.toInt() ?? 0,
+        productName: j['product_name'] as String?,
         qtyDelta: parseNum(j['qty_delta']),
         kind: (j['kind'] ?? '').toString(),
         note: j['note'] as String?,
+        createdByName: j['created_by_name'] as String?,
+        unitCost: j['unit_cost'] != null ? parseNum(j['unit_cost']) : null,
         createdAt: j['created_at'] != null
             ? DateTime.tryParse(j['created_at'].toString()) ?? DateTime.now()
             : DateTime.now(),

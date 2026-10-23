@@ -44,6 +44,8 @@ class MockStore {
         debt: 0,
         customerName: 'Sardor Qodirov',
         customerPhone: '+998 90 999 11 22',
+        cashierName: 'Alisher (Kassir)',
+        paymentMethod: 'cash',
         createdAt: DateTime.now().subtract(const Duration(days: 6)),
         items: const [
           SaleItemRecord(productId: 1, productName: 'Angola', quantity: 10, unitPrice: 180000, lineTotal: 1800000),
@@ -59,6 +61,8 @@ class MockStore {
         debt: 0,
         customerName: 'Farhod Usta',
         customerPhone: '+998 91 888 22 33',
+        cashierName: 'Alisher (Kassir)',
+        paymentMethod: 'karta',
         createdAt: DateTime.now().subtract(const Duration(days: 4)),
         items: const [
           SaleItemRecord(productId: 5, productName: 'Kley', quantity: 20, unitPrice: 45000, lineTotal: 900000),
@@ -202,9 +206,11 @@ class MockStore {
     ),
   ];
   final List<StockMovementRecord> movements = [
-    StockMovementRecord(id: 1, productId: 1, qtyDelta: 200, kind: 'opening', note: 'Boshlang‘ich qoldiq', createdAt: DateTime.now().subtract(const Duration(days: 5))),
-    StockMovementRecord(id: 2, productId: 2, qtyDelta: 150, kind: 'opening', note: 'Boshlang‘ich qoldiq', createdAt: DateTime.now().subtract(const Duration(days: 5))),
-    StockMovementRecord(id: 3, productId: 3, qtyDelta: 120, kind: 'opening', note: 'Boshlang‘ich qoldiq', createdAt: DateTime.now().subtract(const Duration(days: 5))),
+    StockMovementRecord(id: 1, productId: 1, productName: 'Angola', qtyDelta: 200, kind: 'opening', note: 'Boshlang‘ich qoldiq', createdAt: DateTime.now().subtract(const Duration(days: 10))),
+    StockMovementRecord(id: 2, productId: 2, productName: 'Miramir', qtyDelta: 150, kind: 'opening', note: 'Boshlang‘ich qoldiq', createdAt: DateTime.now().subtract(const Duration(days: 10))),
+    StockMovementRecord(id: 3, productId: 4, productName: 'Metalogranit', qtyDelta: 80, kind: 'purchase', note: 'Navoiy Granit MCHJ / Partiya #12', createdByName: 'Admin', unitCost: 95000, createdAt: DateTime.now().subtract(const Duration(days: 4))),
+    StockMovementRecord(id: 4, productId: 5, productName: 'Kley', qtyDelta: 100, kind: 'purchase', note: 'Akfix Rasmiy Diler / Shartnoma #88', createdByName: 'Admin', unitCost: 30000, createdAt: DateTime.now().subtract(const Duration(days: 2))),
+    StockMovementRecord(id: 5, productId: 7, productName: 'Disk', qtyDelta: 30, kind: 'purchase', note: 'Toshkent Asbob Bozori / Naqd', createdByName: 'Admin', unitCost: 180000, createdAt: DateTime.now().subtract(const Duration(hours: 18))),
   ];
   final List<AppNotification> notifications = [
     AppNotification(
@@ -398,6 +404,9 @@ class MockSalesRepository implements SalesRepository {
       customerPhone: customerPhone,
       customerPassport: customerPassport,
       customerPhotoUrl: customerPhotoUrl,
+      cashierId: 1,
+      cashierName: 'Alisher (Kassir)',
+      paymentMethod: 'cash',
       createdAt: DateTime.now(),
       items: lines.map((l) => SaleItemRecord(
         productId: l.product.id,
@@ -659,8 +668,8 @@ class MockStockRepository implements StockRepository {
       price: p.price, costPrice: newCost, stock: newStock,
     );
     _s.movements.add(StockMovementRecord(
-      id: _s.nextId++, productId: productId, qtyDelta: quantity, kind: 'purchase',
-      note: note ?? 'Xarid kirimi', createdAt: DateTime.now(),
+      id: _s.nextId++, productId: productId, productName: p.name, qtyDelta: quantity, kind: 'purchase',
+      note: note ?? 'Xarid kirimi', createdByName: 'Admin', unitCost: unitCost, createdAt: DateTime.now(),
     ));
     _s.notifications.add(AppNotification(
       id: _s.nextId++,

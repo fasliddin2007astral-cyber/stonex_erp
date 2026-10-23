@@ -150,4 +150,6 @@ extension ThemeX on BuildContext {
   Color get pillColor => isDark ? const Color(0xFF21262D) : AppColors.panel;
   Color get dialogBg => isDark ? const Color(0xFF161B22) : Colors.white;
   Color get cardSubtle => isDark ? const Color(0xFF1B2129) : const Color(0xFFF9FAFB);
+  Color get cardBg => cardColor;
+  Color get subtextColor => mutedColor;
 }

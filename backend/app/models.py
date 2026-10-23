@@ -65,6 +65,9 @@ class StockMovement(Base):
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
+    product: Mapped["Product"] = relationship()
+    user: Mapped["User | None"] = relationship()
+
 
 class Customer(Base):
     __tablename__ = "customers"
@@ -91,6 +94,7 @@ class Sale(Base):
     items: Mapped[list["SaleItem"]] = relationship(cascade="all, delete-orphan")
     payments: Mapped[list["Payment"]] = relationship(cascade="all, delete-orphan")
     customer: Mapped["Customer | None"] = relationship(back_populates="sales")
+    cashier: Mapped["User"] = relationship()
 
     @property
     def debt(self) -> Decimal:

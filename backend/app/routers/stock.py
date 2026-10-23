@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from .. import models as m
 from .. import roles
@@ -17,13 +17,33 @@ router = APIRouter(prefix="/stock", tags=["stock"])
 _admin = require_roles(roles.ADMIN)
 
 
+def _mv_to_out(mv: m.StockMovement) -> MovementOut:
+    return MovementOut(
+        id=mv.id,
+        product_id=mv.product_id,
+        product_name=mv.product.name if mv.product else None,
+        qty_delta=mv.qty_delta,
+        kind=mv.kind,
+        ref_type=mv.ref_type,
+        ref_id=mv.ref_id,
+        note=mv.note,
+        created_by_name=mv.user.full_name if mv.user else None,
+        created_at=mv.created_at,
+    )
+
+
 @router.get("/movements", response_model=list[MovementOut])
 def movements(product_id: int | None = None, limit: int = 200, db: Session = Depends(get_db),
               _: m.User = Depends(_admin)):
-    stmt = select(m.StockMovement).order_by(m.StockMovement.id.desc()).limit(min(limit, 1000))
+    stmt = (
+        select(m.StockMovement)
+        .options(selectinload(m.StockMovement.product), selectinload(m.StockMovement.user))
+        .order_by(m.StockMovement.id.desc())
+        .limit(min(limit, 1000))
+    )
     if product_id:
         stmt = stmt.where(m.StockMovement.product_id == product_id)
-    return db.scalars(stmt).all()
+    return [_mv_to_out(mv) for mv in db.scalars(stmt).all()]
 
 
 @router.post("/purchase", response_model=MovementOut, status_code=201)
@@ -45,7 +65,8 @@ def purchase(data: PurchaseIn, db: Session = Depends(get_db), admin: m.User = De
         is_read=False,
     ))
     db.commit()
-    return mv
+    db.refresh(mv)
+    return _mv_to_out(mv)
 
 
 @router.post("/adjust", response_model=MovementOut, status_code=201)
@@ -67,4 +88,5 @@ def adjust(data: AdjustIn, db: Session = Depends(get_db), admin: m.User = Depend
         is_read=False,
     ))
     db.commit()
-    return mv
+    db.refresh(mv)
+    return _mv_to_out(mv)

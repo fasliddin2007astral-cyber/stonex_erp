@@ -28,3 +28,21 @@ double? parseInput(String s) {
       .replaceAll(',', '.');
   return double.tryParse(clean);
 }
+
+/// Sana va vaqtni ko'rsatish uchun: 23.10.2026 14:35
+String formatDateTime(DateTime dt) {
+  final d = dt.day.toString().padLeft(2, '0');
+  final m = dt.month.toString().padLeft(2, '0');
+  final y = dt.year;
+  final h = dt.hour.toString().padLeft(2, '0');
+  final min = dt.minute.toString().padLeft(2, '0');
+  return '$d.$m.$y $h:$min';
+}
+
+/// Faqat sanani ko'rsatish uchun: 23.10.2026
+String formatDate(DateTime dt) {
+  final d = dt.day.toString().padLeft(2, '0');
+  final m = dt.month.toString().padLeft(2, '0');
+  final y = dt.year;
+  return '$d.$m.$y';
+}

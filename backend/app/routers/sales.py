@@ -14,20 +14,39 @@ _sellers = require_roles(roles.ADMIN, roles.CASHIER)
 
 
 def to_out(s: m.Sale) -> SaleOut:
-    return SaleOut(id=s.id, customer=s.customer, cashier_id=s.cashier_id, total=s.total,
-                   paid=s.paid, debt=s.debt, created_at=s.created_at, items=s.items)
+    cashier_name = s.cashier.full_name if (hasattr(s, 'cashier') and s.cashier) else f"Kassir #{s.cashier_id}"
+    method = s.payments[0].method if (hasattr(s, 'payments') and s.payments) else "cash"
+    return SaleOut(
+        id=s.id,
+        customer=s.customer,
+        cashier_id=s.cashier_id,
+        cashier_name=cashier_name,
+        total=s.total,
+        paid=s.paid,
+        debt=s.debt,
+        created_at=s.created_at,
+        items=s.items,
+        payment_method=method,
+    )
 
 
 @router.post("", response_model=SaleOut, status_code=201)
 def create(data: SaleIn, db: Session = Depends(get_db), user: m.User = Depends(_sellers)):
-    return to_out(svc.create_sale(db, user, data))
+    sale = svc.create_sale(db, user, data)
+    db.refresh(sale)
+    return to_out(sale)
 
 
 @router.get("", response_model=list[SaleOut])
-def list_sales(limit: int = 100, db: Session = Depends(get_db), user: m.User = Depends(_sellers)):
+def list_sales(limit: int = 200, db: Session = Depends(get_db), user: m.User = Depends(_sellers)):
     stmt = (
         select(m.Sale)
-        .options(selectinload(m.Sale.items), selectinload(m.Sale.customer))
+        .options(
+            selectinload(m.Sale.items),
+            selectinload(m.Sale.customer),
+            selectinload(m.Sale.cashier),
+            selectinload(m.Sale.payments),
+        )
         .order_by(m.Sale.id.desc())
         .limit(min(limit, 500))
     )
@@ -40,7 +59,12 @@ def list_sales(limit: int = 100, db: Session = Depends(get_db), user: m.User = D
 def debts(db: Session = Depends(get_db), _: m.User = Depends(_sellers)):
     stmt = (
         select(m.Sale)
-        .options(selectinload(m.Sale.items), selectinload(m.Sale.customer))
+        .options(
+            selectinload(m.Sale.items),
+            selectinload(m.Sale.customer),
+            selectinload(m.Sale.cashier),
+            selectinload(m.Sale.payments),
+        )
         .where(m.Sale.paid < m.Sale.total)
         .order_by(m.Sale.id)
     )
@@ -49,7 +73,17 @@ def debts(db: Session = Depends(get_db), _: m.User = Depends(_sellers)):
 
 @router.get("/{sale_id}", response_model=SaleOut)
 def get_sale(sale_id: int, db: Session = Depends(get_db), user: m.User = Depends(_sellers)):
-    s = db.get(m.Sale, sale_id)
+    stmt = (
+        select(m.Sale)
+        .options(
+            selectinload(m.Sale.items),
+            selectinload(m.Sale.customer),
+            selectinload(m.Sale.cashier),
+            selectinload(m.Sale.payments),
+        )
+        .where(m.Sale.id == sale_id)
+    )
+    s = db.scalar(stmt)
     if s is None or (user.role != roles.ADMIN and s.cashier_id != user.id):
         raise HTTPException(404, "Savdo topilmadi")
     return to_out(s)

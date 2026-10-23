@@ -100,11 +100,13 @@ class AdjustIn(BaseModel):
 class MovementOut(ORM):
     id: int
     product_id: int
+    product_name: str | None = None
     qty_delta: Decimal
     kind: str
-    ref_type: str | None
-    ref_id: int | None
-    note: str | None
+    ref_type: str | None = None
+    ref_id: int | None = None
+    note: str | None = None
+    created_by_name: str | None = None
     created_at: datetime
 
 
@@ -157,11 +159,13 @@ class SaleOut(BaseModel):
     id: int
     customer: CustomerOut | None
     cashier_id: int
+    cashier_name: str | None = None
     total: Decimal
     paid: Decimal
     debt: Decimal
     created_at: datetime
     items: list[SaleItemOut]
+    payment_method: str | None = None
 
 
 class PaymentIn(BaseModel):

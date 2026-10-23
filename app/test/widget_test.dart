@@ -13,6 +13,9 @@ import 'package:stonex_erp/ui/dashboard_screen.dart';
 import 'package:stonex_erp/ui/products_screen.dart';
 import 'package:stonex_erp/ui/pos_screen.dart';
 import 'package:stonex_erp/ui/customers_screen.dart';
+import 'package:stonex_erp/ui/purchases_screen.dart';
+import 'package:stonex_erp/ui/receipt_dialog.dart';
+import 'package:stonex_erp/ui/sales_history_screen.dart';
 import 'package:stonex_erp/state/theme_controller.dart';
 
 void main() {
@@ -79,6 +82,7 @@ void main() {
     // Click "Ishlab chiqarish"
     final prodNavItem = find.widgetWithText(InkWell, 'Ishlab chiqarish');
     expect(prodNavItem, findsWidgets);
+    await tester.ensureVisible(prodNavItem.first);
     await tester.tap(prodNavItem.first);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -366,5 +370,122 @@ void main() {
 
     expect(find.text('Farhod Usta'), findsOneWidget);
     expect(find.text('Sardor Qodirov'), findsNothing);
+  });
+
+  testWidgets('ReceiptDialog renders slip, barcode/QR, totals and copy button', (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const mockSale = SaleResult(
+      id: 101,
+      total: 1800000,
+      paid: 1800000,
+      debt: 0,
+      customerName: 'Sobirjon Aka',
+      customerPhone: '+998 90 111 22 33',
+      cashierName: 'Alisher Kassir',
+      items: [
+        SaleItemRecord(productId: 1, productName: 'Marmar Oq', quantity: 10, unitPrice: 180000, lineTotal: 1800000),
+      ],
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: ReceiptDialog(sale: mockSale),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Kassa Cheki'), findsOneWidget);
+    expect(find.text('STONEX GRANIT & MARMAR'), findsOneWidget);
+    expect(find.text('Sobirjon Aka'), findsOneWidget);
+    expect(find.text('Marmar Oq'), findsOneWidget);
+    expect(find.text('Nusxa olish'), findsOneWidget);
+    expect(find.text('Chop etish'), findsOneWidget);
+  });
+
+  testWidgets('SalesHistoryScreen renders sales, KPIs and search works', (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          Provider<AppRepositories>.value(value: repos),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: SalesHistoryScreen()),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Savdolar Jurnali'), findsOneWidget);
+    expect(find.text('Jami Savdo Summasi'), findsOneWidget);
+
+    // Search by customer "Sardor"
+    final search = find.byType(TextField);
+    await tester.enterText(search, 'Sardor');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.textContaining('Sardor Qodirov'), findsWidgets);
+
+    // Search by customer "Farhod"
+    await tester.enterText(search, 'Farhod');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.textContaining('Farhod Usta'), findsWidgets);
+    expect(find.textContaining('Sardor Qodirov'), findsNothing);
+  });
+
+  testWidgets('PurchasesScreen renders stock purchases, KPIs and new purchase dialog', (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          Provider<AppRepositories>.value(value: repos),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: PurchasesScreen()),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Xaridlar & Ta‘minot'), findsOneWidget);
+    expect(find.text('Jami Xaridlar Summasi'), findsOneWidget);
+    expect(find.text('Yangi Xarid Kirimi'), findsOneWidget);
+
+    // Click "Yangi Xarid Kirimi"
+    await tester.tap(find.text('Yangi Xarid Kirimi'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Xarid qilinayotgan tovar / xomashyo'), findsOneWidget);
+    expect(find.text('Kirim qilish'), findsOneWidget);
   });
 }
