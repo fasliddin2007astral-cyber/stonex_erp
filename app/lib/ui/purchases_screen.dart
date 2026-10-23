@@ -371,8 +371,11 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
               padding: const EdgeInsets.all(20),
               children: [
                 // Top header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 12,
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -593,10 +596,14 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      pName,
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                    Expanded(
+                      child: Text(
+                        pName,
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       '+${m.qtyDelta.toStringAsFixed(1)} $unit',
                       style: const TextStyle(
@@ -608,14 +615,15 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                   ],
                 ),
                 const SizedBox(height: 6),
-                Row(
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
                   children: [
                     if (cost > 0) ...[
                       Text(
                         'Tannarx: ${money(cost)} / $unit',
                         style: TextStyle(color: context.subtextColor, fontSize: 12, fontWeight: FontWeight.w600),
                       ),
-                      const SizedBox(width: 12),
                       Text(
                         'Jami: ${money(totalCost)}',
                         style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: AppColors.neonLime),
@@ -638,23 +646,34 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                   ),
                 ],
                 const SizedBox(height: 6),
-                Row(
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Icon(Icons.access_time_rounded, size: 13, color: context.subtextColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      formatDateTime(m.createdAt),
-                      style: TextStyle(color: context.subtextColor, fontSize: 11),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.access_time_rounded, size: 13, color: context.subtextColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          formatDateTime(m.createdAt),
+                          style: TextStyle(color: context.subtextColor, fontSize: 11),
+                        ),
+                      ],
                     ),
-                    if (m.createdByName != null) ...[
-                      const SizedBox(width: 12),
-                      Icon(Icons.person_rounded, size: 13, color: context.subtextColor),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Qabul qildi: ${m.createdByName}',
-                        style: TextStyle(color: context.subtextColor, fontSize: 11),
+                    if (m.createdByName != null)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.person_rounded, size: 13, color: context.subtextColor),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Qabul qildi: ${m.createdByName}',
+                            style: TextStyle(color: context.subtextColor, fontSize: 11),
+                          ),
+                        ],
                       ),
-                    ],
                   ],
                 ),
               ],

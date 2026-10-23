@@ -488,4 +488,43 @@ void main() {
     expect(find.text('Xarid qilinayotgan tovar / xomashyo'), findsOneWidget);
     expect(find.text('Kirim qilish'), findsOneWidget);
   });
+
+  testWidgets('Scanning receipt QR code opens ReceiptDialog', (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final cartCtrl = CartController(repos.sales);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          Provider<AppRepositories>.value(value: repos),
+          ChangeNotifierProvider.value(value: cartCtrl),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: PosScreen()),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Type a receipt QR code into the search/scanner input
+    final search = find.byType(TextField).first;
+    await tester.enterText(search, 'STONEX-CHEK-#95-1800000UZS');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Verify ReceiptDialog opened with Chek #95
+    expect(find.byType(ReceiptDialog), findsOneWidget);
+    expect(find.text('Kassa Cheki'), findsOneWidget);
+    expect(find.text('STONEX GRANIT & MARMAR'), findsOneWidget);
+    expect(find.textContaining('95'), findsWidgets);
+  });
 }

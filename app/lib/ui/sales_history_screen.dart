@@ -206,19 +206,21 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Savdolar Jurnali',
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Kim nimani, qachon, kimga va qanchaga sotganini ko‘rish hamda chek berish',
-                          style: TextStyle(color: context.subtextColor, fontSize: 13),
-                        ),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Savdolar Jurnali',
+                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Kim nimani, qachon, kimga va qanchaga sotganini ko‘rish hamda chek berish',
+                            style: TextStyle(color: context.subtextColor, fontSize: 13),
+                          ),
+                        ],
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.refresh_rounded),
@@ -452,9 +454,12 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
           ),
           title: Row(
             children: [
-              Text(
-                'Chek #${sale.id.toString().padLeft(6, '0')}',
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+              Flexible(
+                child: Text(
+                  'Chek #${sale.id.toString().padLeft(6, '0')}',
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               const SizedBox(width: 8),
               Container(
@@ -486,52 +491,69 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Icon(Icons.person_rounded, size: 14, color: context.subtextColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      sale.customerName?.isNotEmpty == true
-                          ? '${sale.customerName} ${sale.customerPhone ?? ''}'
-                          : 'Chakana xaridor',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: sale.customerName?.isNotEmpty == true
-                            ? Colors.white
-                            : context.subtextColor,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.person_rounded, size: 14, color: context.subtextColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          sale.customerName?.isNotEmpty == true
+                              ? '${sale.customerName} ${sale.customerPhone ?? ''}'
+                              : 'Chakana xaridor',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: sale.customerName?.isNotEmpty == true
+                                ? Colors.white
+                                : context.subtextColor,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 14),
-                    Icon(Icons.badge_rounded, size: 14, color: context.subtextColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Sotuvchi: ${sale.cashierName ?? 'Kassir'}',
-                      style: TextStyle(fontSize: 12, color: context.subtextColor),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.badge_rounded, size: 14, color: context.subtextColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Sotuvchi: ${sale.cashierName ?? 'Kassir'}',
+                          style: TextStyle(fontSize: 12, color: context.subtextColor),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Row(
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Icon(Icons.access_time_rounded, size: 14, color: context.subtextColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      formatDateTime(sale.createdAt ?? DateTime.now()),
-                      style: TextStyle(fontSize: 11, color: context.subtextColor),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.access_time_rounded, size: 14, color: context.subtextColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          formatDateTime(sale.createdAt ?? DateTime.now()),
+                          style: TextStyle(fontSize: 11, color: context.subtextColor),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
                     Text(
                       'To‘landi: ${money(sale.paid)}',
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF10B981)),
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF10B981), fontWeight: FontWeight.w700),
                     ),
-                    if (hasDebt) ...[
-                      const SizedBox(width: 8),
+                    if (hasDebt)
                       Text(
                         'Qarz: ${money(sale.debt)}',
                         style: const TextStyle(fontSize: 11, color: Color(0xFFEF4444), fontWeight: FontWeight.w800),
                       ),
-                    ],
                   ],
                 ),
               ],
@@ -560,6 +582,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Container(
                             width: 6,
@@ -571,16 +594,21 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(
-                              it.productName,
-                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  it.productName,
+                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                                ),
+                                Text(
+                                  '${it.quantity.toStringAsFixed(1)} dona/m² × ${money(it.unitPrice)}',
+                                  style: TextStyle(color: context.subtextColor, fontSize: 11),
+                                ),
+                              ],
                             ),
                           ),
-                          Text(
-                            '${it.quantity.toStringAsFixed(1)} dona/m² × ${money(it.unitPrice)}',
-                            style: TextStyle(color: context.subtextColor, fontSize: 12),
-                          ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 8),
                           Text(
                             money(it.lineTotal),
                             style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),

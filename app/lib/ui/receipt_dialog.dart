@@ -1,4 +1,7 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -10,7 +13,27 @@ import '../core/theme.dart';
 import '../domain/models.dart';
 import 'common.dart';
 
-class ReceiptDialog extends StatelessWidget {
+bool isReceiptQr(String code) {
+  final c = code.trim().toUpperCase();
+  return c.startsWith('STONEX-CHEK-') ||
+      c.startsWith('STONEX-SALE-') ||
+      c.startsWith('CHEK-#') ||
+      c.startsWith('CHEK-') ||
+      c.startsWith('SALE-#') ||
+      RegExp(r'#\d+').hasMatch(c);
+}
+
+int? extractSaleId(String code) {
+  final reg = RegExp(r'#(\d+)');
+  final match = reg.firstMatch(code);
+  if (match != null) {
+    return int.tryParse(match.group(1)!);
+  }
+  final digits = code.replaceAll(RegExp(r'[^0-9]'), '');
+  return int.tryParse(digits);
+}
+
+class ReceiptDialog extends StatefulWidget {
   const ReceiptDialog({super.key, required this.sale});
 
   final SaleResult sale;
@@ -22,7 +45,17 @@ class ReceiptDialog extends StatelessWidget {
     );
   }
 
+  @override
+  State<ReceiptDialog> createState() => _ReceiptDialogState();
+}
+
+class _ReceiptDialogState extends State<ReceiptDialog> {
+  final GlobalKey _receiptKey = GlobalKey();
+  bool _isPrinting = false;
+  bool _isCapturing = false;
+
   String _buildPlainText() {
+    final sale = widget.sale;
     final sb = StringBuffer();
     sb.writeln('================================');
     sb.writeln('     STONEX GRANIT & MARMAR     ');
@@ -32,7 +65,8 @@ class ReceiptDialog extends StatelessWidget {
     sb.writeln('Chek №: #${sale.id.toString().padLeft(6, '0')}');
     sb.writeln('Sana: ${formatDateTime(sale.createdAt ?? DateTime.now())}');
     sb.writeln('Sotuvchi: ${sale.cashierName ?? 'Kassir'}');
-    sb.writeln('Xaridor: ${sale.customerName?.isNotEmpty == true ? sale.customerName : 'Chakana xaridor'}');
+    sb.writeln(
+        'Xaridor: ${sale.customerName?.isNotEmpty == true ? sale.customerName : 'Chakana xaridor'}');
     if (sale.customerPhone?.isNotEmpty == true) {
       sb.writeln('Tel: ${sale.customerPhone}');
     }
@@ -46,13 +80,14 @@ class ReceiptDialog extends StatelessWidget {
       final name = it.productName.length > 14
           ? '${it.productName.substring(0, 12)}..'
           : it.productName.padRight(14);
-      final qty = it.quantity.toStringAsFixed(1).padRight(6);
+      final qStr = it.quantity.toStringAsFixed(1).padRight(6);
       final total = money(it.lineTotal);
-      sb.writeln('$name $qty $total');
+      sb.writeln('$name $qStr $total');
     }
     sb.writeln('================================');
     sb.writeln('JAMI SUMMA:     ${money(sale.total)}');
-    sb.writeln('To‘landi:       ${money(sale.paid)} (${sale.paymentMethod == 'karta' ? 'Karta' : 'Naqd'})');
+    sb.writeln(
+        'To‘landi:       ${money(sale.paid)} (${sale.paymentMethod == 'karta' ? 'Karta' : 'Naqd'})');
     if (sale.debt > 0.005) {
       sb.writeln('Qoldiq nasiya:  ${money(sale.debt)}');
     }
@@ -63,7 +98,91 @@ class ReceiptDialog extends StatelessWidget {
     return sb.toString();
   }
 
+  Future<Uint8List?> _captureReceiptPng() async {
+    try {
+      final boundary =
+          _receiptKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return null;
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _viewReceiptImage(BuildContext context) async {
+    setState(() => _isCapturing = true);
+    final bytes = await _captureReceiptPng();
+    if (!mounted) return;
+    setState(() => _isCapturing = false);
+
+    if (bytes == null) {
+      showMessage(context, 'Chek rasmini hosil qilib bo‘lmadi', error: true);
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              constraints: const BoxConstraints(maxWidth: 420, maxHeight: 600),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black38, blurRadius: 20, offset: Offset(0, 8)),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: SingleChildScrollView(
+                  child: Image.memory(bytes, fit: BoxFit.contain),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                FilledButton.icon(
+                  onPressed: () {
+                    _copyToClipboard(context);
+                    Navigator.pop(ctx);
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.neonLime,
+                    foregroundColor: AppColors.ink,
+                  ),
+                  icon: const Icon(Icons.copy_rounded, size: 16),
+                  label: const Text('Matnni nusxalash'),
+                ),
+                const SizedBox(width: 10),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white24,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Yopish'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _printPdf(BuildContext context) async {
+    final sale = widget.sale;
+    setState(() => _isPrinting = true);
+
     try {
       final doc = pw.Document();
       final font = await PdfGoogleFonts.robotoRegular();
@@ -249,11 +368,73 @@ class ReceiptDialog extends StatelessWidget {
         onLayout: (format) async => doc.save(),
         name: 'Chek_${sale.id}.pdf',
       );
+    } on MissingPluginException {
+      // Dastur hot-reload bo'lganda native plugin ulanmagan bo'lsa
+      if (context.mounted) {
+        _showPluginNotice(context);
+      }
     } catch (e) {
       if (context.mounted) {
-        showMessage(context, 'Chop etishda xatolik: $e', error: true);
+        if (e.toString().contains('MissingPluginException') ||
+            e.toString().contains('net.nfet.printing')) {
+          _showPluginNotice(context);
+        } else {
+          showMessage(context, 'Chop etishda xatolik: $e', error: true);
+        }
       }
+    } finally {
+      if (mounted) setState(() => _isPrinting = false);
     }
+  }
+
+  void _showPluginNotice(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.dialogBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 24),
+            SizedBox(width: 10),
+            Text('Printer Ulanishi', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Yangi "printing" moduli qo‘shilgani sababli, Windows/Android printer drayverini to‘liq ulash uchun ilovani bir marta o‘chirib qayta yoqish (restart) lozim.',
+              style: TextStyle(fontSize: 13, height: 1.4),
+            ),
+            SizedBox(height: 10),
+            Text(
+              'Hozir esa chek rasmini to‘liq ko‘rishingiz, nusxa olishingiz yoki mijozga Telegram orqali yuborishingiz mumkin!',
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.green),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Yopish'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _viewReceiptImage(context);
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.neonLime,
+              foregroundColor: AppColors.ink,
+            ),
+            icon: const Icon(Icons.image_rounded, size: 16),
+            label: const Text('Chek Rasmini Ko‘rish'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _copyToClipboard(BuildContext context) {
@@ -264,12 +445,13 @@ class ReceiptDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sale = widget.sale;
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420, maxHeight: 720),
+          constraints: const BoxConstraints(maxWidth: 430, maxHeight: 750),
           child: Container(
             decoration: BoxDecoration(
               color: const Color(0xFFFBFBFB),
@@ -326,267 +508,270 @@ class ReceiptDialog extends StatelessWidget {
                   ),
                 ),
 
-                // Printable paper receipt body
+                // Printable paper receipt body wrapped in RepaintBoundary for image capture
                 Flexible(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(20),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Brand
-                          const Center(
-                            child: Text(
-                              'STONEX GRANIT & MARMAR',
-                              style: TextStyle(
-                                fontFamily: 'Courier',
-                                fontSize: 16,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF111827),
-                                letterSpacing: 0.5,
-                              ),
-                              textAlign: TextAlign.center,
+                    padding: const EdgeInsets.all(16),
+                    child: RepaintBoundary(
+                      key: _receiptKey,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
                             ),
-                          ),
-                          const SizedBox(height: 2),
-                          const Center(
-                            child: Text(
-                              'Tosh ishlab chiqarish sexi',
-                              style: TextStyle(
-                                fontFamily: 'Courier',
-                                fontSize: 11,
-                                color: Color(0xFF6B7280),
-                              ),
-                            ),
-                          ),
-                          const Center(
-                            child: Text(
-                              'Tel: +998 (90) 123-45-67',
-                              style: TextStyle(
-                                fontFamily: 'Courier',
-                                fontSize: 11,
-                                color: Color(0xFF6B7280),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          _dashedLine(),
-                          const SizedBox(height: 10),
-
-                          // Chek no & date
-                          _receiptRow(
-                            'Chek raqami:',
-                            '#${sale.id.toString().padLeft(6, '0')}',
-                            isBold: true,
-                          ),
-                          const SizedBox(height: 4),
-                          _receiptRow(
-                            'Sana va vaqt:',
-                            formatDateTime(sale.createdAt ?? DateTime.now()),
-                          ),
-                          const SizedBox(height: 4),
-                          _receiptRow(
-                            'Sotuvchi (Kassir):',
-                            sale.cashierName ?? 'Kassir',
-                          ),
-                          const SizedBox(height: 4),
-                          _receiptRow(
-                            'Xaridor:',
-                            sale.customerName?.isNotEmpty == true
-                                ? sale.customerName!
-                                : 'Chakana xaridor',
-                            isBold: sale.customerName?.isNotEmpty == true,
-                          ),
-                          if (sale.customerPhone?.isNotEmpty == true) ...[
-                            const SizedBox(height: 4),
-                            _receiptRow('Telefon:', sale.customerPhone!),
                           ],
-                          if (sale.customerPassport?.isNotEmpty == true) ...[
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Brand
+                            const Center(
+                              child: Text(
+                                'STONEX GRANIT & MARMAR',
+                                style: TextStyle(
+                                  fontFamily: 'Courier',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF111827),
+                                  letterSpacing: 0.5,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            const Center(
+                              child: Text(
+                                'Tosh ishlab chiqarish sexi',
+                                style: TextStyle(
+                                  fontFamily: 'Courier',
+                                  fontSize: 11,
+                                  color: Color(0xFF6B7280),
+                                ),
+                              ),
+                            ),
+                            const Center(
+                              child: Text(
+                                'Tel: +998 (90) 123-45-67',
+                                style: TextStyle(
+                                  fontFamily: 'Courier',
+                                  fontSize: 11,
+                                  color: Color(0xFF6B7280),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _dashedLine(),
+                            const SizedBox(height: 10),
+
+                            // Chek no & date
+                            _receiptRow(
+                              'Chek raqami:',
+                              '#${sale.id.toString().padLeft(6, '0')}',
+                              isBold: true,
+                            ),
                             const SizedBox(height: 4),
-                            _receiptRow('Pasport:', sale.customerPassport!),
-                          ],
+                            _receiptRow(
+                              'Sana va vaqt:',
+                              formatDateTime(sale.createdAt ?? DateTime.now()),
+                            ),
+                            const SizedBox(height: 4),
+                            _receiptRow(
+                              'Sotuvchi (Kassir):',
+                              sale.cashierName ?? 'Kassir',
+                            ),
+                            const SizedBox(height: 4),
+                            _receiptRow(
+                              'Xaridor:',
+                              sale.customerName?.isNotEmpty == true
+                                  ? sale.customerName!
+                                  : 'Chakana xaridor',
+                              isBold: sale.customerName?.isNotEmpty == true,
+                            ),
+                            if (sale.customerPhone?.isNotEmpty == true) ...[
+                              const SizedBox(height: 4),
+                              _receiptRow('Telefon:', sale.customerPhone!),
+                            ],
+                            if (sale.customerPassport?.isNotEmpty == true) ...[
+                              const SizedBox(height: 4),
+                              _receiptRow('Pasport:', sale.customerPassport!),
+                            ],
 
-                          const SizedBox(height: 12),
-                          _dashedLine(),
-                          const SizedBox(height: 10),
+                            const SizedBox(height: 12),
+                            _dashedLine(),
+                            const SizedBox(height: 10),
 
-                          // Table header
-                          const Row(
-                            children: [
-                              Expanded(
-                                flex: 5,
-                                child: Text('Mahsulot',
-                                    style: TextStyle(
-                                        fontFamily: 'Courier',
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF374151))),
-                              ),
-                              Expanded(
-                                flex: 2,
-                                child: Text('Miqdor',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                        fontFamily: 'Courier',
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF374151))),
-                              ),
-                              Expanded(
-                                flex: 4,
-                                child: Text('Summa',
-                                    textAlign: TextAlign.right,
-                                    style: TextStyle(
-                                        fontFamily: 'Courier',
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF374151))),
+                            // Table header
+                            const Row(
+                              children: [
+                                Expanded(
+                                  flex: 5,
+                                  child: Text('Mahsulot',
+                                      style: TextStyle(
+                                          fontFamily: 'Courier',
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF374151))),
+                                ),
+                                Expanded(
+                                  flex: 2,
+                                  child: Text('Miqdor',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                          fontFamily: 'Courier',
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF374151))),
+                                ),
+                                Expanded(
+                                  flex: 4,
+                                  child: Text('Summa',
+                                      textAlign: TextAlign.right,
+                                      style: TextStyle(
+                                          fontFamily: 'Courier',
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF374151))),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            const Divider(height: 1, color: Color(0xFFE5E7EB)),
+                            const SizedBox(height: 6),
+
+                            // Items
+                            for (final item in sale.items) ...[
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 3),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      flex: 5,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item.productName,
+                                            style: const TextStyle(
+                                              fontFamily: 'Courier',
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF1F2937),
+                                            ),
+                                          ),
+                                          Text(
+                                            '${money(item.unitPrice)} / birlik',
+                                            style: const TextStyle(
+                                              fontFamily: 'Courier',
+                                              fontSize: 10,
+                                              color: Color(0xFF9CA3AF),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        item.quantity.toStringAsFixed(1),
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontFamily: 'Courier',
+                                          fontSize: 12,
+                                          color: Color(0xFF374151),
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 4,
+                                      child: Text(
+                                        money(item.lineTotal),
+                                        textAlign: TextAlign.right,
+                                        style: const TextStyle(
+                                          fontFamily: 'Courier',
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF111827),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
-                          ),
-                          const SizedBox(height: 6),
-                          const Divider(height: 1, color: Color(0xFFE5E7EB)),
-                          const SizedBox(height: 6),
 
-                          // Items
-                          for (final item in sale.items) ...[
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 3),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    flex: 5,
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          item.productName,
-                                          style: const TextStyle(
-                                            fontFamily: 'Courier',
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: Color(0xFF1F2937),
-                                          ),
-                                        ),
-                                        Text(
-                                          '${money(item.unitPrice)} / birlik',
-                                          style: const TextStyle(
-                                            fontFamily: 'Courier',
-                                            fontSize: 10,
-                                            color: Color(0xFF9CA3AF),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Expanded(
-                                    flex: 2,
-                                    child: Text(
-                                      item.quantity.toStringAsFixed(1),
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontFamily: 'Courier',
-                                        fontSize: 12,
-                                        color: Color(0xFF374151),
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    flex: 4,
-                                    child: Text(
-                                      money(item.lineTotal),
-                                      textAlign: TextAlign.right,
-                                      style: const TextStyle(
-                                        fontFamily: 'Courier',
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF111827),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            const SizedBox(height: 10),
+                            _dashedLine(),
+                            const SizedBox(height: 10),
+
+                            // Totals
+                            _receiptRow(
+                              'JAMI:',
+                              money(sale.total),
+                              isBold: true,
+                              fontSize: 15,
+                              valueColor: const Color(0xFF111827),
                             ),
-                          ],
-
-                          const SizedBox(height: 10),
-                          _dashedLine(),
-                          const SizedBox(height: 10),
-
-                          // Totals
-                          _receiptRow(
-                            'JAMI:',
-                            money(sale.total),
-                            isBold: true,
-                            fontSize: 15,
-                            valueColor: const Color(0xFF111827),
-                          ),
-                          const SizedBox(height: 5),
-                          _receiptRow(
-                            'To‘landi (${sale.paymentMethod == 'karta' ? 'Karta' : 'Naqd'}):',
-                            money(sale.paid),
-                            fontSize: 13,
-                            valueColor: const Color(0xFF059669),
-                          ),
-                          if (sale.debt > 0.005) ...[
                             const SizedBox(height: 5),
                             _receiptRow(
-                              'Qoldiq nasiya:',
-                              money(sale.debt),
-                              isBold: true,
+                              'To‘landi (${sale.paymentMethod == 'karta' ? 'Karta' : 'Naqd'}):',
+                              money(sale.paid),
                               fontSize: 13,
-                              valueColor: const Color(0xFFDC2626),
+                              valueColor: const Color(0xFF059669),
+                            ),
+                            if (sale.debt > 0.005) ...[
+                              const SizedBox(height: 5),
+                              _receiptRow(
+                                'Qoldiq nasiya:',
+                                money(sale.debt),
+                                isBold: true,
+                                fontSize: 13,
+                                valueColor: const Color(0xFFDC2626),
+                              ),
+                            ],
+
+                            const SizedBox(height: 16),
+                            Center(
+                              child: SizedBox(
+                                width: 85,
+                                height: 85,
+                                child: QrImageView(
+                                  data: 'STONEX-CHEK-#${sale.id}-${sale.total.round()}UZS',
+                                  version: QrVersions.auto,
+                                  size: 85.0,
+                                  eyeStyle: const QrEyeStyle(
+                                    eyeShape: QrEyeShape.square,
+                                    color: Color(0xFF1F2937),
+                                  ),
+                                  dataModuleStyle: const QrDataModuleStyle(
+                                    dataModuleShape: QrDataModuleShape.square,
+                                    color: Color(0xFF1F2937),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            const Center(
+                              child: Text(
+                                'Xaridingiz uchun tashakkur!\nSTONEX ERP orqali ro‘yxatga olindi.',
+                                style: TextStyle(
+                                  fontFamily: 'Courier',
+                                  fontSize: 10,
+                                  color: Color(0xFF6B7280),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
                             ),
                           ],
-
-                          const SizedBox(height: 16),
-                          Center(
-                            child: SizedBox(
-                              width: 80,
-                              height: 80,
-                              child: QrImageView(
-                                data: 'STONEX-CHEK-#${sale.id}-${sale.total.round()}UZS',
-                                version: QrVersions.auto,
-                                size: 80.0,
-                                eyeStyle: const QrEyeStyle(
-                                  eyeShape: QrEyeShape.square,
-                                  color: Color(0xFF1F2937),
-                                ),
-                                dataModuleStyle: const QrDataModuleStyle(
-                                  dataModuleShape: QrDataModuleShape.square,
-                                  color: Color(0xFF1F2937),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          const Center(
-                            child: Text(
-                              'Xaridingiz uchun tashakkur!\nSTONEX ERP orqali ro‘yxatga olindi.',
-                              style: TextStyle(
-                                fontFamily: 'Courier',
-                                fontSize: 10,
-                                color: Color(0xFF6B7280),
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
@@ -594,48 +779,62 @@ class ReceiptDialog extends StatelessWidget {
 
                 // Bottom action buttons
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(14),
                   decoration: const BoxDecoration(
                     color: Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
                   ),
-                  child: Row(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
                     children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _copyToClipboard(context),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF1E293B),
-                            side: const BorderSide(color: Color(0xFFCBD5E1)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          icon: const Icon(Icons.copy_rounded, size: 16),
-                          label: const Text(
-                            'Nusxa olish',
-                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                          ),
+                      OutlinedButton.icon(
+                        onPressed: () => _copyToClipboard(context),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF1E293B),
+                          side: const BorderSide(color: Color(0xFFCBD5E1)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.copy_rounded, size: 15),
+                        label: const Text(
+                          'Nusxa olish',
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: () => _printPdf(context),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF10B981),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          icon: const Icon(Icons.print_rounded, size: 16),
-                          label: const Text(
-                            'Chop etish',
-                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-                          ),
+                      OutlinedButton.icon(
+                        onPressed: _isCapturing ? null : () => _viewReceiptImage(context),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF1E293B),
+                          side: const BorderSide(color: Color(0xFFCBD5E1)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.image_rounded, size: 15),
+                        label: const Text(
+                          'Chek Rasmi',
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                        ),
+                      ),
+                      FilledButton.icon(
+                        onPressed: _isPrinting ? null : () => _printPdf(context),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: _isPrinting
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.print_rounded, size: 15),
+                        label: const Text(
+                          'Chop etish',
+                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
                         ),
                       ),
                     ],
@@ -679,16 +878,22 @@ class ReceiptDialog extends StatelessWidget {
   }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Courier',
-            fontSize: fontSize,
-            color: const Color(0xFF64748B),
+        Flexible(
+          flex: 4,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Courier',
+              fontSize: fontSize,
+              color: const Color(0xFF64748B),
+            ),
           ),
         ),
+        const SizedBox(width: 8),
         Flexible(
+          flex: 6,
           child: Text(
             value,
             textAlign: TextAlign.right,

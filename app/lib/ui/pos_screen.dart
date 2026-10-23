@@ -113,6 +113,22 @@ class _PosScreenState extends State<PosScreen> {
   Future<void> _onSubmit(String text) async {
     final code = text.trim();
     if (code.isEmpty) return;
+
+    if (isReceiptQr(code)) {
+      final saleId = extractSaleId(code);
+      if (saleId != null) {
+        try {
+          final sales = await context.read<AppRepositories>().sales.listSales(limit: 500);
+          final matched = sales.where((s) => s.id == saleId).firstOrNull;
+          if (matched != null && mounted) {
+            _search.clear();
+            await ReceiptDialog.show(context, matched);
+            return;
+          }
+        } catch (_) {}
+      }
+    }
+
     try {
       final p = await _repo.findByCode(code);
       if (!mounted) return;
@@ -1467,6 +1483,23 @@ class _DesktopQrScannerDialogState extends State<_DesktopQrScannerDialog> {
   Future<void> _processCode(String rawCode) async {
     final code = rawCode.trim();
     if (code.isEmpty) return;
+
+    if (isReceiptQr(code)) {
+      final saleId = extractSaleId(code);
+      if (saleId != null) {
+        try {
+          final sales = await context.read<AppRepositories>().sales.listSales(limit: 500);
+          final matched = sales.where((s) => s.id == saleId).firstOrNull;
+          if (matched != null && mounted) {
+            HapticFeedback.mediumImpact();
+            SystemSound.play(SystemSoundType.click);
+            _inputCtrl.clear();
+            await ReceiptDialog.show(context, matched);
+            return;
+          }
+        } catch (_) {}
+      }
+    }
 
     try {
       final repo = context.read<AppRepositories>().products;

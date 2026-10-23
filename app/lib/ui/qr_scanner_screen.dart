@@ -14,6 +14,7 @@ import '../data/repositories.dart';
 import '../domain/models.dart';
 import '../state/cart_controller.dart';
 import 'common.dart';
+import 'receipt_dialog.dart';
 
 String _u(String unit) => unit == 'm2' ? 'm²' : unit;
 
@@ -305,6 +306,44 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     // Bir marta skanerlangandan keyin kamera shu kod ustida tursa, qayta-qayta qo'shavermasin!
     if (_currentLockedCode == code) {
       return;
+    }
+
+    // 1. Agar skanerlangan kod CHEK (RECEIPT) QR-kodi bo'lsa:
+    if (isReceiptQr(code)) {
+      _currentLockedCode = code;
+      final saleId = extractSaleId(code);
+      if (saleId != null) {
+        try {
+          final repos = context.read<AppRepositories>();
+          final sales = await repos.sales.listSales(limit: 500);
+          final matched = sales.where((s) => s.id == saleId).firstOrNull;
+          if (matched != null && mounted) {
+            HapticFeedback.heavyImpact();
+            SystemSound.play(SystemSoundType.click);
+            setState(() {
+              _isError = false;
+              _statusMessage = 'Chek #${matched.id} rasmi va ma‘lumotlari ochildi';
+            });
+            await ReceiptDialog.show(context, matched);
+            return;
+          } else {
+            HapticFeedback.vibrate();
+            setState(() {
+              _isError = true;
+              _statusMessage = 'Chek #$saleId tizimdan topilmadi';
+            });
+            return;
+          }
+        } catch (e) {
+          if (mounted) {
+            setState(() {
+              _isError = true;
+              _statusMessage = 'Chekni ochishda xatolik: $e';
+            });
+          }
+          return;
+        }
+      }
     }
 
     try {
