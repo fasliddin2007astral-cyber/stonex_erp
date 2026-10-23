@@ -1155,24 +1155,50 @@ class _VaultSidebar extends StatelessWidget {
           // Logo & Brend
           Row(
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppColors.neonLime,
-                  borderRadius: BorderRadius.circular(10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset(
+                  'assets/app_icon.png',
+                  width: 36,
+                  height: 36,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.neonLime,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.token_rounded,
+                        color: AppColors.ink, size: 22),
+                  ),
                 ),
-                child: const Icon(Icons.token_rounded,
-                    color: AppColors.ink, size: 22),
               ),
               const SizedBox(width: 10),
-              const Text(
-                'STONEX',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.4,
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'NTM',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.4,
+                      ),
+                    ),
+                    Text(
+                      'Namuna Tosh Markazi',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Color(0xFF8E959E),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -1266,7 +1292,7 @@ class _VaultSidebar extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'STONEX PRO',
+                        'NTM PRO',
                         style: TextStyle(
                             color: Colors.white,
                             fontSize: 12,
@@ -2077,7 +2103,7 @@ class _SettingsBottomSheet extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'STONEX ERP ko‘rinishi va parametrlari',
+                      'NTM ERP ko‘rinishi va parametrlari',
                       style:
                           TextStyle(fontSize: 11.5, color: context.mutedColor),
                     ),

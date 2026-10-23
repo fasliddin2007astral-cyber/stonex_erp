@@ -296,10 +296,34 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                         ),
                         onChanged: (_) => setState(() {}),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
+                      // Sana filtrlari qatori
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          // Sana filtrlari
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: context.borderColor.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.calendar_today_rounded, size: 12, color: context.subtextColor),
+                                const SizedBox(width: 5),
+                                Text(
+                                  'Sana:',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: context.inkColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
@@ -308,7 +332,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                                   for (final d in ['Barchasi', 'Bugun', 'Shu hafta', 'Shu oy'])
                                     Padding(
                                       padding: const EdgeInsets.only(right: 6),
-                                      child: FilterChip(
+                                      child: ChoiceChip(
                                         label: Text(d, style: const TextStyle(fontSize: 12)),
                                         selected: _dateFilter == d,
                                         onSelected: (sel) {
@@ -316,8 +340,45 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                                         },
                                       ),
                                     ),
-                                  const SizedBox(width: 8),
-                                  // Holat filtrlari
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // Holat filtrlari qatori
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: context.borderColor.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle_outline_rounded, size: 12, color: context.subtextColor),
+                                const SizedBox(width: 5),
+                                Text(
+                                  'Holat:',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: context.inkColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
                                   for (final s in ['Barchasi', 'To‘langan', 'Nasiyali'])
                                     Padding(
                                       padding: const EdgeInsets.only(right: 6),
@@ -506,10 +567,10 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                               ? '${sale.customerName} ${sale.customerPhone ?? ''}'
                               : 'Chakana xaridor',
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
                             color: sale.customerName?.isNotEmpty == true
-                                ? Colors.white
+                                ? context.inkColor
                                 : context.subtextColor,
                           ),
                         ),

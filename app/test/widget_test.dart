@@ -47,7 +47,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(find.text('STONEX'), findsWidgets);
+    expect(find.text('NTM'), findsWidgets);
     expect(find.text('Tizimga kirish'), findsWidgets);
   });
 
@@ -215,7 +215,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Mahsulot QR Yorlig‘i'), findsOneWidget);
-    expect(find.text('STONEX MARBLE'), findsOneWidget);
+    expect(find.text('NTM MARBLE'), findsOneWidget);
 
     // Close dialog
     await tester.tap(find.byIcon(Icons.close_rounded));
@@ -405,7 +405,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Kassa Cheki'), findsOneWidget);
-    expect(find.text('STONEX GRANIT & MARMAR'), findsOneWidget);
+    expect(find.text('NTM — NAMUNA TOSH MARKAZI'), findsOneWidget);
     expect(find.text('Sobirjon Aka'), findsOneWidget);
     expect(find.text('Marmar Oq'), findsOneWidget);
     expect(find.text('Nusxa olish'), findsOneWidget);
@@ -524,7 +524,7 @@ void main() {
     // Verify ReceiptDialog opened with Chek #95
     expect(find.byType(ReceiptDialog), findsOneWidget);
     expect(find.text('Kassa Cheki'), findsOneWidget);
-    expect(find.text('STONEX GRANIT & MARMAR'), findsOneWidget);
+    expect(find.text('NTM — NAMUNA TOSH MARKAZI'), findsOneWidget);
     expect(find.textContaining('95'), findsWidgets);
   });
 }

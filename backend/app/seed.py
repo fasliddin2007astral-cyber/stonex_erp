@@ -26,10 +26,15 @@ SAMPLE = [  # nomi, birlik, dona_m2, narx, tannarx, boshlang'ich qoldiq
 def main() -> None:
     Base.metadata.create_all(engine)
     with SessionLocal() as db:
-        if not db.scalar(select(m.User).where(m.User.username == settings.admin_username)):
+        admin = db.scalar(select(m.User).where(m.User.username == settings.admin_username))
+        if not admin:
             db.add(m.User(username=settings.admin_username, full_name="Xo'jayin",
                           role=roles.ADMIN, password_hash=hash_password(settings.admin_password)))
             print(f"Admin yaratildi: {settings.admin_username}")
+        else:
+            admin.password_hash = hash_password(settings.admin_password)
+            db.commit()
+            print(f"Admin paroli yangilandi: {settings.admin_username}")
         if not db.scalar(select(m.User).where(m.User.username == "kassir")):
             db.add(m.User(username="kassir", full_name="Kassir Aziz",
                           role=roles.CASHIER, password_hash=hash_password("kassir123")))
@@ -54,7 +59,7 @@ def main() -> None:
             ("Qarz to‘lovi qabul qilindi", "Mijoz Akmal aka 300 000 so‘m qarzini naqd to‘ladi.", "payment"),
             ("Yangi savdo amalga oshirildi", "Kassir Aziz tomonidan 1 850 000 so‘mlik savdo qilindi.", "sale"),
             ("Ishlab chiqarish topshirig‘i", "Ishchi Bobur 50 m² Angola toshini qayta ishlashni yakunladi.", "production"),
-            ("Tizim ma’lumoti", "STONEX ERP tizimi barcha xodimlar va modullar uchun faol holatda.", "system"),
+            ("Tizim ma’lumoti", "NTM — Namuna Tosh Markazi tizimi barcha xodimlar va modullar uchun faol holatda.", "system"),
         ]
         for title, msg, kind in SAMPLE_NOTIFICATIONS:
             if not db.scalar(select(m.Notification).where(m.Notification.title == title)):

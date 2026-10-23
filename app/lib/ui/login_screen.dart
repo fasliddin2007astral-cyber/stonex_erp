@@ -18,7 +18,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _user = TextEditingController(text: 'admin');
-  final _pass = TextEditingController(text: 'admin123');
+  final _pass = TextEditingController(text: 'admin12345');
   final _formKey = GlobalKey<FormState>();
 
   Role _role = Role.admin;
@@ -332,28 +332,30 @@ class _LoginScreenState extends State<LoginScreen>
         // Brend logotipi va Versiya nishoni
         Row(
           children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: AppColors.neonLime,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.neonLime.withValues(alpha: 0.4),
-                    blurRadius: 20,
-                    offset: const Offset(0, 4),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.asset(
+                'assets/app_icon.png',
+                width: 52,
+                height: 52,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: AppColors.neonLime,
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                ],
+                  child: const Icon(Icons.token_rounded, color: Color(0xFF090D14), size: 28),
+                ),
               ),
-              child: const Icon(Icons.token_rounded, color: Color(0xFF090D14), size: 28),
             ),
             const SizedBox(width: 14),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'STONEX',
+                  'NTM',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w900,
@@ -362,7 +364,7 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
                 ),
                 Text(
-                  'ENTERPRISE PLATFORM · v2.4',
+                  'NAMUNA TOSH MARKAZI · v2.5',
                   style: TextStyle(
                     fontSize: 11,
                     letterSpacing: 1.2,
@@ -529,27 +531,29 @@ class _LoginScreenState extends State<LoginScreen>
   Widget _buildMobileHeader() {
     return Column(
       children: [
-        Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            color: AppColors.neonLime,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.neonLime.withValues(alpha: 0.4),
-                blurRadius: 18,
-                offset: const Offset(0, 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Image.asset(
+            'assets/app_icon.png',
+            width: 58,
+            height: 58,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                color: AppColors.neonLime,
+                borderRadius: BorderRadius.circular(16),
               ),
-            ],
+              child: const Icon(Icons.token_rounded, color: Color(0xFF090D14), size: 30),
+            ),
           ),
-          child: const Icon(Icons.token_rounded, color: Color(0xFF090D14), size: 28),
         ),
         const SizedBox(height: 12),
         const Text(
-          'STONEX',
+          'NTM',
           style: TextStyle(
-            fontSize: 22,
+            fontSize: 24,
             fontWeight: FontWeight.w900,
             letterSpacing: 2.0,
             color: Colors.white,
@@ -557,12 +561,12 @@ class _LoginScreenState extends State<LoginScreen>
         ),
         const SizedBox(height: 3),
         const Text(
-          'Tosh va Granit Korxonasi Boshqaruv Tizimi',
+          'Namuna Tosh Markazi — Korxona Boshqaruv Tizimi',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 12,
             color: Color(0xFF94A3B8),
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
@@ -818,7 +822,7 @@ class _LoginScreenState extends State<LoginScreen>
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _buildDemoChip('Admin', 'admin', 'admin123', Role.admin, AppColors.neonLime, Icons.shield_rounded),
+                    _buildDemoChip('Admin', 'admin', 'admin12345', Role.admin, AppColors.neonLime, Icons.shield_rounded),
                     _buildDemoChip('Kassir', 'kassir', 'kassir123', Role.kassir, const Color(0xFF38BDF8), Icons.point_of_sale_rounded),
                     _buildDemoChip('Ishchi', 'ishchi', 'ishchi123', Role.ishchi, const Color(0xFFFBBF24), Icons.handyman_rounded),
                   ],

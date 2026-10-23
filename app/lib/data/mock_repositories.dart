@@ -30,7 +30,7 @@ class MockStore {
 
   /// Faqat mock rejimi uchun test akkauntlari (haqiqiy backendda parollar xeshlangan).
   final Map<String, ({String password, AppUser user})> users = {
-    'admin': (password: 'admin123', user: const AppUser(id: 1, username: 'admin', fullName: 'Xo‘jayin', role: Role.admin)),
+    'admin': (password: 'admin12345', user: const AppUser(id: 1, username: 'admin', fullName: 'Xo‘jayin', role: Role.admin)),
     'kassir': (password: 'kassir123', user: const AppUser(id: 2, username: 'kassir', fullName: 'Kassir Aziz', role: Role.kassir)),
     'ishchi': (password: 'ishchi123', user: const AppUser(id: 3, username: 'ishchi', fullName: 'Ishchi Bobur', role: Role.ishchi)),
   };
@@ -267,7 +267,10 @@ class MockAuthRepository implements AuthRepository {
   @override
   Future<AppUser> login(String username, String password, Role role) async {
     final rec = _s.users[username.trim()];
-    if (rec == null || rec.password != password) throw ApiException('Login yoki parol noto‘g‘ri', 401);
+    if (rec == null) throw ApiException('Login yoki parol noto‘g‘ri', 401);
+    final isMatch = rec.password == password ||
+        (username.trim() == 'admin' && (password == 'admin12345' || password == 'admin123'));
+    if (!isMatch) throw ApiException('Login yoki parol noto‘g‘ri', 401);
     if (rec.user.role != role) throw ApiException('Bu akkaunt tanlangan rol uchun emas', 403);
     return rec.user;
   }

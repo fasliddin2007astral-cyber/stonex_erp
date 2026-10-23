@@ -15,7 +15,9 @@ import 'common.dart';
 
 bool isReceiptQr(String code) {
   final c = code.trim().toUpperCase();
-  return c.startsWith('STONEX-CHEK-') ||
+  return c.startsWith('NTM-CHEK-') ||
+      c.startsWith('NTM-SALE-') ||
+      c.startsWith('STONEX-CHEK-') ||
       c.startsWith('STONEX-SALE-') ||
       c.startsWith('CHEK-#') ||
       c.startsWith('CHEK-') ||
@@ -58,8 +60,8 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
     final sale = widget.sale;
     final sb = StringBuffer();
     sb.writeln('================================');
-    sb.writeln('     STONEX GRANIT & MARMAR     ');
-    sb.writeln('    Tosh ishlab chiqarish sexi   ');
+    sb.writeln('   NTM — NAMUNA TOSH MARKAZI    ');
+    sb.writeln('  Tabiiy tosh va granit markazi ');
     sb.writeln('   Tel: +998 (90) 123-45-67     ');
     sb.writeln('================================');
     sb.writeln('Chek №: #${sale.id.toString().padLeft(6, '0')}');
@@ -203,7 +205,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                 mainAxisSize: pw.MainAxisSize.min,
                 children: [
                   pw.Text(
-                    'STONEX GRANIT & MARMAR',
+                    'NTM — NAMUNA TOSH MARKAZI',
                     style: pw.TextStyle(
                       font: fontBold,
                       fontSize: 14,
@@ -213,7 +215,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                   ),
                   pw.SizedBox(height: 2),
                   pw.Text(
-                    'Tosh ishlab chiqarish korxonasi',
+                    'Tabiiy tosh va granit markazi',
                     style: pw.TextStyle(font: font, fontSize: 8),
                     textAlign: pw.TextAlign.center,
                   ),
@@ -345,7 +347,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                   ],
                   pw.SizedBox(height: 10),
                   pw.BarcodeWidget(
-                    data: 'STONEX-SALE-#${sale.id}-${sale.total.round()}UZS',
+                    data: 'NTM-CHEK-#${sale.id}-${sale.total.round()}UZS',
                     barcode: pw.Barcode.qrCode(),
                     width: 50,
                     height: 50,
@@ -354,7 +356,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                   pw.Text('Xaridingiz uchun tashakkur!',
                       style: pw.TextStyle(font: font, fontSize: 8),
                       textAlign: pw.TextAlign.center),
-                  pw.Text('STONEX ERP tizimi orqali berildi',
+                  pw.Text('NTM ERP tizimi orqali berildi',
                       style: pw.TextStyle(font: font, fontSize: 7, color: PdfColors.grey700),
                       textAlign: pw.TextAlign.center),
                 ],
@@ -535,7 +537,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                             // Brand
                             const Center(
                               child: Text(
-                                'STONEX GRANIT & MARMAR',
+                                'NTM — NAMUNA TOSH MARKAZI',
                                 style: TextStyle(
                                   fontFamily: 'Courier',
                                   fontSize: 16,
@@ -549,7 +551,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                             const SizedBox(height: 2),
                             const Center(
                               child: Text(
-                                'Tosh ishlab chiqarish sexi',
+                                'Tabiiy tosh va granit markazi',
                                 style: TextStyle(
                                   fontFamily: 'Courier',
                                   fontSize: 11,
@@ -744,7 +746,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                                 width: 85,
                                 height: 85,
                                 child: QrImageView(
-                                  data: 'STONEX-CHEK-#${sale.id}-${sale.total.round()}UZS',
+                                  data: 'NTM-CHEK-#${sale.id}-${sale.total.round()}UZS',
                                   version: QrVersions.auto,
                                   size: 85.0,
                                   eyeStyle: const QrEyeStyle(
@@ -761,7 +763,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                             const SizedBox(height: 10),
                             const Center(
                               child: Text(
-                                'Xaridingiz uchun tashakkur!\nSTONEX ERP orqali ro‘yxatga olindi.',
+                                'Xaridingiz uchun tashakkur!\nNTM ERP orqali ro‘yxatga olindi.',
                                 style: TextStyle(
                                   fontFamily: 'Courier',
                                   fontSize: 10,

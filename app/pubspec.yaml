@@ -1,5 +1,5 @@
 name: stonex_erp
-description: STONEX ERP — tosh ishlab chiqarish sexi boshqaruv tizimi
+description: NTM — Namuna Tosh Markazi ishlab chiqarish va savdo tizimi
 publish_to: "none"
 version: 0.1.0+2
 
@@ -31,4 +31,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/videos/
+    - assets/app_icon.png
 

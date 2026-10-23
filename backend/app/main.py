@@ -39,7 +39,7 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="STONEX ERP API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="NTM ERP API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins,
                    allow_methods=["*"], allow_headers=["*"])
 
@@ -52,7 +52,7 @@ for r in (auth, users, products, stock, customers, sales, production, finance, n
 @app.get("/")
 def root():
     return {
-        "title": "STONEX ERP API",
+        "title": "NTM ERP API (Namuna Tosh Markazi)",
         "status": "online",
         "docs": "/docs",
         "ping": "/ping",

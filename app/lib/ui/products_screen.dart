@@ -1287,7 +1287,7 @@ class _ProductDialogState extends State<ProductDialog> {
                         ),
                         const SizedBox(width: 4),
                         const Text(
-                          'STONEX ERP',
+                          'NTM ERP',
                           style: TextStyle(
                             fontSize: 9.5,
                             fontWeight: FontWeight.w900,
@@ -1624,7 +1624,7 @@ class ProductQrLabelDialog extends StatelessWidget {
                           ),
                           const SizedBox(width: 6),
                           const Text(
-                            'STONEX MARBLE',
+                            'NTM MARBLE',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w900,
@@ -1726,7 +1726,7 @@ class ProductQrLabelDialog extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              sku.isNotEmpty ? 'SKU: $sku' : 'STONEX ERP',
+                              sku.isNotEmpty ? 'SKU: $sku' : 'NTM ERP',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(fontSize: 9, color: Color(0xFF6E7781), fontWeight: FontWeight.w600),
