@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../domain/models.dart';
 import 'api_client.dart' show ApiException;
+import 'local_image_store.dart';
 import 'repositories.dart';
 
 class MockSaleEntry {
@@ -747,18 +748,33 @@ class MockCustomerRepository implements CustomerRepository {
   @override
   Future<List<Customer>> listCustomers({String? query}) async {
     await Future.delayed(const Duration(milliseconds: 60));
-    if (query == null || query.trim().isEmpty) return List.of(_s.customers);
-    final q = query.trim().toLowerCase();
-    return _s.customers.where((c) {
-      return c.name.toLowerCase().contains(q) ||
-          (c.phone ?? '').toLowerCase().contains(q) ||
-          (c.passport ?? '').toLowerCase().contains(q);
+    List<Customer> list;
+    if (query == null || query.trim().isEmpty) {
+      list = List.of(_s.customers);
+    } else {
+      final q = query.trim().toLowerCase();
+      list = _s.customers.where((c) {
+        return c.name.toLowerCase().contains(q) ||
+            (c.phone ?? '').toLowerCase().contains(q) ||
+            (c.passport ?? '').toLowerCase().contains(q);
+      }).toList();
+    }
+    return list.map((c) {
+      final local = LocalImageStore.getCustomerImage(c.id, c.phone, c.name);
+      if (local != null && local.isNotEmpty) {
+        return c.copyWith(photoUrl: local);
+      }
+      return c;
     }).toList();
   }
 
   @override
   Future<Customer> getCustomer(int id) async {
     final c = _s.customers.firstWhere((x) => x.id == id, orElse: () => throw ApiException('Mijoz topilmadi', 404));
+    final local = LocalImageStore.getCustomerImage(c.id, c.phone, c.name);
+    if (local != null && local.isNotEmpty) {
+      return c.copyWith(photoUrl: local);
+    }
     return c;
   }
 
@@ -766,6 +782,9 @@ class MockCustomerRepository implements CustomerRepository {
   Future<Customer> createCustomer(Customer customer) async {
     final c = customer.copyWith(id: _s.nextId++, createdAt: DateTime.now());
     _s.customers.add(c);
+    if (c.photoUrl != null && c.photoUrl!.isNotEmpty) {
+      LocalImageStore.saveCustomerImage(c.id, c.photoUrl, c.phone, c.name);
+    }
     return c;
   }
 
@@ -774,6 +793,9 @@ class MockCustomerRepository implements CustomerRepository {
     final idx = _s.customers.indexWhere((x) => x.id == customer.id);
     if (idx < 0) throw ApiException('Mijoz topilmadi', 404);
     _s.customers[idx] = customer;
+    if (customer.photoUrl != null && customer.photoUrl!.isNotEmpty) {
+      LocalImageStore.saveCustomerImage(customer.id, customer.photoUrl, customer.phone, customer.name);
+    }
     return customer;
   }
 

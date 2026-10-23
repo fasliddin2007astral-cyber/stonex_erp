@@ -71,5 +71,48 @@ class LocalImageStore {
       f.writeAsStringSync(jsonEncode(_cache));
     } catch (_) {}
   }
+
+  static String? getCustomerImage(int? customerId, [String? phone, String? name]) {
+    _ensureLoaded();
+    if (customerId != null && _cache.containsKey('cust_$customerId')) {
+      return _cache['cust_$customerId'];
+    }
+    if (phone != null && phone.trim().isNotEmpty) {
+      final phoneDigits = phone.replaceAll(RegExp(r'\D'), '');
+      if (phoneDigits.isNotEmpty && _cache.containsKey('cust_phone_$phoneDigits')) {
+        return _cache['cust_phone_$phoneDigits'];
+      }
+    }
+    if (name != null && name.trim().isNotEmpty) {
+      final nameKey = 'cust_name_${name.trim().toLowerCase()}';
+      if (_cache.containsKey(nameKey)) {
+        return _cache[nameKey];
+      }
+    }
+    return null;
+  }
+
+  static void saveCustomerImage(int? customerId, String? photoUrl, [String? phone, String? name]) {
+    _ensureLoaded();
+    final key = customerId != null ? 'cust_$customerId' : null;
+    final phoneDigits = phone != null ? phone.replaceAll(RegExp(r'\D'), '') : '';
+    final phoneKey = phoneDigits.isNotEmpty ? 'cust_phone_$phoneDigits' : null;
+    final nameKey = name != null && name.trim().isNotEmpty ? 'cust_name_${name.trim().toLowerCase()}' : null;
+
+    if (photoUrl == null || photoUrl.trim().isEmpty) {
+      if (key != null) _cache.remove(key);
+      if (phoneKey != null) _cache.remove(phoneKey);
+      if (nameKey != null) _cache.remove(nameKey);
+    } else {
+      if (key != null) _cache[key] = photoUrl.trim();
+      if (phoneKey != null) _cache[phoneKey] = photoUrl.trim();
+      if (nameKey != null) _cache[nameKey] = photoUrl.trim();
+    }
+
+    try {
+      final f = _getFile();
+      f.writeAsStringSync(jsonEncode(_cache));
+    } catch (_) {}
+  }
 }
 

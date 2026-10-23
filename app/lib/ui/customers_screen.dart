@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../core/format.dart';
 import '../core/theme.dart';
+import '../data/local_image_store.dart';
 import '../data/repositories.dart';
 import '../domain/models.dart';
 import 'camera_capture_dialog.dart';
@@ -653,14 +654,7 @@ class _CustomerDialogState extends State<CustomerDialog> {
         finalUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
       }
 
-      // Agar serverda upload mavjud bo'lsa
-      try {
-        final filename = 'customer_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        final uploaded = await custRepo.uploadCustomerImage(bytes, filename);
-        if (uploaded.isNotEmpty) {
-          finalUrl = uploaded;
-        }
-      } catch (_) {}
+      LocalImageStore.saveCustomerImage(widget.customer?.id, finalUrl, _phoneCtrl.text, _nameCtrl.text);
 
       if (mounted) {
         setState(() {

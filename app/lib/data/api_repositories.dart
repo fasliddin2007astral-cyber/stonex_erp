@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../domain/models.dart';
 import 'api_client.dart';
 import 'local_image_store.dart';
@@ -396,36 +398,65 @@ class ApiCustomerRepository implements CustomerRepository {
       q['q'] = query.trim();
     }
     final j = await _api.get('/customers', query: q) as List;
-    return j.map((e) => Customer.fromJson(e as Map<String, dynamic>)).toList();
+    final list = j.map((e) => Customer.fromJson(e as Map<String, dynamic>)).toList();
+    return list.map((c) {
+      if (c.photoUrl != null && c.photoUrl!.isNotEmpty && !c.photoUrl!.contains('/uploads/customers/')) {
+        LocalImageStore.saveCustomerImage(c.id, c.photoUrl, c.phone, c.name);
+        return c;
+      }
+      final local = LocalImageStore.getCustomerImage(c.id, c.phone, c.name);
+      if (local != null && local.isNotEmpty) {
+        return c.copyWith(photoUrl: local);
+      }
+      return c;
+    }).toList();
   }
 
   @override
   Future<Customer> getCustomer(int id) async {
     final j = await _api.get('/customers/$id') as Map<String, dynamic>;
-    return Customer.fromJson(j);
+    final c = Customer.fromJson(j);
+    if (c.photoUrl != null && c.photoUrl!.isNotEmpty && !c.photoUrl!.contains('/uploads/customers/')) {
+      LocalImageStore.saveCustomerImage(c.id, c.photoUrl, c.phone, c.name);
+      return c;
+    }
+    final local = LocalImageStore.getCustomerImage(c.id, c.phone, c.name);
+    if (local != null && local.isNotEmpty) {
+      return c.copyWith(photoUrl: local);
+    }
+    return c;
   }
 
   @override
   Future<Customer> createCustomer(Customer customer) async {
     final j = await _api.post('/customers', body: customer.toJson()) as Map<String, dynamic>;
-    return Customer.fromJson(j);
+    final created = Customer.fromJson(j);
+    if (customer.photoUrl != null && customer.photoUrl!.isNotEmpty) {
+      LocalImageStore.saveCustomerImage(created.id, customer.photoUrl, created.phone, created.name);
+      return created.copyWith(photoUrl: customer.photoUrl);
+    }
+    return created;
   }
 
   @override
   Future<Customer> updateCustomer(Customer customer) async {
     final j = await _api.put('/customers/${customer.id}', body: customer.toJson()) as Map<String, dynamic>;
-    return Customer.fromJson(j);
+    final updated = Customer.fromJson(j);
+    if (customer.photoUrl != null && customer.photoUrl!.isNotEmpty) {
+      LocalImageStore.saveCustomerImage(customer.id, customer.photoUrl, customer.phone, customer.name);
+      return updated.copyWith(photoUrl: customer.photoUrl);
+    }
+    return updated;
   }
 
   @override
   Future<String> uploadCustomerImage(List<int> bytes, String filename) async {
-    final j = await _api.uploadFile('/customers/upload-image', bytes, filename);
-    final url = j['image_url'] as String? ?? '';
-    return ApiClient.resolveUrl(url);
+    return 'data:image/jpeg;base64,${base64Encode(bytes)}';
   }
 
   @override
   Future<void> deleteCustomer(int id) async {
+    LocalImageStore.saveCustomerImage(id, null);
     await _api.delete('/customers/$id');
   }
 }

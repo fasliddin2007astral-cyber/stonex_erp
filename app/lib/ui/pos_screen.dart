@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import '../core/format.dart';
 import '../core/theme.dart';
+import '../data/local_image_store.dart';
 import '../data/repositories.dart';
 import '../domain/models.dart';
 import '../state/cart_controller.dart';
@@ -904,9 +905,9 @@ class _CartLineTile extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
         decoration: BoxDecoration(
-          color: AppColors.panel,
+          color: context.cardBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: short ? AppColors.danger : Colors.transparent),
+          border: Border.all(color: short ? AppColors.danger : context.borderColor.withOpacity(0.6)),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
@@ -927,22 +928,22 @@ class _CartLineTile extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.inkColor)),
                 const SizedBox(height: 2),
-                Text(sub, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                Text(sub, style: TextStyle(fontSize: 12, color: context.subtextColor)),
               ]),
             ),
             IconButton(
               tooltip: 'Olib tashlash',
               visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.muted),
+              icon: Icon(Icons.close_rounded, size: 18, color: context.subtextColor),
               onPressed: () => cart.remove(l),
             ),
           ]),
           const SizedBox(height: 6),
           Row(children: [
             Material(
-              color: Colors.white,
+              color: context.isDark ? const Color(0xFF242C38) : const Color(0xFFEFF2F6),
               borderRadius: BorderRadius.circular(12),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 _StepBtn(icon: Icons.remove_rounded, onTap: () {
@@ -957,7 +958,7 @@ class _CartLineTile extends StatelessWidget {
                   onTap: onEdit,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    child: Text('${qty(l.quantity)} $unit', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    child: Text('${qty(l.quantity)} $unit', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.inkColor)),
                   ),
                 ),
                 _StepBtn(icon: Icons.add_rounded, onTap: () => cart.update(l, quantity: l.quantity + 1)),
@@ -966,7 +967,7 @@ class _CartLineTile extends StatelessWidget {
             const Spacer(),
             Padding(
               padding: const EdgeInsets.only(right: 6),
-              child: Text(money(l.lineTotal), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+              child: Text(money(l.lineTotal), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.inkColor)),
             ),
           ]),
           if (short)
@@ -989,7 +990,7 @@ class _StepBtn extends StatelessWidget {
   Widget build(BuildContext context) => InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
-        child: SizedBox(width: 32, height: 32, child: Icon(icon, size: 18)),
+        child: SizedBox(width: 32, height: 32, child: Icon(icon, size: 18, color: context.inkColor)),
       );
 }
 
@@ -1116,13 +1117,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
         finalUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
       }
 
-      try {
-        final filename = 'cust_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        final uploaded = await custRepo.uploadCustomerImage(bytes, filename);
-        if (uploaded.isNotEmpty) {
-          finalUrl = uploaded;
-        }
-      } catch (_) {}
+      LocalImageStore.saveCustomerImage(_selectedCustomerId, finalUrl, _phone.text, _name.text);
 
       if (mounted) {
         setState(() {
