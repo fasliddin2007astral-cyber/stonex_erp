@@ -232,39 +232,51 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                 const SizedBox(height: 16),
 
                 // KPI Stat cards
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    _kpiCard(
-                      context,
-                      title: 'Jami Savdo Summasi',
-                      value: money(totalSum),
-                      icon: Icons.payments_rounded,
-                      color: AppColors.neonLime,
-                    ),
-                    _kpiCard(
-                      context,
-                      title: 'Undirilgan Pul (Kassa)',
-                      value: money(totalPaid),
-                      icon: Icons.account_balance_wallet_rounded,
-                      color: const Color(0xFF10B981),
-                    ),
-                    _kpiCard(
-                      context,
-                      title: 'Nasiyalar (Qarzlar)',
-                      value: money(totalDebt),
-                      icon: Icons.pending_actions_rounded,
-                      color: totalDebt > 0 ? const Color(0xFFEF4444) : const Color(0xFF94A3B8),
-                    ),
-                    _kpiCard(
-                      context,
-                      title: 'Cheklar Soni',
-                      value: '${filtered.length} ta',
-                      icon: Icons.receipt_long_rounded,
-                      color: const Color(0xFF38BDF8),
-                    ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isSmall = constraints.maxWidth < 440;
+                    final cardWidth = isSmall
+                        ? (constraints.maxWidth < 360 ? constraints.maxWidth : (constraints.maxWidth - 12) / 2)
+                        : (constraints.maxWidth < 800 ? (constraints.maxWidth - 24) / 3 : 210.0);
+                    return Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        _kpiCard(
+                          context,
+                          title: 'Jami Savdo Summasi',
+                          value: money(totalSum),
+                          icon: Icons.payments_rounded,
+                          color: AppColors.neonLime,
+                          width: cardWidth,
+                        ),
+                        _kpiCard(
+                          context,
+                          title: 'Undirilgan Pul (Kassa)',
+                          value: money(totalPaid),
+                          icon: Icons.account_balance_wallet_rounded,
+                          color: const Color(0xFF10B981),
+                          width: cardWidth,
+                        ),
+                        _kpiCard(
+                          context,
+                          title: 'Nasiyalar (Qarzlar)',
+                          value: money(totalDebt),
+                          icon: Icons.pending_actions_rounded,
+                          color: totalDebt > 0 ? const Color(0xFFEF4444) : const Color(0xFF94A3B8),
+                          width: cardWidth,
+                        ),
+                        _kpiCard(
+                          context,
+                          title: 'Cheklar Soni',
+                          value: '${filtered.length} ta',
+                          icon: Icons.receipt_long_rounded,
+                          color: const Color(0xFF38BDF8),
+                          width: cardWidth,
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 18),
 
@@ -433,9 +445,10 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
     required String value,
     required IconData icon,
     required Color color,
+    double? width,
   }) {
     return Container(
-      width: 200,
+      width: width ?? 210,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: context.cardBg,
@@ -465,11 +478,13 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+                  ),
                 ),
               ],
             ),
@@ -515,16 +530,13 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
           ),
           title: Row(
             children: [
-              Flexible(
-                child: Text(
-                  'Chek #${sale.id.toString().padLeft(6, '0')}',
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
-                  overflow: TextOverflow.ellipsis,
-                ),
+              Text(
+                'Chek #${sale.id}',
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: hasDebt
                       ? const Color(0xFFEF4444).withOpacity(0.15)
@@ -540,10 +552,13 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                   ),
                 ),
               ),
-              const Spacer(),
-              Text(
-                money(sale.total),
-                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  money(sale.total),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+                ),
               ),
             ],
           ),
@@ -552,44 +567,44 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+                Row(
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.person_rounded, size: 14, color: context.subtextColor),
-                        const SizedBox(width: 4),
-                        Text(
-                          sale.customerName?.isNotEmpty == true
-                              ? '${sale.customerName} ${sale.customerPhone ?? ''}'
-                              : 'Chakana xaridor',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: sale.customerName?.isNotEmpty == true
-                                ? context.inkColor
-                                : context.subtextColor,
-                          ),
+                    Icon(Icons.person_rounded, size: 14, color: context.subtextColor),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        sale.customerName?.isNotEmpty == true
+                            ? '${sale.customerName} ${sale.customerPhone ?? ''}'
+                            : 'Chakana xaridor',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: sale.customerName?.isNotEmpty == true
+                              ? context.inkColor
+                              : context.subtextColor,
                         ),
-                      ],
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.badge_rounded, size: 14, color: context.subtextColor),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Sotuvchi: ${sale.cashierName ?? 'Kassir'}',
-                          style: TextStyle(fontSize: 12, color: context.subtextColor),
-                        ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Icon(Icons.badge_rounded, size: 14, color: context.subtextColor),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        'Sotuvchi: ${sale.cashierName ?? 'Kassir'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: context.subtextColor),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
                 Wrap(
                   spacing: 10,
                   runSpacing: 4,
@@ -598,7 +613,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.access_time_rounded, size: 14, color: context.subtextColor),
+                        Icon(Icons.access_time_rounded, size: 13, color: context.subtextColor),
                         const SizedBox(width: 4),
                         Text(
                           formatDateTime(sale.createdAt ?? DateTime.now()),
@@ -683,10 +698,12 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
             const SizedBox(height: 12),
 
             // Action tugmalar
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                if (hasDebt) ...[
+                if (hasDebt)
                   FilledButton.icon(
                     onPressed: () => _payDebtDialog(sale),
                     style: FilledButton.styleFrom(
@@ -697,8 +714,6 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                     icon: const Icon(Icons.payment_rounded, size: 16),
                     label: const Text('Qarz to‘lash', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
                   ),
-                  const SizedBox(width: 8),
-                ],
                 FilledButton.icon(
                   onPressed: () => ReceiptDialog.show(context, sale),
                   style: FilledButton.styleFrom(

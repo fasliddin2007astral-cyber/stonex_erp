@@ -407,32 +407,43 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                 const SizedBox(height: 16),
 
                 // KPI Stat Cards
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    _kpiCard(
-                      context,
-                      title: 'Jami Xaridlar Summasi',
-                      value: money(totalSpent),
-                      icon: Icons.account_balance_rounded,
-                      color: AppColors.neonLime,
-                    ),
-                    _kpiCard(
-                      context,
-                      title: 'Xarid Operatsiyalari',
-                      value: '${filtered.length} ta',
-                      icon: Icons.shopping_bag_rounded,
-                      color: const Color(0xFF38BDF8),
-                    ),
-                    _kpiCard(
-                      context,
-                      title: 'Ombordagi Mahsulotlar',
-                      value: '${products.length} xil',
-                      icon: Icons.inventory_2_rounded,
-                      color: const Color(0xFF10B981),
-                    ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isSmall = constraints.maxWidth < 440;
+                    final cardWidth = isSmall
+                        ? (constraints.maxWidth < 360 ? constraints.maxWidth : (constraints.maxWidth - 12) / 2)
+                        : (constraints.maxWidth < 800 ? (constraints.maxWidth - 24) / 3 : 220.0);
+                    return Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        _kpiCard(
+                          context,
+                          title: 'Jami Xaridlar Summasi',
+                          value: money(totalSpent),
+                          icon: Icons.account_balance_rounded,
+                          color: AppColors.neonLime,
+                          width: cardWidth,
+                        ),
+                        _kpiCard(
+                          context,
+                          title: 'Xarid Operatsiyalari',
+                          value: '${filtered.length} ta',
+                          icon: Icons.shopping_bag_rounded,
+                          color: const Color(0xFF38BDF8),
+                          width: cardWidth,
+                        ),
+                        _kpiCard(
+                          context,
+                          title: 'Ombordagi Mahsulotlar',
+                          value: '${products.length} xil',
+                          icon: Icons.inventory_2_rounded,
+                          color: const Color(0xFF10B981),
+                          width: cardWidth,
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 18),
 
@@ -465,20 +476,23 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                         onChanged: (_) => setState(() {}),
                       ),
                       const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          for (final d in ['Barchasi', 'Bugun', 'Shu hafta', 'Shu oy'])
-                            Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: FilterChip(
-                                label: Text(d, style: const TextStyle(fontSize: 12)),
-                                selected: _dateFilter == d,
-                                onSelected: (sel) {
-                                  if (sel) setState(() => _dateFilter = d);
-                                },
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (final d in ['Barchasi', 'Bugun', 'Shu hafta', 'Shu oy'])
+                              Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: ChoiceChip(
+                                  label: Text(d, style: const TextStyle(fontSize: 12)),
+                                  selected: _dateFilter == d,
+                                  onSelected: (sel) {
+                                    if (sel) setState(() => _dateFilter = d);
+                                  },
+                                ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -517,9 +531,10 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
     required String value,
     required IconData icon,
     required Color color,
+    double? width,
   }) {
     return Container(
-      width: 220,
+      width: width ?? 220,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: context.cardBg,
@@ -549,11 +564,13 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+                  ),
                 ),
               ],
             ),
@@ -668,9 +685,14 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                         children: [
                           Icon(Icons.person_rounded, size: 13, color: context.subtextColor),
                           const SizedBox(width: 4),
-                          Text(
-                            'Qabul qildi: ${m.createdByName}',
-                            style: TextStyle(color: context.subtextColor, fontSize: 11),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 180),
+                            child: Text(
+                              'Qabul qildi: ${m.createdByName}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: context.subtextColor, fontSize: 11),
+                            ),
                           ),
                         ],
                       ),
