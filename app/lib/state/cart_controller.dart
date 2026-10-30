@@ -8,6 +8,7 @@ class CartController extends ChangeNotifier {
   final SalesRepository _sales;
 
   final List<CartLine> lines = [];
+  final List<HeldCart> heldCarts = [];
   bool busy = false;
 
   double get total => lines.fold(0, (a, l) => a + l.lineTotal);
@@ -69,6 +70,51 @@ class CartController extends ChangeNotifier {
 
   void clear() {
     lines.clear();
+    notifyListeners();
+  }
+
+  /// Joriy savatni kechiktirish (boshqa mijozga navbat berish uchun saqlab qo'yish)
+  void holdCurrentCart({String? label}) {
+    if (lines.isEmpty) return;
+    final now = DateTime.now();
+    final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final defaultLabel = '${heldCarts.length + 1}-mijoz ($timeStr)';
+
+    heldCarts.add(HeldCart(
+      id: now.millisecondsSinceEpoch.toString(),
+      label: (label != null && label.trim().isNotEmpty) ? label.trim() : defaultLabel,
+      createdAt: now,
+      lines: lines.map((l) => l.copy()).toList(),
+    ));
+    lines.clear();
+    notifyListeners();
+  }
+
+  /// Kechiktirilgan savatni qayta tiklash
+  void restoreHeldCart(HeldCart cart) {
+    if (!heldCarts.contains(cart)) return;
+
+    // Agar kassa savatida tovarlar bo'lsa, uni avtomatik kechiktiramiz (swap)
+    if (lines.isNotEmpty) {
+      final now = DateTime.now();
+      final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+      heldCarts.add(HeldCart(
+        id: now.millisecondsSinceEpoch.toString(),
+        label: '${heldCarts.length + 1}-mijoz ($timeStr)',
+        createdAt: now,
+        lines: lines.map((l) => l.copy()).toList(),
+      ));
+    }
+
+    lines.clear();
+    lines.addAll(cart.lines.map((l) => l.copy()));
+    heldCarts.remove(cart);
+    notifyListeners();
+  }
+
+  /// Kechiktirilgan savatni o'chirish (mijoz qaytib kelmasa)
+  void removeHeldCart(HeldCart cart) {
+    heldCarts.remove(cart);
     notifyListeners();
   }
 

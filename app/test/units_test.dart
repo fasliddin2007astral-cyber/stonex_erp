@@ -3,6 +3,7 @@ import 'package:stonex_erp/core/format.dart';
 import 'package:stonex_erp/core/units.dart';
 import 'package:stonex_erp/data/mock_repositories.dart';
 import 'package:stonex_erp/domain/models.dart';
+import 'package:stonex_erp/state/cart_controller.dart';
 
 void main() {
   test('1 dona = 0.25 m2 faqat tosh uchun', () {
@@ -36,5 +37,43 @@ void main() {
       () => sales.createSale(lines: [CartLine(s.products[4], quantity: 1)], paidAmount: 0),
       throwsA(isA<Exception>()),
     );
+  });
+
+  test('CartController kechiktirilgan savatlar (hold / restore cart) ishlaydi', () {
+    final s = MockStore();
+    final sales = MockSalesRepository(s);
+    final ctrl = CartController(sales);
+
+    final p1 = s.products[0];
+    final p2 = s.products[1];
+
+    // 1-mijoz savati
+    ctrl.add(p1, quantity: 5);
+    expect(ctrl.lines.length, 1);
+    expect(ctrl.total, 5 * p1.price);
+
+    // 1-mijozni kutishga qo'yamiz (Kechiktirish)
+    ctrl.holdCurrentCart(label: '1-mijoz');
+    expect(ctrl.lines.isEmpty, true);
+    expect(ctrl.heldCarts.length, 1);
+    expect(ctrl.heldCarts.first.label, '1-mijoz');
+    expect(ctrl.heldCarts.first.lines.first.quantity, 5);
+
+    // 2-mijoz keldi, unga tovar qo'shamiz
+    ctrl.add(p2, quantity: 2);
+    expect(ctrl.lines.length, 1);
+    expect(ctrl.total, 2 * p2.price);
+
+    // 1-mijoz qaytib keldi, savatini tiklaymiz (2-mijoz avtomatik kutishga o'tadi)
+    final held1 = ctrl.heldCarts.first;
+    ctrl.restoreHeldCart(held1);
+    expect(ctrl.lines.length, 1);
+    expect(ctrl.lines.first.product.id, p1.id);
+    expect(ctrl.lines.first.quantity, 5);
+    expect(ctrl.heldCarts.length, 1); // 2-mijoz savati kutishga o'tdi
+
+    // Kutishdagi savatni o'chirish
+    ctrl.removeHeldCart(ctrl.heldCarts.first);
+    expect(ctrl.heldCarts.isEmpty, true);
   });
 }

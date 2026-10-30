@@ -424,6 +424,24 @@ class _PosScreenState extends State<PosScreen> {
                               ),
                             ),
                           ],
+                          if (cartController.heldCarts.isNotEmpty) ...[
+                            const SizedBox(width: 5),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFD97706),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '⏸${cartController.heldCarts.length}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -1075,13 +1093,133 @@ class _CartPanel extends StatelessWidget {
                   ),
           ),
           const Spacer(),
+          if (!empty) ...[
+            TextButton.icon(
+              onPressed: () {
+                cart.holdCurrentCart();
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('⏸ 1-mijoz savati kutishga saqlandi. Yangi mijoz uchun savat tayyor!'),
+                    backgroundColor: Color(0xFFD97706),
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.pause_circle_outline_rounded, size: 17, color: Color(0xFFD97706)),
+              label: const Text('Kutishga qo‘yish', style: TextStyle(color: Color(0xFFD97706), fontWeight: FontWeight.w700, fontSize: 12)),
+              style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+            ),
+            const SizedBox(width: 4),
+          ],
           TextButton.icon(
             onPressed: empty ? null : cart.clear,
             icon: const Icon(Icons.delete_outline_rounded, size: 18),
             label: const Text('Tozalash'),
-            style: TextButton.styleFrom(foregroundColor: AppColors.muted),
+            style: TextButton.styleFrom(foregroundColor: AppColors.muted, visualDensity: VisualDensity.compact),
           ),
         ]),
+        if (cart.heldCarts.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: context.isDark ? const Color(0xFF281E10) : const Color(0xFFFFFBEB),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: const Color(0xFFD97706).withValues(alpha: 0.35),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.pause_circle_filled_rounded, size: 15, color: Color(0xFFD97706)),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Kutilayotgan mijozlar (${cart.heldCarts.length})',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFD97706),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'Tiklash uchun bosing',
+                      style: TextStyle(fontSize: 10, color: context.mutedColor),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final h in cart.heldCarts)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: InkWell(
+                            onTap: () {
+                              cart.restoreHeldCart(h);
+                              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('✓ ${h.label} savati qayta tiklandi!'),
+                                  backgroundColor: AppColors.green,
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: context.isDark ? const Color(0xFF382A14) : Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: const Color(0xFFD97706).withValues(alpha: 0.5),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '${h.label} · ${money(h.total)} (${h.count})',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: context.inkColor,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  InkWell(
+                                    onTap: () {
+                                      cart.removeHeldCart(h);
+                                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Kutilayotgan savat o‘chirildi.'),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    },
+                                    child: Icon(Icons.close_rounded, size: 14, color: context.mutedColor),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 8),
         Expanded(
           child: empty

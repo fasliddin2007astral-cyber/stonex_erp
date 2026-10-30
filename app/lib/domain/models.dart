@@ -183,6 +183,34 @@ class CartLine {
     final c = (cutSpec != null && cutSpec!.isNotEmpty) ? ' [$cutSpec]' : '';
     return '${product.name}$s$c';
   }
+
+  CartLine copy() => CartLine(
+        product,
+        quantity: quantity,
+        inDona: inDona,
+        sort: sort,
+        cutLength: cutLength,
+        cutWidth: cutWidth,
+        cutPieces: cutPieces,
+        cutSpec: cutSpec,
+      );
+}
+
+class HeldCart {
+  final String id;
+  final String label;
+  final DateTime createdAt;
+  final List<CartLine> lines;
+
+  HeldCart({
+    required this.id,
+    required this.label,
+    required this.createdAt,
+    required this.lines,
+  });
+
+  double get total => lines.fold(0, (a, l) => a + l.lineTotal);
+  int get count => lines.length;
 }
 
 class SaleItemRecord {
