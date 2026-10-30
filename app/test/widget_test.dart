@@ -289,7 +289,7 @@ void main() {
     expect(find.text('Jami Savdolar (Daromad)'), findsOneWidget);
     expect(find.text('Kassaga Tushgan Pul'), findsOneWidget);
     expect(find.text('Qarzdorlik (Nasiya)'), findsOneWidget);
-    expect(find.text('Sex Sof Foyda Marjasi'), findsOneWidget);
+    expect(find.text('Sof Foyda'), findsOneWidget);
   });
 
   testWidgets('PosScreen QR scanner dialog - sleek UX, quantity stepper and zero overflow', (WidgetTester tester) async {

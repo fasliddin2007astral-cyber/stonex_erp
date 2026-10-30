@@ -418,26 +418,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
             : 'Undirish kutilmoqda')
         : 'Nasiya yo‘q';
 
-    // 4. Sex Sof Foyda Marjasi badge matni (Real marja yoki o'sish)
+    // 4. Sof Foyda badge matni
     String badgeProfit;
     bool isPositiveProfit = stats.profit >= 0;
     if (_selectedTopPeriod == 'Barchasi') {
       badgeProfit = stats.margin >= 0
-          ? '+${stats.margin.toStringAsFixed(0)}% Sof marja'
-          : '-${stats.margin.abs().toStringAsFixed(0)}% Zarar';
+          ? '+${stats.margin.toStringAsFixed(1)}% rentabellik'
+          : '-${stats.margin.abs().toStringAsFixed(1)}% zarar';
     } else if (stats.prevProfit > 0) {
       final profitGrowth =
           ((stats.profit - stats.prevProfit) / stats.prevProfit * 100);
       final sign = profitGrowth >= 0 ? '+' : '';
-      badgeProfit = '$sign${profitGrowth.toStringAsFixed(0)}% O‘sish';
+      badgeProfit = '$sign${profitGrowth.toStringAsFixed(0)}% o‘sish';
       isPositiveProfit = profitGrowth >= 0;
     } else if (stats.profit > 0) {
-      badgeProfit = '+${stats.margin.toStringAsFixed(0)}% Sof marja';
+      badgeProfit = '+${stats.margin.toStringAsFixed(1)}% rentabellik';
     } else {
       badgeProfit = 'Hozircha foyda 0';
     }
 
-        final double? topCardHeight = (isDesktop || isTablet) ? 182.0 : null;
+    final double? topCardHeight = (isDesktop || isTablet) ? 182.0 : null;
 
     final card1 = _TopDarkStatCard(
       title: 'Jami Savdolar (Daromad)',
@@ -462,23 +462,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final card3 = _TopGaugeStatCard(
       title: 'Qarzdorlik (Nasiya)',
       value: money(stats.debt),
-      percentageText: debtPercent,
       subText: debtSubText,
-      progress: debtProgress,
       icon: Icons.pending_actions_rounded,
       ringColor: const Color(0xFFC77700),
-      ringBg: const Color(0xFFFFF3D6),
       height: topCardHeight,
       onTap: () => widget.onNavigate?.call(2),
     );
 
     final card4 = _TopSpeedGaugeCard(
-      title: 'Sex Sof Foyda Marjasi',
-      value: '%',
+      title: 'Sof Foyda',
+      value: money(stats.profit),
       badgeText: badgeProfit,
-      subText: money(stats.profit),
       isPositive: isPositiveProfit,
-      icon: Icons.show_chart_rounded,
+      icon: Icons.trending_up_rounded,
       height: topCardHeight,
       onTap: () => _reload(),
     );
@@ -2923,24 +2919,18 @@ class _TopGaugeStatCard extends StatelessWidget {
   const _TopGaugeStatCard({
     required this.title,
     required this.value,
-    required this.percentageText,
     required this.subText,
-    required this.progress,
     required this.icon,
     required this.ringColor,
-    required this.ringBg,
     this.onTap,
     this.height,
   });
 
   final String title;
   final String value;
-  final String percentageText;
   final String subText;
-  final double progress;
   final IconData icon;
   final Color ringColor;
-  final Color ringBg;
   final VoidCallback? onTap;
   final double? height;
 
@@ -3016,52 +3006,22 @@ class _TopGaugeStatCard extends StatelessWidget {
                   ),
                 ],
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: context.isDark ? const Color(0xFF332512) : const Color(0xFFFEF3C7),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        subText,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: ringColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: context.isDark ? const Color(0xFF332512) : const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  subText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: ringColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
                   ),
-                  const SizedBox(width: 6),
-                  SizedBox(
-                    width: 32,
-                    height: 32,
-                    child: CustomPaint(
-                      painter: _VaultCircleRingPainter(
-                        progress: progress,
-                        color: ringColor,
-                        track: context.isDark ? const Color(0xFF28251B) : ringBg,
-                      ),
-                      child: Center(
-                        child: Text(
-                          percentageText,
-                          style: TextStyle(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w800,
-                            color: ringColor,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
@@ -3076,7 +3036,6 @@ class _TopSpeedGaugeCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.badgeText,
-    required this.subText,
     required this.isPositive,
     required this.icon,
     this.onTap,
@@ -3086,7 +3045,6 @@ class _TopSpeedGaugeCard extends StatelessWidget {
   final String title;
   final String value;
   final String badgeText;
-  final String subText;
   final bool isPositive;
   final IconData icon;
   final VoidCallback? onTap;
@@ -3177,7 +3135,7 @@ class _TopSpeedGaugeCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  ' · ',
+                  badgeText,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
