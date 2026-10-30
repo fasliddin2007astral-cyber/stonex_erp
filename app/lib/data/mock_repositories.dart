@@ -18,6 +18,7 @@ class MockStore {
   int nextProductId = 100;
   int nextId = 100;
   int nextUserId = 10;
+  int nextAttendanceId = 100;
 
   final List<Product> products = [
     const Product(id: 1, name: 'Angola', qrCode: 'STX-ANGOLA', unit: 'm2', donaM2: 0.25, hasSorts: true, price: 180000, costPrice: 120000, stock: 200, imageUrl: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=400&auto=format&fit=crop&q=80'),
@@ -31,10 +32,65 @@ class MockStore {
 
   /// Faqat mock rejimi uchun test akkauntlari (haqiqiy backendda parollar xeshlangan).
   final Map<String, ({String password, AppUser user})> users = {
-    'admin': (password: 'admin12345', user: const AppUser(id: 1, username: 'admin', fullName: 'Xo‘jayin', role: Role.admin)),
-    'kassir': (password: 'kassir123', user: const AppUser(id: 2, username: 'kassir', fullName: 'Kassir Aziz', role: Role.kassir)),
-    'ishchi': (password: 'ishchi123', user: const AppUser(id: 3, username: 'ishchi', fullName: 'Ishchi Bobur', role: Role.ishchi)),
+    'admin': (
+      password: 'admin12345',
+      user: const AppUser(
+        id: 1,
+        username: 'admin',
+        fullName: 'Xo‘jayin',
+        role: Role.admin,
+        salary: 12000000,
+        salaryType: 'monthly',
+      ),
+    ),
+    'kassir': (
+      password: 'kassir123',
+      user: const AppUser(
+        id: 2,
+        username: 'kassir',
+        fullName: 'Kassir Aziz',
+        role: Role.kassir,
+        salary: 6500000,
+        salaryType: 'monthly',
+      ),
+    ),
+    'ishchi': (
+      password: 'ishchi123',
+      user: const AppUser(
+        id: 3,
+        username: 'ishchi',
+        fullName: 'Ishchi Bobur',
+        role: Role.ishchi,
+        salary: 5200000,
+        salaryType: 'monthly',
+      ),
+    ),
   };
+
+  final List<AttendanceRecord> attendances = [
+    AttendanceRecord(
+      id: 1,
+      userId: 2,
+      userName: 'Kassir Aziz',
+      date: '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}',
+      checkIn: DateTime.now().copyWith(hour: 8, minute: 45),
+      checkOut: null,
+      workedHours: 0,
+      status: 'present',
+      note: 'Vaqtida keldi',
+    ),
+    AttendanceRecord(
+      id: 2,
+      userId: 3,
+      userName: 'Ishchi Bobur',
+      date: '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}',
+      checkIn: DateTime.now().copyWith(hour: 9, minute: 25),
+      checkOut: null,
+      workedHours: 0,
+      status: 'late',
+      note: 'Tirbandlik sababli 10 daqiqa kechikdi',
+    ),
+  ];
 
   final List<MockSaleEntry> sales = [
     MockSaleEntry(
@@ -688,6 +744,8 @@ class MockUserRepository implements UserRepository {
     required String fullName,
     required String password,
     required Role role,
+    double salary = 0,
+    String salaryType = 'monthly',
   }) async {
     if (_s.users.containsKey(username.trim())) {
       throw ApiException('Bu login allaqachon mavjud', 409);
@@ -697,6 +755,8 @@ class MockUserRepository implements UserRepository {
       username: username.trim(),
       fullName: fullName.trim(),
       role: role,
+      salary: salary,
+      salaryType: salaryType,
       isActive: true,
     );
     _s.users[username.trim()] = (password: password, user: user);
@@ -709,6 +769,8 @@ class MockUserRepository implements UserRepository {
     String? fullName,
     String? password,
     Role? role,
+    double? salary,
+    String? salaryType,
     bool? isActive,
   }) async {
     final entry = _s.users.entries.firstWhere(
@@ -721,6 +783,8 @@ class MockUserRepository implements UserRepository {
       username: oldUser.username,
       fullName: fullName ?? oldUser.fullName,
       role: role ?? oldUser.role,
+      salary: salary ?? oldUser.salary,
+      salaryType: salaryType ?? oldUser.salaryType,
       isActive: isActive ?? oldUser.isActive,
     );
     _s.users[entry.key] = (
@@ -728,6 +792,167 @@ class MockUserRepository implements UserRepository {
       user: updated,
     );
     return updated;
+  }
+}
+
+class MockAttendanceRepository implements AttendanceRepository {
+  MockAttendanceRepository(this._s);
+  final MockStore _s;
+
+  @override
+  Future<List<AttendanceRecord>> list({String? date, String? month, int? userId}) async {
+    var items = List<AttendanceRecord>.from(_s.attendances);
+    if (date != null && date.isNotEmpty) {
+      items = items.where((a) => a.date == date).toList();
+    } else if (month != null && month.isNotEmpty) {
+      items = items.where((a) => a.date.startsWith(month)).toList();
+    }
+    if (userId != null) {
+      items = items.where((a) => a.userId == userId).toList();
+    }
+    items.sort((a, b) => b.date.compareTo(a.date));
+    return items;
+  }
+
+  @override
+  Future<AttendanceRecord> checkIn(int userId, {DateTime? time, String? note}) async {
+    final now = time ?? DateTime.now();
+    final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final user = _s.users.values.firstWhere((u) => u.user.id == userId, orElse: () => throw ApiException('Xodim topilmadi', 404)).user;
+
+    final isLate = now.hour > 9 || (now.hour == 9 && now.minute > 15);
+    final idx = _s.attendances.indexWhere((a) => a.userId == userId && a.date == dateStr);
+
+    if (idx >= 0) {
+      final existing = _s.attendances[idx];
+      double hours = 0;
+      if (existing.checkOut != null) {
+        hours = double.parse((existing.checkOut!.difference(now).inMinutes / 60.0).clamp(0.0, 24.0).toStringAsFixed(1));
+      }
+      final updated = existing.copyWith(
+        checkIn: now,
+        workedHours: hours > 0 ? hours : existing.workedHours,
+        status: isLate ? 'late' : existing.status,
+        note: note ?? existing.note,
+      );
+      _s.attendances[idx] = updated;
+      return updated;
+    } else {
+      final rec = AttendanceRecord(
+        id: _s.nextAttendanceId++,
+        userId: userId,
+        userName: user.fullName,
+        date: dateStr,
+        checkIn: now,
+        status: isLate ? 'late' : 'present',
+        note: note,
+      );
+      _s.attendances.add(rec);
+      return rec;
+    }
+  }
+
+  @override
+  Future<AttendanceRecord> checkOut(int userId, {DateTime? time, String? note}) async {
+    final now = time ?? DateTime.now();
+    final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final user = _s.users.values.firstWhere((u) => u.user.id == userId, orElse: () => throw ApiException('Xodim topilmadi', 404)).user;
+    final idx = _s.attendances.indexWhere((a) => a.userId == userId && a.date == dateStr);
+
+    if (idx >= 0) {
+      final existing = _s.attendances[idx];
+      double hours = 0;
+      if (existing.checkIn != null) {
+        hours = double.parse((now.difference(existing.checkIn!).inMinutes / 60.0).clamp(0.0, 24.0).toStringAsFixed(1));
+      }
+      final updated = existing.copyWith(
+        checkOut: now,
+        workedHours: hours,
+        note: note ?? existing.note,
+      );
+      _s.attendances[idx] = updated;
+      return updated;
+    } else {
+      final rec = AttendanceRecord(
+        id: _s.nextAttendanceId++,
+        userId: userId,
+        userName: user.fullName,
+        date: dateStr,
+        checkOut: now,
+        status: 'present',
+        note: note,
+      );
+      _s.attendances.add(rec);
+      return rec;
+    }
+  }
+
+  @override
+  Future<AttendanceRecord> saveRecord(AttendanceRecord record) async {
+    final idx = _s.attendances.indexWhere((a) => a.id == record.id || (a.userId == record.userId && a.date == record.date));
+    if (idx >= 0) {
+      _s.attendances[idx] = record;
+      return record;
+    } else {
+      final rec = record.copyWith(id: record.id > 0 ? record.id : _s.nextAttendanceId++);
+      _s.attendances.add(rec);
+      return rec;
+    }
+  }
+
+  @override
+  Future<List<SalaryReportItem>> getSalaryReport({required String month, int totalWorkingDays = 26}) async {
+    final users = _s.users.values.map((e) => e.user).where((u) => u.isActive).toList();
+    final atts = _s.attendances.where((a) => a.date.startsWith(month)).toList();
+
+    final userAtts = <int, List<AttendanceRecord>>{};
+    for (final a in atts) {
+      userAtts.putIfAbsent(a.userId, () => []).add(a);
+    }
+
+    final list = <SalaryReportItem>[];
+    for (final u in users) {
+      final uList = userAtts[u.id] ?? [];
+      final worked = uList.where((a) => a.status != 'absent').toList();
+      final daysWorked = worked.length;
+      final hoursWorked = worked.fold(0.0, (sum, a) => sum + a.workedHours);
+      final daysLate = uList.where((a) => a.status == 'late').length;
+
+      double calculated = 0;
+      if (u.salaryType == 'daily') {
+        calculated = u.salary * daysWorked;
+      } else if (u.salaryType == 'hourly') {
+        calculated = u.salary * hoursWorked;
+      } else {
+        final perDay = totalWorkingDays > 0 ? (u.salary / totalWorkingDays) : 0;
+        calculated = (perDay * (daysWorked > 0 ? daysWorked : totalWorkingDays)).roundToDouble();
+      }
+
+      final dayRate = totalWorkingDays > 0 ? (u.salary / totalWorkingDays) : 0;
+      final deduction = (dayRate * 0.1 * daysLate).roundToDouble();
+      final net = (calculated - deduction).clamp(0.0, double.infinity);
+
+      list.add(SalaryReportItem(
+        userId: u.id,
+        fullName: u.fullName,
+        role: u.role.label,
+        baseSalary: u.salary,
+        salaryType: u.salaryType,
+        daysWorked: daysWorked > 0 ? daysWorked : totalWorkingDays,
+        hoursWorked: hoursWorked > 0 ? hoursWorked : (totalWorkingDays * 8.0),
+        daysLate: daysLate,
+        calculatedSalary: calculated,
+        deduction: deduction,
+        netSalary: net,
+        isPaid: false,
+      ));
+    }
+    return list;
+  }
+
+  @override
+  Future<void> paySalary(int userId, String month, double amount) async {
+    // To'lov amalga oshirildi deb belgilash
   }
 }
 

@@ -101,6 +101,53 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.json()["image_url"].endswith(".png"))
 
+    def test_attendance_and_salary_calculation(self):
+        # 1. Yangi xodim maoshi bilan
+        r = self.c.post("/users", headers=self.h, json={
+            "username": "usta_davron",
+            "full_name": "Davron Usta",
+            "password": "parol12345",
+            "role": "ishchi",
+            "salary": 5200000,
+            "salary_type": "monthly"
+        })
+        self.assertEqual(r.status_code, 201)
+        uid = r.json()["id"]
+
+        # 2. Check-in (keldi)
+        r = self.c.post("/attendance/check-in", headers=self.h, json={
+            "user_id": uid,
+            "date": "2026-10-15",
+            "check_in": "2026-10-15T08:30:00"
+        })
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["status"], "present")
+
+        # 3. Check-out (ketdi)
+        r = self.c.post("/attendance/check-out", headers=self.h, json={
+            "user_id": uid,
+            "date": "2026-10-15",
+            "check_out": "2026-10-15T18:00:00"
+        })
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(float(r.json()["worked_hours"]), 9.5)
+
+        # 4. Kechikkan kun (9:30 da kelgan)
+        r = self.c.post("/attendance/check-in", headers=self.h, json={
+            "user_id": uid,
+            "date": "2026-10-16",
+            "check_in": "2026-10-16T09:30:00"
+        })
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["status"], "late")
+
+        # 5. Oylik hisoboti
+        r = self.c.get("/attendance/salary-report?month=2026-10&total_working_days=26", headers=self.h)
+        self.assertEqual(r.status_code, 200)
+        rep = next(x for x in r.json() if x["user_id"] == uid)
+        self.assertEqual(rep["days_worked"], 2)
+        self.assertEqual(rep["days_late"], 1)
+        self.assertGreater(float(rep["calculated_salary"]), 0)
 
 
 if __name__ == "__main__":

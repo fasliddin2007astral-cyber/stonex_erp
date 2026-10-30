@@ -21,6 +21,8 @@ class UserOut(ORM):
     username: str
     full_name: str
     role: str
+    salary: Decimal = Decimal(0)
+    salary_type: str = "monthly"
     is_active: bool
 
 
@@ -35,13 +37,71 @@ class UserCreate(BaseModel):
     full_name: str = Field(min_length=1, max_length=128)
     password: str = Field(min_length=8, max_length=128)
     role: Literal["admin", "kassir", "ishchi"]
+    salary: Decimal = Field(default=Decimal(0), ge=0)
+    salary_type: Literal["monthly", "daily", "hourly"] = "monthly"
 
 
 class UserUpdate(BaseModel):
     full_name: str | None = None
     password: str | None = Field(default=None, min_length=8, max_length=128)
     role: Literal["admin", "kassir", "ishchi"] | None = None
+    salary: Decimal | None = Field(default=None, ge=0)
+    salary_type: Literal["monthly", "daily", "hourly"] | None = None
     is_active: bool | None = None
+
+
+# ---------- attendance & payroll ----------
+class AttendanceCheckIn(BaseModel):
+    user_id: int
+    date: str | None = None  # YYYY-MM-DD
+    check_in: datetime | None = None
+    note: str | None = None
+
+
+class AttendanceCheckOut(BaseModel):
+    user_id: int
+    date: str | None = None  # YYYY-MM-DD
+    check_out: datetime | None = None
+    note: str | None = None
+
+
+class AttendanceRecordIn(BaseModel):
+    id: int | None = None
+    user_id: int
+    date: str  # YYYY-MM-DD
+    check_in: datetime | None = None
+    check_out: datetime | None = None
+    worked_hours: Decimal = Decimal(0)
+    status: Literal["present", "late", "absent", "half_day"] = "present"
+    note: str | None = None
+
+
+class AttendanceOut(ORM):
+    id: int
+    user_id: int
+    user_name: str | None = None
+    date: str
+    check_in: datetime | None = None
+    check_out: datetime | None = None
+    worked_hours: Decimal = Decimal(0)
+    status: str
+    note: str | None = None
+
+
+class SalaryReportItem(BaseModel):
+    user_id: int
+    full_name: str
+    role: str
+    base_salary: Decimal
+    salary_type: str
+    days_worked: int
+    hours_worked: Decimal
+    days_late: int
+    calculated_salary: Decimal
+    bonus: Decimal = Decimal(0)
+    deduction: Decimal = Decimal(0)
+    net_salary: Decimal
+    is_paid: bool = False
 
 
 # ---------- products ----------

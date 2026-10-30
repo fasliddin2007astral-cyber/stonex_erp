@@ -252,12 +252,16 @@ class ApiUserRepository implements UserRepository {
     required String fullName,
     required String password,
     required Role role,
+    double salary = 0,
+    String salaryType = 'monthly',
   }) async {
     final j = await _api.post('/users', body: {
       'username': username,
       'full_name': fullName,
       'password': password,
       'role': role.code,
+      'salary': salary,
+      'salary_type': salaryType,
     });
     return AppUser.fromJson(j as Map<String, dynamic>);
   }
@@ -268,16 +272,76 @@ class ApiUserRepository implements UserRepository {
     String? fullName,
     String? password,
     Role? role,
+    double? salary,
+    String? salaryType,
     bool? isActive,
   }) async {
     final body = <String, dynamic>{
       if (fullName != null) 'full_name': fullName,
       if (password != null && password.isNotEmpty) 'password': password,
       if (role != null) 'role': role.code,
+      if (salary != null) 'salary': salary,
+      if (salaryType != null) 'salary_type': salaryType,
       if (isActive != null) 'is_active': isActive,
     };
     final j = await _api.patch('/users/$id', body: body);
     return AppUser.fromJson(j as Map<String, dynamic>);
+  }
+}
+
+class ApiAttendanceRepository implements AttendanceRepository {
+  ApiAttendanceRepository(this._api);
+  final ApiClient _api;
+
+  @override
+  Future<List<AttendanceRecord>> list({String? date, String? month, int? userId}) async {
+    final query = <String, String>{};
+    if (date != null && date.isNotEmpty) query['date'] = date;
+    if (month != null && month.isNotEmpty) query['month'] = month;
+    if (userId != null) query['user_id'] = userId.toString();
+
+    final j = await _api.get('/attendance', query: query.isNotEmpty ? query : null) as List;
+    return j.map((e) => AttendanceRecord.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  @override
+  Future<AttendanceRecord> checkIn(int userId, {DateTime? time, String? note}) async {
+    final j = await _api.post('/attendance/check-in', body: {
+      'user_id': userId,
+      if (time != null) 'check_in': time.toIso8601String(),
+      if (note != null) 'note': note,
+    });
+    return AttendanceRecord.fromJson(j as Map<String, dynamic>);
+  }
+
+  @override
+  Future<AttendanceRecord> checkOut(int userId, {DateTime? time, String? note}) async {
+    final j = await _api.post('/attendance/check-out', body: {
+      'user_id': userId,
+      if (time != null) 'check_out': time.toIso8601String(),
+      if (note != null) 'note': note,
+    });
+    return AttendanceRecord.fromJson(j as Map<String, dynamic>);
+  }
+
+  @override
+  Future<AttendanceRecord> saveRecord(AttendanceRecord record) async {
+    final j = await _api.post('/attendance/record', body: record.toJson());
+    return AttendanceRecord.fromJson(j as Map<String, dynamic>);
+  }
+
+  @override
+  Future<List<SalaryReportItem>> getSalaryReport({required String month, int totalWorkingDays = 26}) async {
+    final j = await _api.get('/attendance/salary-report', query: {
+      'month': month,
+      'total_working_days': totalWorkingDays.toString(),
+    }) as List;
+    return j.map((e) => SalaryReportItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  @override
+  Future<void> paySalary(int userId, String month, double amount) async {
+    // API to'lov
   }
 }
 

@@ -30,8 +30,14 @@ def create_user(data: UserCreate, db: Session = Depends(get_db),
                 _: User = Depends(require_roles(roles.ADMIN))):
     if db.scalar(select(User).where(User.username == data.username)):
         raise HTTPException(409, "Bu login band")
-    u = User(username=data.username, full_name=data.full_name, role=data.role,
-             password_hash=hash_password(data.password))
+    u = User(
+        username=data.username,
+        full_name=data.full_name,
+        role=data.role,
+        salary=data.salary,
+        salary_type=data.salary_type,
+        password_hash=hash_password(data.password),
+    )
     db.add(u)
     db.commit()
     return u
@@ -49,6 +55,10 @@ def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db),
         u.full_name = data.full_name
     if data.role is not None:
         u.role = data.role
+    if data.salary is not None:
+        u.salary = data.salary
+    if data.salary_type is not None:
+        u.salary_type = data.salary_type
     if data.is_active is not None:
         u.is_active = data.is_active
     if data.password:

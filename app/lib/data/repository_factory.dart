@@ -20,6 +20,7 @@ AppRepositories buildRepositories() {
       stock: MockStockRepository(s),
       notifications: MockNotificationRepository(s),
       customers: MockCustomerRepository(s),
+      attendance: MockAttendanceRepository(s),
     );
   }
   return AppRepositories(
@@ -32,5 +33,6 @@ AppRepositories buildRepositories() {
     stock: ApiStockRepository(appApiClient),
     notifications: ApiNotificationRepository(appApiClient),
     customers: ApiCustomerRepository(appApiClient),
+    attendance: ApiAttendanceRepository(appApiClient),
   );
 }

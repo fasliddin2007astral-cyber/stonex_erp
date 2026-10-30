@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/format.dart';
 import '../core/theme.dart';
 import '../data/repositories.dart';
 import '../domain/models.dart';
@@ -14,16 +15,37 @@ class UsersScreen extends StatefulWidget {
 }
 
 class _UsersScreenState extends State<UsersScreen> {
-  late Future<List<AppUser>> _future;
+  int _currentTab = 0; // 0: Xodimlar, 1: Davomat (Keldi-Ketdi), 2: Oylik hisobi
+
+  // Tab 0: Xodimlar
+  late Future<List<AppUser>> _usersFuture;
   String _selectedFilter = 'Barchasi';
   final _searchCtrl = TextEditingController();
 
-  UserRepository get _repo => context.read<AppRepositories>().users;
+  // Tab 1: Davomat
+  DateTime _selectedDate = DateTime.now();
+  late Future<List<AttendanceRecord>> _attendanceFuture;
+
+  // Tab 2: Oylik hisobi
+  DateTime _selectedMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  final int _totalWorkingDays = 26;
+  late Future<List<SalaryReportItem>> _salaryFuture;
+
+  UserRepository get _usersRepo => context.read<AppRepositories>().users;
+  AttendanceRepository get _attRepo => context.read<AppRepositories>().attendance;
+
+  String get _dateStr =>
+      '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+
+  String get _monthStr =>
+      '${_selectedMonth.year}-${_selectedMonth.month.toString().padLeft(2, '0')}';
 
   @override
   void initState() {
     super.initState();
-    _future = _repo.list();
+    _reloadUsers();
+    _reloadAttendance();
+    _reloadSalary();
   }
 
   @override
@@ -32,33 +54,53 @@ class _UsersScreenState extends State<UsersScreen> {
     super.dispose();
   }
 
-  void _reload() {
-    if (mounted) {
-      setState(() {
-        _future = _repo.list();
-      });
-    }
+  void _reloadUsers() {
+    setState(() {
+      _usersFuture = _usersRepo.list();
+    });
   }
 
+  void _reloadAttendance() {
+    setState(() {
+      _attendanceFuture = _attRepo.list(date: _dateStr);
+    });
+  }
+
+  void _reloadSalary() {
+    setState(() {
+      _salaryFuture = _attRepo.getSalaryReport(
+        month: _monthStr,
+        totalWorkingDays: _totalWorkingDays,
+      );
+    });
+  }
+
+  void _reloadAll() {
+    _reloadUsers();
+    _reloadAttendance();
+    _reloadSalary();
+  }
+
+  // --- Xodim qo'shish va tahrirlash ---
   Future<void> _addUser() async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => UserDialog(repo: _repo),
+      builder: (_) => UserDialog(repo: _usersRepo),
     );
     if (ok == true && mounted) {
       showMessage(context, 'Yangi xodim muvaffaqiyatli qo‘shildi');
-      _reload();
+      _reloadAll();
     }
   }
 
   Future<void> _editUser(AppUser user) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => UserDialog(repo: _repo, user: user),
+      builder: (_) => UserDialog(repo: _usersRepo, user: user),
     );
     if (ok == true && mounted) {
       showMessage(context, 'Xodim ma’lumotlari yangilandi');
-      _reload();
+      _reloadAll();
     }
   }
 
@@ -98,7 +140,7 @@ class _UsersScreenState extends State<UsersScreen> {
     if (confirm != true) return;
 
     try {
-      await _repo.update(
+      await _usersRepo.update(
         user.id,
         fullName: user.fullName,
         role: user.role,
@@ -106,7 +148,7 @@ class _UsersScreenState extends State<UsersScreen> {
       );
       if (mounted) {
         showMessage(context, 'Xodim muvaffaqiyatli $action qilindi');
-        _reload();
+        _reloadAll();
       }
     } catch (e) {
       if (mounted) {
@@ -115,631 +157,76 @@ class _UsersScreenState extends State<UsersScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final filterOptions = ['Barchasi', 'Adminlar', 'Kassirlar', 'Ishchilar', 'Bloklanganlar'];
-
-    return Scaffold(
-      backgroundColor: context.scaffoldBg,
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
-        foregroundColor: context.isDark ? AppColors.ink : Colors.white,
-        onPressed: _addUser,
-        icon: Icon(Icons.person_add_rounded, color: context.isDark ? AppColors.ink : AppColors.neonLime),
-        label: const Text('Xodim qo‘shish', style: TextStyle(fontWeight: FontWeight.w700)),
-      ),
-      body: FutureBuilder<List<AppUser>>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snap.hasError) {
-            return ErrorView(message: snap.error.toString(), onRetry: _reload);
-          }
-
-          final allUsers = snap.data ?? [];
-
-          // Statistika
-          final totalCount = allUsers.length;
-          final adminCount = allUsers.where((u) => u.role == Role.admin).length;
-          final cashierCount = allUsers.where((u) => u.role == Role.kassir).length;
-          final workerCount = allUsers.where((u) => u.role == Role.ishchi).length;
-          final blockedCount = allUsers.where((u) => !u.isActive).length;
-
-          // Filtr va Qidiruv
-          var displayList = List<AppUser>.from(allUsers);
-          if (_selectedFilter == 'Adminlar') {
-            displayList = displayList.where((u) => u.role == Role.admin).toList();
-          } else if (_selectedFilter == 'Kassirlar') {
-            displayList = displayList.where((u) => u.role == Role.kassir).toList();
-          } else if (_selectedFilter == 'Ishchilar') {
-            displayList = displayList.where((u) => u.role == Role.ishchi).toList();
-          } else if (_selectedFilter == 'Bloklanganlar') {
-            displayList = displayList.where((u) => !u.isActive).toList();
-          }
-
-          final q = _searchCtrl.text.trim().toLowerCase();
-          if (q.isNotEmpty) {
-            displayList = displayList.where((u) {
-              return u.fullName.toLowerCase().contains(q) ||
-                  u.username.toLowerCase().contains(q) ||
-                  u.role.label.toLowerCase().contains(q);
-            }).toList();
-          }
-
-          return RefreshIndicator(
-            onRefresh: () async => _reload(),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isDesktop = constraints.maxWidth >= 900;
-
-                return ListView(
-                  padding: EdgeInsets.fromLTRB(isDesktop ? 28.0 : 12.0, 8, isDesktop ? 28.0 : 12.0, 80),
-                  children: [
-                    // 1. Yuqori statistika kartalari (Vault uslubida)
-                    if (isDesktop)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildStat(
-                              context,
-                              'Jami Xodimlar',
-                              '$totalCount nafar',
-                              Icons.groups_rounded,
-                              AppColors.neonLime,
-                              true,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: _buildStat(
-                              context,
-                              'Adminlar',
-                              '$adminCount nafar',
-                              Icons.admin_panel_settings_rounded,
-                              const Color(0xFF1D3A2B),
-                              false,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: _buildStat(
-                              context,
-                              'Kassirlar',
-                              '$cashierCount nafar',
-                              Icons.point_of_sale_rounded,
-                              AppColors.green,
-                              false,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: _buildStat(
-                              context,
-                              'Ishchilar',
-                              '$workerCount nafar',
-                              Icons.precision_manufacturing_rounded,
-                              const Color(0xFF245580),
-                              false,
-                            ),
-                          ),
-                        ],
-                      )
-                    else ...[
-                      _buildStat(context, 'Jami Xodimlar', '$totalCount nafar', Icons.groups_rounded, AppColors.neonLime, true),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildStat(
-                              context,
-                              'Admin / Kassir',
-                              '$adminCount / $cashierCount',
-                              Icons.badge_rounded,
-                              AppColors.green,
-                              false,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _buildStat(
-                              context,
-                              'Ishchilar',
-                              '$workerCount nafar',
-                              Icons.precision_manufacturing_rounded,
-                              const Color(0xFF245580),
-                              false,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-
-                    const SizedBox(height: 20),
-
-                    // 2. Qidiruv va Yangi Xodim qo'shish paneli
-                    Row(
-                      children: [
-                        Expanded(
-                          child: SizedBox(
-                            height: 44,
-                            child: TextField(
-                              controller: _searchCtrl,
-                              style: TextStyle(fontSize: 13, color: context.inkColor, fontWeight: FontWeight.w500),
-                              textAlignVertical: TextAlignVertical.center,
-                              decoration: InputDecoration(
-                                filled: true,
-                                fillColor: context.cardColor,
-                                isDense: true,
-                                hintText: 'Xodim ismi, login yoki lavozimi bo‘yicha...',
-                                hintStyle: const TextStyle(fontSize: 13, color: AppColors.muted, fontWeight: FontWeight.normal),
-                                prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.muted),
-                                suffixIcon: _searchCtrl.text.isEmpty
-                                    ? null
-                                    : IconButton(
-                                        icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.muted),
-                                        onPressed: () {
-                                          _searchCtrl.clear();
-                                          setState(() {});
-                                        },
-                                        splashRadius: 18,
-                                        padding: EdgeInsets.zero,
-                                      ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                  borderSide: BorderSide(color: context.borderColor),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                  borderSide: BorderSide(color: context.borderColor),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                  borderSide: BorderSide(color: context.isDark ? AppColors.neonLime : AppColors.ink, width: 1.5),
-                                ),
-                              ),
-                              onChanged: (_) => setState(() {}),
-                            ),
-                          ),
-                        ),
-                        if (isDesktop) ...[
-                          const SizedBox(width: 12),
-                          FilledButton.icon(
-                            onPressed: _addUser,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
-                              foregroundColor: context.isDark ? AppColors.ink : Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                            ),
-                            icon: Icon(Icons.add, size: 18, color: context.isDark ? AppColors.ink : AppColors.neonLime),
-                            label: const Text('Xodim qo‘shish', style: TextStyle(fontWeight: FontWeight.w700)),
-                          ),
-                        ],
-                      ],
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    // 3. Pill filtrlar
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: filterOptions.map((opt) {
-                          final selected = _selectedFilter == opt;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: ChoiceChip(
-                              label: Text(
-                                opt == 'Bloklanganlar' && blockedCount > 0 ? '$opt ($blockedCount)' : opt,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                                  color: selected
-                                      ? (context.isDark ? AppColors.ink : Colors.white)
-                                      : context.inkColor,
-                                ),
-                              ),
-                              selected: selected,
-                              selectedColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
-                              backgroundColor: context.cardColor,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                                side: BorderSide(
-                                  color: selected
-                                      ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
-                                      : context.borderColor,
-                                ),
-                              ),
-                              showCheckmark: false,
-                              onSelected: (_) => setState(() => _selectedFilter = opt),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // 4. Xodimlar ro'yxati
-                    if (displayList.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(40),
-                        decoration: BoxDecoration(
-                          color: context.cardColor,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: context.borderColor),
-                        ),
-                        child: Column(
-                          children: [
-                            const Icon(Icons.badge_outlined, size: 48, color: AppColors.muted),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Xodimlar topilmadi',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _searchCtrl.text.isNotEmpty
-                                  ? 'Qidiruv so‘rovi bo‘yicha hech kim topilmadi'
-                                  : 'Bu toifada hozircha xodimlar mavjud emas',
-                              style: const TextStyle(color: AppColors.muted, fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: displayList.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          final u = displayList[index];
-                          final initial = u.fullName.isNotEmpty ? u.fullName[0].toUpperCase() : '?';
-
-                          Color roleColor;
-                          IconData roleIcon;
-                          switch (u.role) {
-                            case Role.admin:
-                              roleColor = context.isDark ? AppColors.neonLime : const Color(0xFF1D3A2B);
-                              roleIcon = Icons.shield_rounded;
-                              break;
-                            case Role.kassir:
-                              roleColor = AppColors.green;
-                              roleIcon = Icons.point_of_sale_rounded;
-                              break;
-                            case Role.ishchi:
-                              roleColor = context.isDark ? const Color(0xFF60A5FA) : const Color(0xFF245580);
-                              roleIcon = Icons.precision_manufacturing_rounded;
-                              break;
-                          }
-
-                          return Container(
-                            padding: EdgeInsets.symmetric(horizontal: isDesktop ? 18 : 12, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: context.cardColor,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: context.borderColor),
-                            ),
-                            child: isDesktop
-                                ? Row(
-                                    children: [
-                                      // Profil avatari
-                                      Container(
-                                        width: 44,
-                                        height: 44,
-                                        decoration: BoxDecoration(
-                                          color: u.isActive
-                                              ? roleColor.withValues(alpha: 0.12)
-                                              : (context.isDark ? const Color(0xFF331616) : const Color(0xFFFFECEB)),
-                                          borderRadius: BorderRadius.circular(14),
-                                        ),
-                                        alignment: Alignment.center,
-                                        child: Text(
-                                          initial,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w900,
-                                            color: u.isActive ? roleColor : AppColors.danger,
-                                            fontSize: 18,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 14),
-
-                                      // F.I.O va Login
-                                      Expanded(
-                                        flex: 3,
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Flexible(
-                                                  child: Text(
-                                                    u.fullName,
-                                                    style: TextStyle(
-                                                      fontWeight: FontWeight.w700,
-                                                      fontSize: 15,
-                                                      color: u.isActive ? context.inkColor : context.mutedColor,
-                                                      decoration: u.isActive ? null : TextDecoration.lineThrough,
-                                                    ),
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                                                  decoration: BoxDecoration(
-                                                    color: roleColor.withValues(alpha: 0.12),
-                                                    borderRadius: BorderRadius.circular(12),
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    children: [
-                                                      Icon(roleIcon, size: 11, color: roleColor),
-                                                      const SizedBox(width: 4),
-                                                      Text(
-                                                        u.role.label,
-                                                        style: TextStyle(
-                                                          color: roleColor,
-                                                          fontWeight: FontWeight.w700,
-                                                          fontSize: 10,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 3),
-                                            Text(
-                                              'Login: @${u.username}',
-                                              style: const TextStyle(color: AppColors.muted, fontSize: 12),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-
-                                      // Holat nishoni (Faol / Bloklangan)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                        decoration: BoxDecoration(
-                                          color: u.isActive
-                                              ? AppColors.green.withValues(alpha: 0.12)
-                                              : AppColors.danger.withValues(alpha: 0.12),
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Container(
-                                              width: 6,
-                                              height: 6,
-                                              decoration: BoxDecoration(
-                                                color: u.isActive ? AppColors.green : AppColors.danger,
-                                                shape: BoxShape.circle,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              u.isActive ? 'Faol' : 'Bloklangan',
-                                              style: TextStyle(
-                                                color: u.isActive ? AppColors.green : AppColors.danger,
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 11,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-
-                                      const SizedBox(width: 14),
-
-                                      // Boshqaruv tugmalari
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            icon: const Icon(Icons.edit_outlined, size: 19),
-                                            tooltip: 'Tahrirlash',
-                                            onPressed: () => _editUser(u),
-                                          ),
-                                          IconButton(
-                                            icon: Icon(
-                                              u.isActive ? Icons.block_rounded : Icons.check_circle_outline_rounded,
-                                              size: 19,
-                                              color: u.isActive ? AppColors.danger : AppColors.green,
-                                            ),
-                                            tooltip: u.isActive ? 'Bloklash' : 'Faollashtirish',
-                                            onPressed: () => _toggleUserStatus(u),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  )
-                                : Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Container(
-                                            width: 38,
-                                            height: 38,
-                                            decoration: BoxDecoration(
-                                              color: u.isActive
-                                                  ? roleColor.withValues(alpha: 0.12)
-                                                  : (context.isDark ? const Color(0xFF331616) : const Color(0xFFFFECEB)),
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                            alignment: Alignment.center,
-                                            child: Text(
-                                              initial,
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w900,
-                                                color: u.isActive ? roleColor : AppColors.danger,
-                                                fontSize: 16,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  u.fullName,
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.w700,
-                                                    fontSize: 14,
-                                                    color: u.isActive ? context.inkColor : context.mutedColor,
-                                                    decoration: u.isActive ? null : TextDecoration.lineThrough,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 1),
-                                                Text(
-                                                  '@${u.username}',
-                                                  style: const TextStyle(color: AppColors.muted, fontSize: 11),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(Icons.edit_outlined, size: 18),
-                                            tooltip: 'Tahrirlash',
-                                            visualDensity: VisualDensity.compact,
-                                            onPressed: () => _editUser(u),
-                                          ),
-                                          IconButton(
-                                            icon: Icon(
-                                              u.isActive ? Icons.block_rounded : Icons.check_circle_outline_rounded,
-                                              size: 18,
-                                              color: u.isActive ? AppColors.danger : AppColors.green,
-                                            ),
-                                            tooltip: u.isActive ? 'Bloklash' : 'Faollashtirish',
-                                            visualDensity: VisualDensity.compact,
-                                            onPressed: () => _toggleUserStatus(u),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: roleColor.withValues(alpha: 0.12),
-                                              borderRadius: BorderRadius.circular(10),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(roleIcon, size: 10, color: roleColor),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  u.role.label,
-                                                  style: TextStyle(
-                                                    color: roleColor,
-                                                    fontWeight: FontWeight.w700,
-                                                    fontSize: 10,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: u.isActive
-                                                  ? AppColors.green.withValues(alpha: 0.12)
-                                                  : AppColors.danger.withValues(alpha: 0.12),
-                                              borderRadius: BorderRadius.circular(10),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Container(
-                                                  width: 5,
-                                                  height: 5,
-                                                  decoration: BoxDecoration(
-                                                    color: u.isActive ? AppColors.green : AppColors.danger,
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  u.isActive ? 'Faol' : 'Bloklangan',
-                                                  style: TextStyle(
-                                                    color: u.isActive ? AppColors.green : AppColors.danger,
-                                                    fontWeight: FontWeight.w700,
-                                                    fontSize: 10,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                          );
-                        },
-                      ),
-                  ],
-                );
-              },
-            ),
-          );
-        },
-      ),
-    );
+  // --- Davomat amallari ---
+  Future<void> _checkIn(AppUser user) async {
+    try {
+      final now = DateTime.now();
+      await _attRepo.checkIn(user.id, time: now);
+      if (mounted) {
+        showMessage(
+          context,
+          '✓ ${user.fullName} keldi deb qayd etildi (${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')})',
+        );
+        _reloadAttendance();
+        _reloadSalary();
+      }
+    } catch (e) {
+      if (mounted) showMessage(context, 'Xatolik: $e', error: true);
+    }
   }
 
-  Widget _buildStat(BuildContext context, String title, String value, IconData icon, Color color, bool isHeroCard) {
-    final isDarkTheme = context.isDark;
-    final isHero = isHeroCard && !isDarkTheme;
+  Future<void> _checkOut(AppUser user) async {
+    try {
+      final now = DateTime.now();
+      await _attRepo.checkOut(user.id, time: now);
+      if (mounted) {
+        showMessage(
+          context,
+          '✓ ${user.fullName} ketdi deb qayd etildi (${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')})',
+        );
+        _reloadAttendance();
+        _reloadSalary();
+      }
+    } catch (e) {
+      if (mounted) showMessage(context, 'Xatolik: $e', error: true);
+    }
+  }
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isHero ? AppColors.darkCard : context.cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isHero ? AppColors.darkCard : context.borderColor),
+  Future<void> _editAttendance(AppUser user, AttendanceRecord? rec) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AttendanceDialog(
+        repo: _attRepo,
+        user: user,
+        date: _dateStr,
+        record: rec,
       ),
-      child: Row(
+    );
+    if (ok == true && mounted) {
+      showMessage(context, 'Davomat ma’lumotlari saqlandi');
+      _reloadAttendance();
+      _reloadSalary();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: context.scaffoldBg,
+      floatingActionButton: _buildFab(),
+      body: Column(
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: isHero ? const Color(0xFF22262B) : color.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
+          // 1. Yuqori zamonaviy Tab Switcher
+          _buildTopTabs(),
+
+          // 2. Tab mazmuni
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+            child: IndexedStack(
+              index: _currentTab,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(color: isHero ? const Color(0xFF8E959E) : context.mutedColor, fontSize: 11),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: isHero ? Colors.white : context.inkColor,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+                _buildUsersTab(),
+                _buildAttendanceTab(),
+                _buildSalaryTab(),
               ],
             ),
           ),
@@ -747,10 +234,792 @@ class _UsersScreenState extends State<UsersScreen> {
       ),
     );
   }
+
+  Widget? _buildFab() {
+    if (_currentTab == 0) {
+      return FloatingActionButton.extended(
+        backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+        foregroundColor: context.isDark ? AppColors.ink : Colors.white,
+        onPressed: _addUser,
+        icon: Icon(Icons.person_add_rounded, color: context.isDark ? AppColors.ink : AppColors.neonLime),
+        label: const Text('Xodim qo‘shish', style: TextStyle(fontWeight: FontWeight.w700)),
+      );
+    }
+    return null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Top Tabs
+  // ---------------------------------------------------------------------------
+  Widget _buildTopTabs() {
+    final tabs = [
+      ('Xodimlar', Icons.people_alt_rounded),
+      ('Davomat (Keldi / Ketdi)', Icons.access_time_rounded),
+      ('Oylik hisobi', Icons.account_balance_wallet_rounded),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: context.cardColor,
+        border: Border(bottom: BorderSide(color: context.borderColor)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (var i = 0; i < tabs.length; i++) ...[
+              InkWell(
+                onTap: () => setState(() => _currentTab = i),
+                borderRadius: BorderRadius.circular(16),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _currentTab == i
+                        ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+                        : context.pillColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: _currentTab == i
+                          ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+                          : context.borderColor.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        tabs[i].$2,
+                        size: 16,
+                        color: _currentTab == i
+                            ? (context.isDark ? AppColors.ink : Colors.white)
+                            : context.mutedColor,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        tabs[i].$1,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: _currentTab == i ? FontWeight.w800 : FontWeight.w600,
+                          color: _currentTab == i
+                              ? (context.isDark ? AppColors.ink : Colors.white)
+                              : context.mutedColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // TAB 0: Xodimlar Ro'yxati
+  // ---------------------------------------------------------------------------
+  Widget _buildUsersTab() {
+    final filterOptions = ['Barchasi', 'Adminlar', 'Kassirlar', 'Ishchilar', 'Bloklanganlar'];
+
+    return FutureBuilder<List<AppUser>>(
+      future: _usersFuture,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snap.hasError) {
+          return ErrorView(message: snap.error.toString(), onRetry: _reloadUsers);
+        }
+
+        final allUsers = snap.data ?? [];
+        final totalCount = allUsers.length;
+        final adminCount = allUsers.where((u) => u.role == Role.admin).length;
+        final cashierCount = allUsers.where((u) => u.role == Role.kassir).length;
+        final workerCount = allUsers.where((u) => u.role == Role.ishchi).length;
+        final blockedCount = allUsers.where((u) => !u.isActive).length;
+
+        var users = allUsers.where((u) {
+          final query = _searchCtrl.text.toLowerCase().trim();
+          final matchesSearch = query.isEmpty ||
+              u.fullName.toLowerCase().contains(query) ||
+              u.username.toLowerCase().contains(query);
+
+          if (!matchesSearch) return false;
+
+          switch (_selectedFilter) {
+            case 'Adminlar':
+              return u.role == Role.admin && u.isActive;
+            case 'Kassirlar':
+              return u.role == Role.kassir && u.isActive;
+            case 'Ishchilar':
+              return u.role == Role.ishchi && u.isActive;
+            case 'Bloklanganlar':
+              return !u.isActive;
+            default:
+              return true;
+          }
+        }).toList();
+
+        return RefreshIndicator(
+          onRefresh: () async => _reloadUsers(),
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // KPI Kartalari
+              Row(
+                children: [
+                  _buildKpiCard('Jami Xodimlar', '$totalCount ta', Icons.badge_rounded, AppColors.ink),
+                  const SizedBox(width: 10),
+                  _buildKpiCard('Adminlar', '$adminCount ta', Icons.admin_panel_settings_rounded, AppColors.neonLime),
+                  const SizedBox(width: 10),
+                  _buildKpiCard('Kassirlar', '$cashierCount ta', Icons.point_of_sale_rounded, AppColors.green),
+                  const SizedBox(width: 10),
+                  _buildKpiCard('Ishchilar', '$workerCount ta', Icons.precision_manufacturing_rounded, const Color(0xFFD97706)),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Qidiruv va Filter
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 42,
+                      child: TextField(
+                        controller: _searchCtrl,
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(
+                          hintText: 'Xodim nomi yoki logini bo‘yicha qidirish...',
+                          prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+                          filled: true,
+                          fillColor: context.cardColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(color: context.borderColor),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // Filter teglari
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: filterOptions.map((f) {
+                    final isSel = _selectedFilter == f;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: ChoiceChip(
+                        label: Text(f, style: TextStyle(fontSize: 12, fontWeight: isSel ? FontWeight.w700 : FontWeight.w500)),
+                        selected: isSel,
+                        onSelected: (_) => setState(() => _selectedFilter = f),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Xodimlar ro'yxati
+              if (users.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: Column(
+                      children: [
+                        Icon(Icons.person_off_rounded, size: 48, color: context.mutedColor.withValues(alpha: 0.5)),
+                        const SizedBox(height: 10),
+                        Text('Xodimlar topilmadi', style: TextStyle(color: context.mutedColor, fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                for (final u in users) _buildUserCard(u),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildUserCard(AppUser u) {
+    Color roleColor;
+    switch (u.role) {
+      case Role.admin:
+        roleColor = const Color(0xFF8B5CF6);
+        break;
+      case Role.kassir:
+        roleColor = AppColors.green;
+        break;
+      case Role.ishchi:
+        roleColor = const Color(0xFFD97706);
+        break;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: u.isActive ? context.borderColor : AppColors.danger.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: roleColor.withValues(alpha: 0.15),
+            child: Text(
+              u.fullName.isNotEmpty ? u.fullName[0].toUpperCase() : '?',
+              style: TextStyle(fontWeight: FontWeight.w800, color: roleColor, fontSize: 16),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        u.fullName,
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: context.inkColor),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: roleColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        u.role.label,
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: roleColor),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Text(
+                      '@${u.username}',
+                      style: TextStyle(fontSize: 11.5, color: context.mutedColor),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '·  Maosh: ${money(u.salary)} (${u.salaryType == "daily" ? "kunbay" : (u.salaryType == "hourly" ? "soatbay" : "oylik")})',
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: context.inkColor),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit_rounded, size: 18),
+            onPressed: () => _editUser(u),
+            tooltip: 'Tahrirlash',
+          ),
+          IconButton(
+            icon: Icon(
+              u.isActive ? Icons.lock_open_rounded : Icons.lock_rounded,
+              size: 18,
+              color: u.isActive ? AppColors.green : AppColors.danger,
+            ),
+            onPressed: () => _toggleUserStatus(u),
+            tooltip: u.isActive ? 'Bloklash' : 'Faollashtirish',
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // TAB 1: Davomat (Keldi / Ketdi)
+  // ---------------------------------------------------------------------------
+  Widget _buildAttendanceTab() {
+    return FutureBuilder<List<dynamic>>(
+      future: Future.wait([_usersFuture, _attendanceFuture]),
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snap.hasError) {
+          return ErrorView(message: snap.error.toString(), onRetry: _reloadAttendance);
+        }
+
+        final users = (snap.data?[0] as List<AppUser>?)?.where((u) => u.isActive).toList() ?? [];
+        final attendances = (snap.data?[1] as List<AttendanceRecord>?) ?? [];
+
+        final attMap = <int, AttendanceRecord>{};
+        for (final a in attendances) {
+          attMap[a.userId] = a;
+        }
+
+        final presentCount = attendances.where((a) => a.status == 'present').length;
+        final lateCount = attendances.where((a) => a.status == 'late').length;
+        final totalActive = users.length;
+        final absentCount = totalActive - (presentCount + lateCount);
+
+        return RefreshIndicator(
+          onRefresh: () async => _reloadAttendance(),
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Sana tanlash paneli
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: context.cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: context.borderColor),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left_rounded),
+                      onPressed: () {
+                        setState(() {
+                          _selectedDate = _selectedDate.subtract(const Duration(days: 1));
+                          _reloadAttendance();
+                        });
+                      },
+                      tooltip: 'Oldingi kun',
+                    ),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: _selectedDate,
+                            firstDate: DateTime(2025),
+                            lastDate: DateTime(2030),
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              _selectedDate = picked;
+                              _reloadAttendance();
+                            });
+                          }
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.neonLime),
+                            const SizedBox(width: 8),
+                            Text(
+                              '$_dateStr ${_isToday(_selectedDate) ? "(Bugun)" : ""}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: context.inkColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right_rounded),
+                      onPressed: () {
+                        setState(() {
+                          _selectedDate = _selectedDate.add(const Duration(days: 1));
+                          _reloadAttendance();
+                        });
+                      },
+                      tooltip: 'Keyingi kun',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // KPI kartalari
+              Row(
+                children: [
+                  _buildKpiCard('Jami xodimlar', '$totalActive ta', Icons.people_outline_rounded, AppColors.ink),
+                  const SizedBox(width: 8),
+                  _buildKpiCard('Kelganlar', '$presentCount ta', Icons.check_circle_outline_rounded, AppColors.green),
+                  const SizedBox(width: 8),
+                  _buildKpiCard('Kechikkanlar', '$lateCount ta', Icons.warning_amber_rounded, const Color(0xFFD97706)),
+                  const SizedBox(width: 8),
+                  _buildKpiCard('Kelmaganlar', '${absentCount < 0 ? 0 : absentCount} ta', Icons.cancel_outlined, AppColors.danger),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Xodimlar davomat kartalari
+              for (final u in users) _buildAttendanceRow(u, attMap[u.id]),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  bool _isToday(DateTime d) {
+    final now = DateTime.now();
+    return d.year == now.year && d.month == now.month && d.day == now.day;
+  }
+
+  Widget _buildAttendanceRow(AppUser u, AttendanceRecord? att) {
+    final hasCheckedIn = att?.checkIn != null;
+    final hasCheckedOut = att?.checkOut != null;
+    final isLate = att?.status == 'late';
+
+    String statusText = 'Kelmagan';
+    Color statusColor = AppColors.danger;
+    if (isLate) {
+      statusText = 'Kechikkan';
+      statusColor = const Color(0xFFD97706);
+    } else if (hasCheckedIn) {
+      statusText = 'Kelgan';
+      statusColor = AppColors.green;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: context.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: hasCheckedIn
+              ? (isLate ? const Color(0xFFD97706).withValues(alpha: 0.35) : AppColors.green.withValues(alpha: 0.3))
+              : context.borderColor,
+        ),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: statusColor.withValues(alpha: 0.15),
+            child: Icon(
+              hasCheckedIn ? (isLate ? Icons.timer_outlined : Icons.check_rounded) : Icons.close_rounded,
+              color: statusColor,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        u.fullName,
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.inkColor),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        statusText,
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: statusColor),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    if (hasCheckedIn)
+                      Text(
+                        'Keldi: ${_formatTime(att!.checkIn!)}',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: statusColor),
+                      )
+                    else
+                      Text('Kirish qayd etilmagan', style: TextStyle(fontSize: 11, color: context.mutedColor)),
+                    if (hasCheckedOut) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '· Ketdi: ${_formatTime(att!.checkOut!)} (${att.workedHours.toStringAsFixed(1)} soat)',
+                        style: TextStyle(fontSize: 11, color: context.inkColor, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Harakat tugmalari
+          if (!hasCheckedIn)
+            FilledButton.icon(
+              onPressed: () => _checkIn(u),
+              icon: const Icon(Icons.login_rounded, size: 14),
+              label: const Text('Keldi', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                visualDensity: VisualDensity.compact,
+              ),
+            )
+          else if (!hasCheckedOut)
+            FilledButton.icon(
+              onPressed: () => _checkOut(u),
+              icon: const Icon(Icons.logout_rounded, size: 14),
+              label: const Text('Ketdi', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFD97706),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          IconButton(
+            icon: const Icon(Icons.edit_note_rounded, size: 20),
+            onPressed: () => _editAttendance(u, att),
+            tooltip: 'Davomatni to‘liq tahrirlash',
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTime(DateTime dt) {
+    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  // ---------------------------------------------------------------------------
+  // TAB 2: Oylik va Ish haqi hisoboti (Payroll)
+  // ---------------------------------------------------------------------------
+  Widget _buildSalaryTab() {
+    return FutureBuilder<List<SalaryReportItem>>(
+      future: _salaryFuture,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snap.hasError) {
+          return ErrorView(message: snap.error.toString(), onRetry: _reloadSalary);
+        }
+
+        final reports = snap.data ?? [];
+        final totalNet = reports.fold(0.0, (sum, r) => sum + r.netSalary);
+        final totalBase = reports.fold(0.0, (sum, r) => sum + r.baseSalary);
+        final totalDeductions = reports.fold(0.0, (sum, r) => sum + r.deduction);
+
+        return RefreshIndicator(
+          onRefresh: () async => _reloadSalary(),
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Oy tanlash paneli
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: context.cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: context.borderColor),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left_rounded),
+                      onPressed: () {
+                        setState(() {
+                          _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1);
+                          _reloadSalary();
+                        });
+                      },
+                    ),
+                    Expanded(
+                      child: Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.calendar_month_rounded, size: 16, color: AppColors.neonLime),
+                            const SizedBox(width: 8),
+                            Text(
+                              '$_monthStr Oylik Ish Haqi Hisoboti',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: context.inkColor),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right_rounded),
+                      onPressed: () {
+                        setState(() {
+                          _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1);
+                          _reloadSalary();
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // KPI kartalari
+              Row(
+                children: [
+                  _buildKpiCard('Jami Hisoblangan', money(totalNet), Icons.payments_rounded, AppColors.neonLime),
+                  const SizedBox(width: 8),
+                  _buildKpiCard('Rejadagi Fond', money(totalBase), Icons.account_balance_wallet_rounded, AppColors.ink),
+                  const SizedBox(width: 8),
+                  _buildKpiCard('Kechikish jarimalari', '-${money(totalDeductions)}', Icons.gavel_rounded, AppColors.danger),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Xodimlarning oylik hisobot kartalari
+              for (final rep in reports) _buildSalaryItemCard(rep),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSalaryItemCard(SalaryReportItem r) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      r.fullName,
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: context.inkColor),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Stavka: ${money(r.baseSalary)} / ${r.salaryType == "daily" ? "kun" : (r.salaryType == "hourly" ? "soat" : "oy")}',
+                      style: TextStyle(fontSize: 11.5, color: context.mutedColor),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    money(r.netSalary),
+                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.green),
+                  ),
+                  Text(
+                    'To‘lanadigan sof maosh',
+                    style: TextStyle(fontSize: 10, color: context.mutedColor),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: context.pillColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '📅 Davomat: ${r.daysWorked}/$_totalWorkingDays kun (${r.hoursWorked.toStringAsFixed(1)} soat)',
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: context.inkColor),
+                ),
+                if (r.daysLate > 0)
+                  Text(
+                    '⚠ ${r.daysLate} kun kechikdi (-${money(r.deduction)})',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.danger),
+                  )
+                else
+                  const Text(
+                    '✓ Intizomli',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.green),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKpiCard(String label, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: context.cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: context.borderColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 14, color: color),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(fontSize: 10.5, color: context.mutedColor, fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: context.inkColor),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Xodim qo'shish va tahrirlash dialogi (Vault uslubida)
+// Xodim qo'shish va tahrirlash dialogi
 // ---------------------------------------------------------------------------
 
 class UserDialog extends StatefulWidget {
@@ -766,7 +1035,11 @@ class _UserDialogState extends State<UserDialog> {
   late final _userCtrl = TextEditingController(text: widget.user?.username ?? '');
   late final _nameCtrl = TextEditingController(text: widget.user?.fullName ?? '');
   final _passCtrl = TextEditingController();
+  late final _salaryCtrl = TextEditingController(
+    text: widget.user != null ? widget.user!.salary.toInt().toString() : '5000000',
+  );
   late Role _role = widget.user?.role ?? Role.ishchi;
+  late String _salaryType = widget.user?.salaryType ?? 'monthly';
   late bool _isActive = widget.user?.isActive ?? true;
 
   String? _error;
@@ -779,6 +1052,7 @@ class _UserDialogState extends State<UserDialog> {
     _userCtrl.dispose();
     _nameCtrl.dispose();
     _passCtrl.dispose();
+    _salaryCtrl.dispose();
     super.dispose();
   }
 
@@ -786,6 +1060,7 @@ class _UserDialogState extends State<UserDialog> {
     final u = _userCtrl.text.trim();
     final n = _nameCtrl.text.trim();
     final p = _passCtrl.text;
+    final sal = double.tryParse(_salaryCtrl.text.replaceAll(' ', '')) ?? 0;
 
     if (u.isEmpty || n.isEmpty) {
       setState(() {
@@ -813,6 +1088,8 @@ class _UserDialogState extends State<UserDialog> {
           fullName: n,
           password: p.isNotEmpty ? p : null,
           role: _role,
+          salary: sal,
+          salaryType: _salaryType,
           isActive: _isActive,
         );
       } else {
@@ -821,6 +1098,8 @@ class _UserDialogState extends State<UserDialog> {
           fullName: n,
           password: p,
           role: _role,
+          salary: sal,
+          salaryType: _salaryType,
         );
       }
       if (mounted) Navigator.pop(context, true);
@@ -859,7 +1138,7 @@ class _UserDialogState extends State<UserDialog> {
         ],
       ),
       content: SizedBox(
-        width: 380,
+        width: 400,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -906,6 +1185,27 @@ class _UserDialogState extends State<UserDialog> {
                     _role = v ?? _role;
                   });
                 },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _salaryCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Maosh stavkasi (so‘m)',
+                  hintText: '5000000',
+                  prefixIcon: Icon(Icons.payments_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _salaryType,
+                decoration: const InputDecoration(labelText: 'Maosh hisoblash turi'),
+                items: const [
+                  DropdownMenuItem(value: 'monthly', child: Text('Oylik (oybay fixed)')),
+                  DropdownMenuItem(value: 'daily', child: Text('Kunlik (kunbay stavka)')),
+                  DropdownMenuItem(value: 'hourly', child: Text('Soatlik (soatbay stavka)')),
+                ],
+                onChanged: (v) => setState(() => _salaryType = v ?? 'monthly'),
               ),
               if (_isEditing) ...[
                 const SizedBox(height: 12),
@@ -980,6 +1280,207 @@ class _UserDialogState extends State<UserDialog> {
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                 )
               : Text(_isEditing ? 'Saqlash' : 'Qo‘shish', style: const TextStyle(fontWeight: FontWeight.w700)),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Davomatni tahrirlash dialogi
+// ---------------------------------------------------------------------------
+
+class AttendanceDialog extends StatefulWidget {
+  const AttendanceDialog({
+    super.key,
+    required this.repo,
+    required this.user,
+    required this.date,
+    this.record,
+  });
+
+  final AttendanceRepository repo;
+  final AppUser user;
+  final String date;
+  final AttendanceRecord? record;
+
+  @override
+  State<AttendanceDialog> createState() => _AttendanceDialogState();
+}
+
+class _AttendanceDialogState extends State<AttendanceDialog> {
+  late TimeOfDay _checkInTime;
+  late TimeOfDay _checkOutTime;
+  late String _status = widget.record?.status ?? 'present';
+  late final _noteCtrl = TextEditingController(text: widget.record?.note ?? '');
+  bool _hasCheckIn = false;
+  bool _hasCheckOut = false;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.record?.checkIn != null) {
+      _hasCheckIn = true;
+      _checkInTime = TimeOfDay.fromDateTime(widget.record!.checkIn!);
+    } else {
+      _checkInTime = const TimeOfDay(hour: 8, minute: 30);
+    }
+
+    if (widget.record?.checkOut != null) {
+      _hasCheckOut = true;
+      _checkOutTime = TimeOfDay.fromDateTime(widget.record!.checkOut!);
+    } else {
+      _checkOutTime = const TimeOfDay(hour: 18, minute: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _noteCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() => _busy = true);
+
+    DateTime? inDt;
+    DateTime? outDt;
+    final parts = widget.date.split('-');
+    final y = int.parse(parts[0]);
+    final m = int.parse(parts[1]);
+    final d = int.parse(parts[2]);
+
+    if (_hasCheckIn) {
+      inDt = DateTime(y, m, d, _checkInTime.hour, _checkInTime.minute);
+    }
+    if (_hasCheckOut) {
+      outDt = DateTime(y, m, d, _checkOutTime.hour, _checkOutTime.minute);
+    }
+
+    double worked = 0;
+    if (inDt != null && outDt != null) {
+      worked = double.parse((outDt.difference(inDt).inMinutes / 60.0).clamp(0.0, 24.0).toStringAsFixed(1));
+    }
+
+    final rec = AttendanceRecord(
+      id: widget.record?.id ?? 0,
+      userId: widget.user.id,
+      userName: widget.user.fullName,
+      date: widget.date,
+      checkIn: inDt,
+      checkOut: outDt,
+      workedHours: worked,
+      status: _status,
+      note: _noteCtrl.text.trim(),
+    );
+
+    try {
+      await widget.repo.saveRecord(rec);
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _busy = false);
+        showMessage(context, 'Xatolik: $e', error: true);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: context.dialogBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.greenSoft,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.access_time_rounded, color: AppColors.darkCard, size: 20),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(widget.user.fullName, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                Text('${widget.date} davomati', style: TextStyle(fontSize: 12, color: context.mutedColor)),
+              ],
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 380,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Kelish vaqti
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Kelgan vaqti: ${_checkInTime.format(context)}'),
+                value: _hasCheckIn,
+                onChanged: (v) => setState(() => _hasCheckIn = v ?? false),
+                secondary: IconButton(
+                  icon: const Icon(Icons.schedule_rounded),
+                  onPressed: () async {
+                    final t = await showTimePicker(context: context, initialTime: _checkInTime);
+                    if (t != null) setState(() => _checkInTime = t);
+                  },
+                ),
+              ),
+              // Ketish vaqti
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Ketgan vaqti: ${_checkOutTime.format(context)}'),
+                value: _hasCheckOut,
+                onChanged: (v) => setState(() => _hasCheckOut = v ?? false),
+                secondary: IconButton(
+                  icon: const Icon(Icons.schedule_rounded),
+                  onPressed: () async {
+                    final t = await showTimePicker(context: context, initialTime: _checkOutTime);
+                    if (t != null) setState(() => _checkOutTime = t);
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _status,
+                decoration: const InputDecoration(labelText: 'Davomat holati'),
+                items: const [
+                  DropdownMenuItem(value: 'present', child: Text('✓ Kelgan (Vaqtida)')),
+                  DropdownMenuItem(value: 'late', child: Text('⚠ Kechikkan')),
+                  DropdownMenuItem(value: 'half_day', child: Text('⏱ Yarim kun')),
+                  DropdownMenuItem(value: 'absent', child: Text('✕ Kelmagan')),
+                ],
+                onChanged: (v) => setState(() => _status = v ?? 'present'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _noteCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Izoh / Sababi',
+                  hintText: 'masalan: Navbatchilikda bo‘ldi, ruxsat olgan...',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Bekor')),
+        FilledButton(
+          onPressed: _busy ? null : _submit,
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.neonLime,
+            foregroundColor: AppColors.ink,
+          ),
+          child: const Text('Saqlash', style: TextStyle(fontWeight: FontWeight.w800)),
         ),
       ],
     );

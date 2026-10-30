@@ -34,8 +34,25 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(128))
     password_hash: Mapped[str] = mapped_column(String(256))
     role: Mapped[str] = mapped_column(String(16))
+    salary: Mapped[Decimal] = mapped_column(MONEY, default=Decimal(0))
+    salary_type: Mapped[str] = mapped_column(String(16), default="monthly")  # monthly, daily, hourly
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Attendance(Base):
+    __tablename__ = "attendance"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    date: Mapped[str] = mapped_column(String(10), index=True)  # YYYY-MM-DD
+    check_in: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    check_out: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    worked_hours: Mapped[Decimal] = mapped_column(QTY, default=Decimal(0))
+    status: Mapped[str] = mapped_column(String(16), default="present")  # present, late, absent, half_day
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    user: Mapped["User"] = relationship(lazy="joined")
 
 
 class Product(Base):

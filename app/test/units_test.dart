@@ -76,4 +76,29 @@ void main() {
     ctrl.removeHeldCart(ctrl.heldCarts.first);
     expect(ctrl.heldCarts.isEmpty, true);
   });
+
+  test('MockAttendanceRepository check-in, check-out va oylik hisobot to‘g‘ri ishlaydi', () async {
+    final s = MockStore();
+    final attRepo = MockAttendanceRepository(s);
+
+    final today = DateTime.now();
+    final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final monthStr = '${today.year}-${today.month.toString().padLeft(2, '0')}';
+
+    // 1-xodim (Admin) uchun keldi qilish
+    final record = await attRepo.checkIn(1, note: 'Keldi');
+    expect(record.userId, 1);
+    expect(record.checkIn != null, true);
+    expect(record.date, todayStr);
+
+    // Ketdi qilish
+    final updated = await attRepo.checkOut(1, note: 'Ish tugadi');
+    expect(updated.checkOut != null, true);
+
+    // Oylik hisobot olish
+    final reports = await attRepo.getSalaryReport(month: monthStr);
+    expect(reports.isNotEmpty, true);
+    final adminReport = reports.firstWhere((r) => r.userId == 1);
+    expect(adminReport.netSalary > 0, true);
+  });
 }

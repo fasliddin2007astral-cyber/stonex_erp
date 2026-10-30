@@ -22,12 +22,17 @@ class AppUser {
   final String username;
   final String fullName;
   final Role role;
+  final double salary;
+  final String salaryType; // 'monthly', 'daily', 'hourly'
   final bool isActive;
+
   const AppUser({
     required this.id,
     required this.username,
     required this.fullName,
     required this.role,
+    this.salary = 0,
+    this.salaryType = 'monthly',
     this.isActive = true,
   });
 
@@ -36,6 +41,8 @@ class AppUser {
         username: (j['username'] ?? '').toString(),
         fullName: (j['full_name'] ?? j['username'] ?? '').toString(),
         role: Role.fromCode((j['role'] ?? 'ishchi').toString()),
+        salary: parseNum(j['salary']),
+        salaryType: (j['salary_type'] ?? 'monthly').toString(),
         isActive: (j['is_active'] ?? true) as bool,
       );
 
@@ -44,8 +51,29 @@ class AppUser {
         'username': username,
         'full_name': fullName,
         'role': role.code,
+        'salary': salary,
+        'salary_type': salaryType,
         'is_active': isActive,
       };
+
+  AppUser copyWith({
+    int? id,
+    String? username,
+    String? fullName,
+    Role? role,
+    double? salary,
+    String? salaryType,
+    bool? isActive,
+  }) =>
+      AppUser(
+        id: id ?? this.id,
+        username: username ?? this.username,
+        fullName: fullName ?? this.fullName,
+        role: role ?? this.role,
+        salary: salary ?? this.salary,
+        salaryType: salaryType ?? this.salaryType,
+        isActive: isActive ?? this.isActive,
+      );
 
   @override
   bool operator ==(Object other) =>
@@ -54,6 +82,141 @@ class AppUser {
 
   @override
   int get hashCode => id.hashCode;
+}
+
+class AttendanceRecord {
+  final int id;
+  final int userId;
+  final String? userName;
+  final String date; // YYYY-MM-DD
+  final DateTime? checkIn;
+  final DateTime? checkOut;
+  final double workedHours;
+  final String status; // 'present', 'late', 'absent', 'half_day'
+  final String? note;
+
+  const AttendanceRecord({
+    required this.id,
+    required this.userId,
+    this.userName,
+    required this.date,
+    this.checkIn,
+    this.checkOut,
+    this.workedHours = 0,
+    this.status = 'present',
+    this.note,
+  });
+
+  factory AttendanceRecord.fromJson(Map<String, dynamic> j) => AttendanceRecord(
+        id: (j['id'] as num?)?.toInt() ?? 0,
+        userId: (j['user_id'] as num?)?.toInt() ?? 0,
+        userName: j['user_name']?.toString(),
+        date: (j['date'] ?? '').toString(),
+        checkIn: j['check_in'] != null ? DateTime.tryParse(j['check_in'].toString()) : null,
+        checkOut: j['check_out'] != null ? DateTime.tryParse(j['check_out'].toString()) : null,
+        workedHours: parseNum(j['worked_hours']),
+        status: (j['status'] ?? 'present').toString(),
+        note: j['note']?.toString(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'user_id': userId,
+        'user_name': userName,
+        'date': date,
+        'check_in': checkIn?.toIso8601String(),
+        'check_out': checkOut?.toIso8601String(),
+        'worked_hours': workedHours,
+        'status': status,
+        'note': note,
+      };
+
+  AttendanceRecord copyWith({
+    int? id,
+    int? userId,
+    String? userName,
+    String? date,
+    DateTime? checkIn,
+    DateTime? checkOut,
+    double? workedHours,
+    String? status,
+    String? note,
+  }) =>
+      AttendanceRecord(
+        id: id ?? this.id,
+        userId: userId ?? this.userId,
+        userName: userName ?? this.userName,
+        date: date ?? this.date,
+        checkIn: checkIn ?? this.checkIn,
+        checkOut: checkOut ?? this.checkOut,
+        workedHours: workedHours ?? this.workedHours,
+        status: status ?? this.status,
+        note: note ?? this.note,
+      );
+}
+
+class SalaryReportItem {
+  final int userId;
+  final String fullName;
+  final String role;
+  final double baseSalary;
+  final String salaryType;
+  final int daysWorked;
+  final double hoursWorked;
+  final int daysLate;
+  final double calculatedSalary;
+  double bonus;
+  double deduction;
+  final double netSalary;
+  bool isPaid;
+
+  SalaryReportItem({
+    required this.userId,
+    required this.fullName,
+    required this.role,
+    required this.baseSalary,
+    this.salaryType = 'monthly',
+    this.daysWorked = 0,
+    this.hoursWorked = 0,
+    this.daysLate = 0,
+    required this.calculatedSalary,
+    this.bonus = 0,
+    this.deduction = 0,
+    required this.netSalary,
+    this.isPaid = false,
+  });
+
+  factory SalaryReportItem.fromJson(Map<String, dynamic> j) => SalaryReportItem(
+        userId: (j['user_id'] as num?)?.toInt() ?? 0,
+        fullName: (j['full_name'] ?? '').toString(),
+        role: (j['role'] ?? 'ishchi').toString(),
+        baseSalary: parseNum(j['base_salary']),
+        salaryType: (j['salary_type'] ?? 'monthly').toString(),
+        daysWorked: (j['days_worked'] as num?)?.toInt() ?? 0,
+        hoursWorked: parseNum(j['hours_worked']),
+        daysLate: (j['days_late'] as num?)?.toInt() ?? 0,
+        calculatedSalary: parseNum(j['calculated_salary']),
+        bonus: parseNum(j['bonus']),
+        deduction: parseNum(j['deduction']),
+        netSalary: parseNum(j['net_salary']),
+        isPaid: (j['is_paid'] ?? false) as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'user_id': userId,
+        'full_name': fullName,
+        'role': role,
+        'base_salary': baseSalary,
+        'salary_type': salaryType,
+        'days_worked': daysWorked,
+        'hours_worked': hoursWorked,
+        'days_late': daysLate,
+        'calculated_salary': calculatedSalary,
+        'bonus': bonus,
+        'deduction': deduction,
+        'net_salary': netSalary,
+        'is_paid': isPaid,
+      };
 }
 
 class Product {

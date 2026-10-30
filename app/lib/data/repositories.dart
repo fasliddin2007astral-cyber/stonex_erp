@@ -63,14 +63,27 @@ abstract class UserRepository {
     required String fullName,
     required String password,
     required Role role,
+    double salary = 0,
+    String salaryType = 'monthly',
   });
   Future<AppUser> update(
     int id, {
     String? fullName,
     String? password,
     Role? role,
+    double? salary,
+    String? salaryType,
     bool? isActive,
   });
+}
+
+abstract class AttendanceRepository {
+  Future<List<AttendanceRecord>> list({String? date, String? month, int? userId});
+  Future<AttendanceRecord> checkIn(int userId, {DateTime? time, String? note});
+  Future<AttendanceRecord> checkOut(int userId, {DateTime? time, String? note});
+  Future<AttendanceRecord> saveRecord(AttendanceRecord record);
+  Future<List<SalaryReportItem>> getSalaryReport({required String month, int totalWorkingDays = 26});
+  Future<void> paySalary(int userId, String month, double amount);
 }
 
 abstract class StockRepository {
@@ -104,6 +117,7 @@ class AppRepositories {
   final StockRepository stock;
   final NotificationRepository notifications;
   final CustomerRepository customers;
+  final AttendanceRepository attendance;
 
   const AppRepositories({
     required this.auth,
@@ -115,6 +129,7 @@ class AppRepositories {
     required this.stock,
     required this.notifications,
     required this.customers,
+    required this.attendance,
   });
 }
 
