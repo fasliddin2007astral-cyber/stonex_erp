@@ -42,10 +42,10 @@ def create_sale(db: Session, cashier: m.User, data: SaleIn) -> m.Sale:
                     400, f"{product.name}: omborda yetarli emas (bor: {available} {product.unit})"
                 )
             reserved[product.id] = reserved.get(product.id, Decimal(0)) + qty
-        lines.append((product, qty))
+        lines.append((product, qty, it.custom_name))
 
-    total = sum((q2(q * p.price) for p, q in lines), Decimal(0))
-    total_cost = sum((q2(q * p.cost_price) for p, q in lines), Decimal(0))
+    total = sum((q2(q * p.price) for p, q, _ in lines), Decimal(0))
+    total_cost = sum((q2(q * p.cost_price) for p, q, _ in lines), Decimal(0))
     paid = q2(data.paid_amount)
     if paid > total:
         raise HTTPException(400, "To'lov savdo summasidan oshib ketdi")
@@ -82,8 +82,9 @@ def create_sale(db: Session, cashier: m.User, data: SaleIn) -> m.Sale:
     db.add(sale)
     db.flush()
 
-    for product, qty in lines:
-        db.add(m.SaleItem(sale_id=sale.id, product_id=product.id, product_name=product.name,
+    for product, qty, custom_name in lines:
+        item_name = custom_name.strip() if (custom_name and custom_name.strip()) else product.name
+        db.add(m.SaleItem(sale_id=sale.id, product_id=product.id, product_name=item_name,
                           quantity=qty, unit_price=product.price, unit_cost=product.cost_price,
                           line_total=q2(qty * product.price)))
         if not is_order:
@@ -108,7 +109,7 @@ def create_sale(db: Session, cashier: m.User, data: SaleIn) -> m.Sale:
         ))
 
         # Kam qolgan tovarlar bo'yicha ogohlantirish
-        for product, _ in lines:
+        for product, *rest in lines:
             curr_stock = get_stock(db, product.id)
             if curr_stock <= Decimal("20"):
                 db.add(m.Notification(

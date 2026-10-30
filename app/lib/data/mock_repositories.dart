@@ -20,9 +20,9 @@ class MockStore {
   int nextUserId = 10;
 
   final List<Product> products = [
-    const Product(id: 1, name: 'Angola', qrCode: 'STX-ANGOLA', unit: 'm2', donaM2: 0.25, price: 180000, costPrice: 120000, stock: 200, imageUrl: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=400&auto=format&fit=crop&q=80'),
-    const Product(id: 2, name: 'Miramir', qrCode: 'STX-MIRAMIR', unit: 'm2', donaM2: 0.25, price: 170000, costPrice: 110000, stock: 150, imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&auto=format&fit=crop&q=80'),
-    const Product(id: 3, name: 'Tan Brown', qrCode: 'STX-TANBROWN', unit: 'm2', donaM2: 0.25, price: 190000, costPrice: 130000, stock: 120, imageUrl: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=400&auto=format&fit=crop&q=80'),
+    const Product(id: 1, name: 'Angola', qrCode: 'STX-ANGOLA', unit: 'm2', donaM2: 0.25, hasSorts: true, price: 180000, costPrice: 120000, stock: 200, imageUrl: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=400&auto=format&fit=crop&q=80'),
+    const Product(id: 2, name: 'Miramir', qrCode: 'STX-MIRAMIR', unit: 'm2', donaM2: 0.25, hasSorts: true, price: 170000, costPrice: 110000, stock: 150, imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&auto=format&fit=crop&q=80'),
+    const Product(id: 3, name: 'Tan Brown', qrCode: 'STX-TANBROWN', unit: 'm2', donaM2: 0.25, hasSorts: true, price: 190000, costPrice: 130000, stock: 120, imageUrl: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=400&auto=format&fit=crop&q=80'),
     const Product(id: 4, name: 'Metalogranit', qrCode: 'STX-METALOGRANIT', unit: 'm2', price: 150000, costPrice: 95000, stock: 80, imageUrl: 'https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=400&auto=format&fit=crop&q=80'),
     const Product(id: 5, name: 'Kley', qrCode: 'STX-KLEY', unit: 'dona', price: 45000, costPrice: 30000, stock: 100, imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=400&auto=format&fit=crop&q=80'),
     const Product(id: 6, name: 'Sim', qrCode: 'STX-SIM', unit: 'm', price: 12000, costPrice: 7000, stock: 500),
@@ -428,7 +428,7 @@ class MockSalesRepository implements SalesRepository {
       createdAt: DateTime.now(),
       items: lines.map((l) => SaleItemRecord(
         productId: l.product.id,
-        productName: l.product.name,
+        productName: l.displayName,
         quantity: l.baseQty,
         unitPrice: l.product.price,
         lineTotal: l.lineTotal,

@@ -40,6 +40,8 @@ def ensure_migrations():
         with engine.begin() as conn:
             if "image_url" not in columns:
                 conn.execute(text("ALTER TABLE products ADD COLUMN image_url TEXT NULL"))
+            if "has_sorts" not in columns:
+                conn.execute(text("ALTER TABLE products ADD COLUMN has_sorts BOOLEAN DEFAULT FALSE"))
     if "customers" in table_names:
         c_columns = [c["name"] for c in inspector.get_columns("customers")]
         with engine.begin() as conn:

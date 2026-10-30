@@ -147,6 +147,7 @@ class ApiSalesRepository implements SalesRepository {
             'product_id': l.product.id,
             'quantity': l.quantity,
             'unit': (l.inDona && l.product.hasDona) ? 'dona' : 'base',
+            if (l.displayName != l.product.name) 'custom_name': l.displayName,
           }
       ],
       'paid_amount': paidAmount,

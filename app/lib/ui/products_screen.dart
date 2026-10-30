@@ -838,6 +838,7 @@ class _ProductDialogState extends State<ProductDialog> {
   final _stock = TextEditingController();
   late String _unit = widget.product?.unit ?? 'm2';
   late bool _stone = widget.product?.hasDona ?? false;
+  late bool _hasSorts = widget.product?.hasSorts ?? (widget.product == null ? false : false);
   String? _error;
   bool _busy = false;
   bool _uploadingImage = false;
@@ -999,6 +1000,7 @@ class _ProductDialogState extends State<ProductDialog> {
       qrCode: _qr.text.trim(),
       unit: _unit,
       donaM2: (_stone && _unit == 'm2') ? Units.stoneDonaM2 : null,
+      hasSorts: _hasSorts,
       price: price,
       costPrice: cost,
       imageUrl: _imageUrl.text.trim().isNotEmpty ? _imageUrl.text.trim() : null,
@@ -1459,6 +1461,17 @@ class _ProductDialogState extends State<ProductDialog> {
                   onChanged: (v) {
                     setState(() {
                       _stone = v;
+                    });
+                  },
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('3 xil sorti bor (1 / 1.5 / 2)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Kassada sotuv paytida qalinlik/sortni (1, 1.5, 2) tanlash imkonini beradi', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                  value: _hasSorts,
+                  onChanged: (v) {
+                    setState(() {
+                      _hasSorts = v;
                     });
                   },
                 ),

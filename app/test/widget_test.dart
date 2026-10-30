@@ -14,6 +14,7 @@ import 'package:stonex_erp/ui/products_screen.dart';
 import 'package:stonex_erp/ui/pos_screen.dart';
 import 'package:stonex_erp/ui/customers_screen.dart';
 import 'package:stonex_erp/ui/purchases_screen.dart';
+import 'package:stonex_erp/ui/debts_screen.dart';
 import 'package:stonex_erp/ui/orders_screen.dart';
 import 'package:stonex_erp/ui/receipt_dialog.dart';
 import 'package:stonex_erp/ui/sales_history_screen.dart';
@@ -567,5 +568,33 @@ void main() {
     expect(find.text('Javohir Buyurtmachi +998 90 777 66 55'), findsOneWidget);
     expect(find.text('Izoh: 3 kundan keyin olib ketadi'), findsOneWidget);
     expect(find.text('Topshirish'), findsOneWidget);
+  });
+
+  testWidgets('DebtsScreen renders KPIs, search and view toggle works', (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          Provider<AppRepositories>.value(value: repos),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: DebtsScreen()),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Jami Nasiyalar'), findsOneWidget);
+    expect(find.text('Qarzdor Mijozlar'), findsOneWidget);
+    expect(find.text('Cheklar'), findsOneWidget);
+    expect(find.text('Mijozlar'), findsOneWidget);
   });
 }

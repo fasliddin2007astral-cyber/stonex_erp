@@ -12,19 +12,53 @@ class CartController extends ChangeNotifier {
 
   double get total => lines.fold(0, (a, l) => a + l.lineTotal);
 
-  void add(Product p, {double quantity = 1}) {
-    final existing = lines.where((l) => l.product.id == p.id);
-    if (existing.isNotEmpty) {
+  void add(
+    Product p, {
+    double quantity = 1,
+    String? sort,
+    double? cutLength,
+    double? cutWidth,
+    int? cutPieces,
+    String? cutSpec,
+  }) {
+    final effectiveSort = sort ?? (p.hasSorts ? '1.5' : null);
+    final existing = lines.where((l) =>
+        l.product.id == p.id &&
+        l.sort == effectiveSort &&
+        l.cutSpec == cutSpec);
+    if (existing.isNotEmpty && cutSpec == null) {
       existing.first.quantity += quantity;
     } else {
-      lines.add(CartLine(p, quantity: quantity));
+      lines.add(CartLine(
+        p,
+        quantity: quantity,
+        sort: effectiveSort,
+        cutLength: cutLength,
+        cutWidth: cutWidth,
+        cutPieces: cutPieces,
+        cutSpec: cutSpec,
+      ));
     }
     notifyListeners();
   }
 
-  void update(CartLine l, {double? quantity, bool? inDona}) {
+  void update(
+    CartLine l, {
+    double? quantity,
+    bool? inDona,
+    String? sort,
+    double? cutLength,
+    double? cutWidth,
+    int? cutPieces,
+    String? cutSpec,
+  }) {
     if (quantity != null && quantity > 0) l.quantity = quantity;
     if (inDona != null) l.inDona = inDona && l.product.hasDona;
+    if (sort != null) l.sort = sort;
+    if (cutLength != null) l.cutLength = cutLength;
+    if (cutWidth != null) l.cutWidth = cutWidth;
+    if (cutPieces != null) l.cutPieces = cutPieces;
+    if (cutSpec != null) l.cutSpec = cutSpec;
     notifyListeners();
   }
 

@@ -63,6 +63,7 @@ class Product {
   final String qrCode;
   final String unit; // m2, dona, kg, m
   final double? donaM2; // faqat toshlar uchun (0.25)
+  final bool hasSorts; // 1, 1.5, 2 sortlari mavjudligi
   final double price; // bazaviy birlik narxi
   final double costPrice;
   final double stock;
@@ -75,6 +76,7 @@ class Product {
     this.qrCode = '',
     required this.unit,
     this.donaM2,
+    this.hasSorts = false,
     required this.price,
     this.costPrice = 0,
     this.stock = 0,
@@ -90,6 +92,7 @@ class Product {
     String? qrCode,
     String? unit,
     double? donaM2,
+    bool? hasSorts,
     double? price,
     double? costPrice,
     double? stock,
@@ -102,6 +105,7 @@ class Product {
         qrCode: qrCode ?? this.qrCode,
         unit: unit ?? this.unit,
         donaM2: donaM2 ?? this.donaM2,
+        hasSorts: hasSorts ?? this.hasSorts,
         price: price ?? this.price,
         costPrice: costPrice ?? this.costPrice,
         stock: stock ?? this.stock,
@@ -115,6 +119,7 @@ class Product {
         qrCode: (j['qr_code'] ?? '').toString(),
         unit: (j['unit'] ?? 'm²').toString(),
         donaM2: j['dona_m2'] == null ? null : parseNum(j['dona_m2']),
+        hasSorts: j['has_sorts'] == true,
         price: parseNum(j['price']),
         costPrice: parseNum(j['cost_price']),
         stock: parseNum(j['stock']),
@@ -137,6 +142,7 @@ class Product {
         'qr_code': qrCode.isEmpty ? null : qrCode,
         'unit': unit,
         'dona_m2': donaM2,
+        'has_sorts': hasSorts,
         'price': price,
         'cost_price': costPrice,
         'image_url': imageUrl,
@@ -148,10 +154,35 @@ class CartLine {
   final Product product;
   double quantity;
   bool inDona;
-  CartLine(this.product, {this.quantity = 1, this.inDona = false});
+  String? sort; // '1', '1.5', '2'
+  double? cutLength; // metrda
+  double? cutWidth; // metrda
+  int? cutPieces; // donasi
+  String? cutSpec; // masalan: '1.2 × 0.6 m (5 dona)'
+
+  CartLine(
+    this.product, {
+    this.quantity = 1,
+    this.inDona = false,
+    this.sort,
+    this.cutLength,
+    this.cutWidth,
+    this.cutPieces,
+    this.cutSpec,
+  }) {
+    if (product.hasSorts && sort == null) {
+      sort = '1.5';
+    }
+  }
 
   double get baseQty => (inDona && product.hasDona) ? quantity * product.donaM2! : quantity;
   double get lineTotal => baseQty * product.price;
+
+  String get displayName {
+    final s = (sort != null && sort!.isNotEmpty) ? ' ($sort-sort)' : '';
+    final c = (cutSpec != null && cutSpec!.isNotEmpty) ? ' [$cutSpec]' : '';
+    return '${product.name}$s$c';
+  }
 }
 
 class SaleItemRecord {

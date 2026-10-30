@@ -547,7 +547,7 @@ class _ProductCardState extends State<_ProductCard> {
                     children: [
                       // Katta rasm qismi (Image Banner)
                       SizedBox(
-                        height: 114,
+                        height: 104,
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
@@ -555,9 +555,29 @@ class _ProductCardState extends State<_ProductCard> {
                               imageUrl: p.imageUrl,
                               name: p.name,
                               width: double.infinity,
-                              height: 114,
+                              height: 104,
                               borderRadiusGeometry: const BorderRadius.vertical(top: Radius.circular(19)),
                             ),
+                            if (p.hasSorts)
+                              Positioned(
+                                bottom: 6,
+                                left: 6,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.75),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Text(
+                                    '1 · 1.5 · 2 sort',
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.neonLime,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             // Qoldiq belgisi (Stock badge)
                             Positioned(
                               top: 8,
@@ -727,7 +747,7 @@ class _CartPanel extends StatelessWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: context.cardColor,
           surfaceTintColor: Colors.transparent,
           shape: _dialogShape,
           title: Text(l.product.name, style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -738,7 +758,9 @@ class _CartPanel extends StatelessWidget {
                 controller: ctrl,
                 autofocus: true,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Miqdor'),
+                decoration: InputDecoration(
+                  labelText: 'Miqdor (${inDona ? "dona" : _u(l.product.unit)})',
+                ),
               ),
               if (l.product.hasDona) ...[
                 const SizedBox(height: 12),
@@ -749,6 +771,17 @@ class _CartPanel extends StatelessWidget {
                   ],
                   selected: {inDona},
                   onSelectionChanged: (s) => setS(() => inDona = s.first),
+                ),
+              ],
+              if (l.product.unit == 'm2') ...[
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx, false);
+                    _openCutCalculator(context, l);
+                  },
+                  icon: const Icon(Icons.straighten_rounded, size: 16),
+                  label: const Text('📐 Razmer kalkulyatorini ochish'),
                 ),
               ],
             ]),
@@ -763,6 +796,219 @@ class _CartPanel extends StatelessWidget {
     final v = parseInput(ctrl.text);
     ctrl.dispose();
     if (ok == true && v != null && v > 0) cart.update(l, quantity: v, inDona: inDona);
+  }
+
+  Future<void> _openCutCalculator(BuildContext context, CartLine l) async {
+    final cart = context.read<CartController>();
+    final lengthCtrl = TextEditingController(text: l.cutLength != null ? l.cutLength.toString() : '1.0');
+    final widthCtrl = TextEditingController(text: l.cutWidth != null ? l.cutWidth.toString() : '1.0');
+    final countCtrl = TextEditingController(text: l.cutPieces != null ? l.cutPieces.toString() : '1');
+    bool inCm = false;
+
+    double calcArea() {
+      final len = parseInput(lengthCtrl.text) ?? 0;
+      final wid = parseInput(widthCtrl.text) ?? 0;
+      final cnt = parseInput(countCtrl.text) ?? 1;
+      final lenM = inCm ? len / 100 : len;
+      final widM = inCm ? wid / 100 : wid;
+      return (lenM * widM * cnt);
+    }
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) {
+          final area = calcArea();
+          final lineSum = area * l.product.price;
+
+          return AlertDialog(
+            backgroundColor: context.cardColor,
+            shape: _dialogShape,
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.neonLime.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.straighten_rounded, color: AppColors.ink, size: 22),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Razmer / Kesish Kalkulyatori', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                      Text(l.product.name, style: TextStyle(fontSize: 12, color: context.subtextColor)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 380,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: context.isDark ? const Color(0xFF21262D) : const Color(0xFFEFF2F6),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(10),
+                              onTap: () => setS(() => inCm = false),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: !inCm ? (context.isDark ? AppColors.neonLime : AppColors.darkCard) : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text('Metrda (m)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: !inCm ? (context.isDark ? AppColors.ink : Colors.white) : context.inkColor)),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(10),
+                              onTap: () => setS(() => inCm = true),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: inCm ? (context.isDark ? AppColors.neonLime : AppColors.darkCard) : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text('Santimetrda (sm)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: inCm ? (context.isDark ? AppColors.ink : Colors.white) : context.inkColor)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: lengthCtrl,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: InputDecoration(
+                              labelText: 'Bo‘yi (${inCm ? "sm" : "m"})',
+                              hintText: inCm ? '120' : '1.20',
+                            ),
+                            onChanged: (_) => setS(() {}),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: widthCtrl,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: InputDecoration(
+                              labelText: 'Eni (${inCm ? "sm" : "m"})',
+                              hintText: inCm ? '60' : '0.60',
+                            ),
+                            onChanged: (_) => setS(() {}),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: countCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Soni (necha dona kesiladi)',
+                        hintText: '1',
+                        prefixIcon: Icon(Icons.pin_rounded),
+                      ),
+                      onChanged: (_) => setS(() {}),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.neonLime.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.neonLime.withValues(alpha: 0.4)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Hisoblangan maydon:', style: TextStyle(fontSize: 13, color: context.inkColor)),
+                              Text(
+                                '${area.toStringAsFixed(3)} m²',
+                                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: context.isDark ? AppColors.neonLime : AppColors.ink),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Jami summa:', style: TextStyle(fontSize: 12, color: context.subtextColor)),
+                              Text(
+                                money(lineSum),
+                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.green),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Bekor'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                  foregroundColor: context.isDark ? AppColors.ink : Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                child: const Text('Qo‘llash', style: TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (ok == true && context.mounted) {
+      final len = parseInput(lengthCtrl.text) ?? 0;
+      final wid = parseInput(widthCtrl.text) ?? 0;
+      final cnt = (parseInput(countCtrl.text) ?? 1).toInt();
+      final lenM = inCm ? len / 100 : len;
+      final widM = inCm ? wid / 100 : wid;
+      final area = lenM * widM * cnt;
+      if (area > 0) {
+        cart.update(
+          l,
+          quantity: double.parse(area.toStringAsFixed(3)),
+          cutLength: lenM,
+          cutWidth: widM,
+          cutPieces: cnt,
+          cutSpec: '$lenM×${widM}m ($cnt dona)',
+        );
+      }
+    }
   }
 
   Future<void> _checkout(BuildContext context) async {
@@ -835,7 +1081,12 @@ class _CartPanel extends StatelessWidget {
                   hint: 'Mahsulotni bosing yoki QR kodni kiriting')
               : ListView(children: [
                   for (final l in cart.lines)
-                    _CartLineTile(key: ObjectKey(l), line: l, onEdit: () => _editQty(context, l)),
+                    _CartLineTile(
+                      key: ObjectKey(l),
+                      line: l,
+                      onEdit: () => _editQty(context, l),
+                      onCutCalculator: () => _openCutCalculator(context, l),
+                    ),
                 ]),
         ),
         const SizedBox(height: 8),
@@ -886,9 +1137,10 @@ class _CartPanel extends StatelessWidget {
 }
 
 class _CartLineTile extends StatelessWidget {
-  const _CartLineTile({super.key, required this.line, required this.onEdit});
+  const _CartLineTile({super.key, required this.line, required this.onEdit, this.onCutCalculator});
   final CartLine line;
   final VoidCallback onEdit;
+  final VoidCallback? onCutCalculator;
 
   @override
   Widget build(BuildContext context) {
@@ -934,7 +1186,12 @@ class _CartLineTile extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.inkColor)),
+                Text(
+                  p.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.inkColor),
+                ),
                 const SizedBox(height: 2),
                 Text(sub, style: TextStyle(fontSize: 12, color: context.subtextColor)),
               ]),
@@ -946,6 +1203,90 @@ class _CartLineTile extends StatelessWidget {
               onPressed: () => cart.remove(l),
             ),
           ]),
+
+          // Sort tanlash (1, 1.5, 2)
+          if (p.hasSorts) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Text('Sort:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.subtextColor)),
+                const SizedBox(width: 6),
+                for (final s in ['1', '1.5', '2'])
+                  Padding(
+                    padding: const EdgeInsets.only(right: 5),
+                    child: ChoiceChip(
+                      label: Text('$s-sort', style: const TextStyle(fontSize: 11)),
+                      selected: (l.sort ?? '1.5') == s,
+                      onSelected: (sel) {
+                        if (sel) cart.update(l, sort: s);
+                      },
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+
+          // Razmer bo'yicha kesish (Eni va Bo'yi)
+          if (p.unit == 'm2') ...[
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                InkWell(
+                  onTap: onCutCalculator,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (l.cutSpec != null)
+                          ? (context.isDark ? AppColors.neonLime.withValues(alpha: 0.18) : AppColors.greenSoft)
+                          : context.borderColor.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: (l.cutSpec != null)
+                            ? (context.isDark ? AppColors.neonLime : AppColors.green)
+                            : context.borderColor,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.straighten_rounded,
+                          size: 13,
+                          color: (l.cutSpec != null)
+                              ? (context.isDark ? AppColors.neonLime : AppColors.ink)
+                              : context.subtextColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          l.cutSpec != null ? '📐 ${l.cutSpec}' : '📐 Razmer kesish',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: (l.cutSpec != null)
+                                ? (context.isDark ? AppColors.neonLime : AppColors.ink)
+                                : context.subtextColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (l.cutSpec != null)
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 14),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Razmerni tozalash',
+                    onPressed: () => cart.update(l, cutSpec: '', cutLength: null, cutWidth: null, cutPieces: null),
+                  ),
+              ],
+            ),
+          ],
+
           const SizedBox(height: 6),
           Row(children: [
             Material(
