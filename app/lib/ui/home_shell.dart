@@ -14,6 +14,7 @@ import 'common.dart';
 import 'customers_screen.dart';
 import 'dashboard_screen.dart';
 import 'debts_screen.dart';
+import 'orders_screen.dart';
 import 'pos_screen.dart';
 import 'production_screen.dart';
 import 'products_screen.dart';
@@ -39,6 +40,15 @@ List<_Dest> _destinationsFor(Role role,
       actionLabel: '+ Yangi Savdo');
   const pos = _Dest('Savdo (POS)', Icons.point_of_sale_rounded, PosScreen.new,
       actionLabel: 'Savdoga o‘tish');
+  final orders = _Dest(
+    'Buyurtmalar',
+    Icons.assignment_rounded,
+    () => OrdersScreen(onNewOrder: () {
+      final posIdx = role == Role.admin ? 1 : 0;
+      onNavigate?.call(posIdx);
+    }),
+    actionLabel: '+ Yangi Buyurtma',
+  );
   const salesHistory = _Dest(
     'Savdolar',
     Icons.receipt_long_rounded,
@@ -84,9 +94,9 @@ List<_Dest> _destinationsFor(Role role,
 
   switch (role) {
     case Role.admin:
-      return [dash, pos, salesHistory, customers, debts, purchases, products, stock, prod, staff, cams];
+      return [dash, pos, orders, salesHistory, customers, debts, purchases, products, stock, prod, staff, cams];
     case Role.kassir:
-      return [pos, salesHistory, customers, debts, products];
+      return [pos, orders, salesHistory, customers, debts, products];
     case Role.ishchi:
       return [prod];
   }
@@ -172,6 +182,12 @@ class _HomeShellState extends State<HomeShell> {
     } else if (cur.label.startsWith('Savdo')) {
       showMessage(
           context, 'Kassa faol. Mahsulotni tanlang yoki kodini skaner qiling.');
+    } else if (cur.label == 'Buyurtmalar') {
+      final posIndex = dests.indexWhere((d) => d.label.startsWith('Savdo'));
+      if (posIndex >= 0) {
+        setState(() => _index = posIndex);
+        showMessage(context, 'Yangi buyurtma uchun mahsulotlarni tanlang va to‘lov oynasida "Buyurtma"ni belgilang.');
+      }
     } else if (cur.label == 'Mijozlar') {
       final updated = await showDialog<bool>(
         context: context,

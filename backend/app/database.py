@@ -47,4 +47,11 @@ def ensure_migrations():
                 conn.execute(text("ALTER TABLE customers ADD COLUMN passport VARCHAR(64) NULL"))
             if "photo_url" not in c_columns:
                 conn.execute(text("ALTER TABLE customers ADD COLUMN photo_url MEDIUMTEXT NULL"))
+    if "sales" in table_names:
+        s_columns = [c["name"] for c in inspector.get_columns("sales")]
+        with engine.begin() as conn:
+            if "status" not in s_columns:
+                conn.execute(text("ALTER TABLE sales ADD COLUMN status VARCHAR(20) DEFAULT 'completed'"))
+            if "note" not in s_columns:
+                conn.execute(text("ALTER TABLE sales ADD COLUMN note VARCHAR(255) NULL"))
 

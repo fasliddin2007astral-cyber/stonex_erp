@@ -26,6 +26,7 @@ def to_base_qty(product: m.Product, quantity: Decimal, unit: str) -> Decimal:
 def create_sale(db: Session, cashier: m.User, data: SaleIn) -> m.Sale:
     reserved: dict[int, Decimal] = {}
     lines: list[tuple[m.Product, Decimal]] = []
+    is_order = (getattr(data, "status", "completed") == "order")
 
     for it in data.items:
         product = db.get(m.Product, it.product_id, with_for_update=True)
@@ -34,12 +35,13 @@ def create_sale(db: Session, cashier: m.User, data: SaleIn) -> m.Sale:
         qty = to_base_qty(product, it.quantity, it.unit)
         if qty <= 0:
             raise HTTPException(400, f"{product.name}: miqdor 0 dan katta bo'lishi kerak")
-        available = get_stock(db, product.id) - reserved.get(product.id, Decimal(0))
-        if qty > available:
-            raise HTTPException(
-                400, f"{product.name}: omborda yetarli emas (bor: {available} {product.unit})"
-            )
-        reserved[product.id] = reserved.get(product.id, Decimal(0)) + qty
+        if not is_order:
+            available = get_stock(db, product.id) - reserved.get(product.id, Decimal(0))
+            if qty > available:
+                raise HTTPException(
+                    400, f"{product.name}: omborda yetarli emas (bor: {available} {product.unit})"
+                )
+            reserved[product.id] = reserved.get(product.id, Decimal(0)) + qty
         lines.append((product, qty))
 
     total = sum((q2(q * p.price) for p, q in lines), Decimal(0))
@@ -71,11 +73,12 @@ def create_sale(db: Session, cashier: m.User, data: SaleIn) -> m.Sale:
                 c.photo_url = data.customer_photo_url
             if data.customer_phone and not c.phone:
                 c.phone = data.customer_phone
-    if debt > 0 and customer_id is None:
-        raise HTTPException(400, "Nasiya uchun mijoz ko'rsatilishi shart")
+    if (debt > 0 or is_order) and customer_id is None:
+        raise HTTPException(400, "Buyurtma yoki nasiya uchun mijoz ko'rsatilishi shart")
 
+    sale_status = "order" if is_order else "completed"
     sale = m.Sale(customer_id=customer_id, cashier_id=cashier.id, total=total,
-                  total_cost=total_cost, paid=paid)
+                  total_cost=total_cost, paid=paid, status=sale_status, note=data.note)
     db.add(sale)
     db.flush()
 
@@ -83,27 +86,36 @@ def create_sale(db: Session, cashier: m.User, data: SaleIn) -> m.Sale:
         db.add(m.SaleItem(sale_id=sale.id, product_id=product.id, product_name=product.name,
                           quantity=qty, unit_price=product.price, unit_cost=product.cost_price,
                           line_total=q2(qty * product.price)))
-        add_movement(db, product_id=product.id, qty_delta=-qty, kind=m.MV_SALE,
-                     ref_type="sale", ref_id=sale.id, user_id=cashier.id)
+        if not is_order:
+            add_movement(db, product_id=product.id, qty_delta=-qty, kind=m.MV_SALE,
+                         ref_type="sale", ref_id=sale.id, user_id=cashier.id)
     if paid > 0:
         db.add(m.Payment(sale_id=sale.id, amount=paid, received_by=cashier.id))
 
     # Avtomatik bildirishnoma yaratish
-    db.add(m.Notification(
-        title="Yangi savdo amalga oshirildi",
-        message=f"Kassir {cashier.full_name} tomonidan {int(total):,} so‘mlik savdo qilindi (Chek #{sale.id}).".replace(",", " "),
-        kind="sale",
-    ))
+    if is_order:
+        c_name = data.customer_name or "Mijoz"
+        db.add(m.Notification(
+            title="Yangi buyurtma qabul qilindi",
+            message=f"{c_name} uchun {int(total):,} so‘mlik buyurtma olindi (Buyurtma #{sale.id}). Avans: {int(paid):,} so‘m.".replace(",", " "),
+            kind="sale",
+        ))
+    else:
+        db.add(m.Notification(
+            title="Yangi savdo amalga oshirildi",
+            message=f"Kassir {cashier.full_name} tomonidan {int(total):,} so‘mlik savdo qilindi (Chek #{sale.id}).".replace(",", " "),
+            kind="sale",
+        ))
 
-    # Kam qolgan tovarlar bo'yicha ogohlantirish
-    for product, _ in lines:
-        curr_stock = get_stock(db, product.id)
-        if curr_stock <= Decimal("20"):
-            db.add(m.Notification(
-                title="Ombor ogohlantirishi: Zaxira kam",
-                message=f"{product.name} qoldig‘i {curr_stock} {product.unit} qoldi. Yangi partiya xaridini rejalashtiring.",
-                kind="warning",
-            ))
+        # Kam qolgan tovarlar bo'yicha ogohlantirish
+        for product, _ in lines:
+            curr_stock = get_stock(db, product.id)
+            if curr_stock <= Decimal("20"):
+                db.add(m.Notification(
+                    title="Ombor ogohlantirishi: Zaxira kam",
+                    message=f"{product.name} qoldig‘i {curr_stock} {product.unit} qoldi. Yangi partiya xaridini rejalashtiring.",
+                    kind="warning",
+                ))
 
     db.commit()
     db.refresh(sale)
@@ -127,6 +139,52 @@ def add_payment(db: Session, user: m.User, sale_id: int, amount: Decimal, method
         kind="payment",
     ))
 
+    db.commit()
+    db.refresh(sale)
+    return sale
+
+
+def fulfill_order(db: Session, user: m.User, sale_id: int) -> m.Sale:
+    """Buyurtmani to'liq savdoga aylantirish (tovarlarni ombordan chiqarish)."""
+    sale = db.get(m.Sale, sale_id, with_for_update=True)
+    if sale is None:
+        raise HTTPException(404, "Buyurtma topilmadi")
+    if sale.status == "completed":
+        raise HTTPException(400, "Ushbu buyurtma allaqachon topshirilgan")
+    if sale.status == "cancelled":
+        raise HTTPException(400, "Bekor qilingan buyurtmani topshirib bo'lmaydi")
+
+    for it in sale.items:
+        available = get_stock(db, it.product_id)
+        if it.quantity > available:
+            raise HTTPException(400, f"{it.product_name}: omborda yetarli emas (mavjud: {available})")
+
+    for it in sale.items:
+        add_movement(db, product_id=it.product_id, qty_delta=-it.quantity, kind=m.MV_SALE,
+                     ref_type="sale", ref_id=sale.id, user_id=user.id)
+
+    sale.status = "completed"
+    c_name = sale.customer.name if sale.customer else f"Mijoz #{sale.customer_id}"
+    db.add(m.Notification(
+        title="Buyurtma topshirildi",
+        message=f"{c_name} uchun Buyurtma #{sale.id} tovarlari topshirildi va ombordan chiqarildi.",
+        kind="sale",
+    ))
+
+    db.commit()
+    db.refresh(sale)
+    return sale
+
+
+def cancel_order(db: Session, user: m.User, sale_id: int) -> m.Sale:
+    """Buyurtmani bekor qilish."""
+    sale = db.get(m.Sale, sale_id, with_for_update=True)
+    if sale is None:
+        raise HTTPException(404, "Buyurtma topilmadi")
+    if sale.status != "order":
+        raise HTTPException(400, "Faqat faol buyurtmalarni bekor qilish mumkin")
+
+    sale.status = "cancelled"
     db.commit()
     db.refresh(sale)
     return sale

@@ -26,10 +26,14 @@ abstract class SalesRepository {
     String? customerPhone,
     String? customerPassport,
     String? customerPhotoUrl,
+    String status = 'completed',
+    String? note,
   });
-  Future<List<SaleResult>> listSales({int limit = 50});
+  Future<List<SaleResult>> listSales({int limit = 50, String? status});
   Future<List<SaleResult>> listDebts();
   Future<SaleResult> payDebt(int saleId, double amount, {String method = 'cash'});
+  Future<SaleResult> fulfillOrder(int saleId);
+  Future<SaleResult> cancelOrder(int saleId);
 }
 
 abstract class CustomerRepository {

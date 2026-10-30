@@ -14,6 +14,7 @@ import 'package:stonex_erp/ui/products_screen.dart';
 import 'package:stonex_erp/ui/pos_screen.dart';
 import 'package:stonex_erp/ui/customers_screen.dart';
 import 'package:stonex_erp/ui/purchases_screen.dart';
+import 'package:stonex_erp/ui/orders_screen.dart';
 import 'package:stonex_erp/ui/receipt_dialog.dart';
 import 'package:stonex_erp/ui/sales_history_screen.dart';
 import 'package:stonex_erp/state/theme_controller.dart';
@@ -526,5 +527,45 @@ void main() {
     expect(find.text('Kassa Cheki'), findsOneWidget);
     expect(find.text('NTM — NAMUNA TOSH MARKAZI'), findsOneWidget);
     expect(find.textContaining('95'), findsWidgets);
+  });
+
+  testWidgets('OrdersScreen renders orders, KPIs and fulfill workflow works', (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    // Create a pre-order in mock store
+    final product = store.products.first;
+    await repos.sales.createSale(
+      lines: [CartLine(product, quantity: 2)],
+      paidAmount: 50000,
+      customerName: 'Javohir Buyurtmachi',
+      customerPhone: '+998 90 777 66 55',
+      status: 'order',
+      note: '3 kundan keyin olib ketadi',
+    );
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          Provider<AppRepositories>.value(value: repos),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: OrdersScreen()),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Jami Buyurtmalar'), findsOneWidget);
+    expect(find.text('Kutilmoqda (Faol)'), findsWidgets);
+    expect(find.text('Javohir Buyurtmachi +998 90 777 66 55'), findsOneWidget);
+    expect(find.text('Izoh: 3 kundan keyin olib ketadi'), findsOneWidget);
+    expect(find.text('Topshirish'), findsOneWidget);
   });
 }

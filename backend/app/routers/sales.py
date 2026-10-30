@@ -24,6 +24,8 @@ def to_out(s: m.Sale) -> SaleOut:
         total=s.total,
         paid=s.paid,
         debt=s.debt,
+        status=getattr(s, 'status', 'completed') or 'completed',
+        note=getattr(s, 'note', None),
         created_at=s.created_at,
         items=s.items,
         payment_method=method,
@@ -38,7 +40,7 @@ def create(data: SaleIn, db: Session = Depends(get_db), user: m.User = Depends(_
 
 
 @router.get("", response_model=list[SaleOut])
-def list_sales(limit: int = 200, db: Session = Depends(get_db), user: m.User = Depends(_sellers)):
+def list_sales(limit: int = 200, status: str | None = None, db: Session = Depends(get_db), user: m.User = Depends(_sellers)):
     stmt = (
         select(m.Sale)
         .options(
@@ -50,6 +52,8 @@ def list_sales(limit: int = 200, db: Session = Depends(get_db), user: m.User = D
         .order_by(m.Sale.id.desc())
         .limit(min(limit, 500))
     )
+    if status is not None:
+        stmt = stmt.where(m.Sale.status == status)
     if user.role != roles.ADMIN:  # kassir faqat o'z savdolarini ko'radi
         stmt = stmt.where(m.Sale.cashier_id == user.id)
     return [to_out(s) for s in db.scalars(stmt).all()]
@@ -93,3 +97,14 @@ def get_sale(sale_id: int, db: Session = Depends(get_db), user: m.User = Depends
 def pay(sale_id: int, data: PaymentIn, db: Session = Depends(get_db),
         user: m.User = Depends(_sellers)):
     return to_out(svc.add_payment(db, user, sale_id, data.amount, data.method))
+
+
+
+@router.post("/{sale_id}/fulfill", response_model=SaleOut)
+def fulfill(sale_id: int, db: Session = Depends(get_db), user: m.User = Depends(_sellers)):
+    return to_out(svc.fulfill_order(db, user, sale_id))
+
+
+@router.post("/{sale_id}/cancel", response_model=SaleOut)
+def cancel(sale_id: int, db: Session = Depends(get_db), user: m.User = Depends(_sellers)):
+    return to_out(svc.cancel_order(db, user, sale_id))

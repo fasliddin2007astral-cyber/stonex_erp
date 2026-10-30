@@ -257,6 +257,8 @@ class SaleResult {
   final double total;
   final double paid;
   final double debt;
+  final String status; // 'completed' | 'order' | 'cancelled'
+  final String? note;
   final int? customerId;
   final String? customerName;
   final String? customerPhone;
@@ -268,11 +270,15 @@ class SaleResult {
   final DateTime? createdAt;
   final List<SaleItemRecord> items;
 
+  bool get isOrder => status == 'order';
+
   const SaleResult({
     required this.id,
     required this.total,
     required this.paid,
     required this.debt,
+    this.status = 'completed',
+    this.note,
     this.customerId,
     this.customerName,
     this.customerPhone,
@@ -285,6 +291,43 @@ class SaleResult {
     this.items = const [],
   });
 
+  SaleResult copyWith({
+    int? id,
+    double? total,
+    double? paid,
+    double? debt,
+    String? status,
+    String? note,
+    int? customerId,
+    String? customerName,
+    String? customerPhone,
+    String? customerPassport,
+    String? customerPhotoUrl,
+    int? cashierId,
+    String? cashierName,
+    String? paymentMethod,
+    DateTime? createdAt,
+    List<SaleItemRecord>? items,
+  }) =>
+      SaleResult(
+        id: id ?? this.id,
+        total: total ?? this.total,
+        paid: paid ?? this.paid,
+        debt: debt ?? this.debt,
+        status: status ?? this.status,
+        note: note ?? this.note,
+        customerId: customerId ?? this.customerId,
+        customerName: customerName ?? this.customerName,
+        customerPhone: customerPhone ?? this.customerPhone,
+        customerPassport: customerPassport ?? this.customerPassport,
+        customerPhotoUrl: customerPhotoUrl ?? this.customerPhotoUrl,
+        cashierId: cashierId ?? this.cashierId,
+        cashierName: cashierName ?? this.cashierName,
+        paymentMethod: paymentMethod ?? this.paymentMethod,
+        createdAt: createdAt ?? this.createdAt,
+        items: items ?? this.items,
+      );
+
   factory SaleResult.fromJson(Map<String, dynamic> j) {
     final cust = j['customer'] as Map<String, dynamic>?;
     final itemsRaw = j['items'] as List<dynamic>?;
@@ -293,6 +336,8 @@ class SaleResult {
       total: parseNum(j['total']),
       paid: parseNum(j['paid']),
       debt: parseNum(j['debt']),
+      status: (j['status'] as String?) ?? 'completed',
+      note: j['note'] as String?,
       customerId: cust != null ? (cust['id'] as num?)?.toInt() : (j['customer_id'] as num?)?.toInt(),
       customerName: cust != null ? (cust['name'] as String?) : (j['customer_name'] as String?),
       customerPhone: cust != null ? (cust['phone'] as String?) : (j['customer_phone'] as String?),

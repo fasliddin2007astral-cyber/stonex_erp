@@ -772,6 +772,8 @@ class _CartPanel extends StatelessWidget {
     try {
       final res = await cart.checkout(
         paid: result.paid,
+        status: result.status,
+        note: result.note,
         customerId: result.customerId,
         customerName: result.name,
         customerPhone: result.phone,
@@ -779,8 +781,12 @@ class _CartPanel extends StatelessWidget {
         customerPhotoUrl: result.photoUrl,
       );
       if (!context.mounted) return;
-      showMessage(context, 'Savdo #${res.id} saqlandi. To‘landi: ${money(res.paid)}'
-          '${res.debt > 0 ? ', nasiya: ${money(res.debt)}' : ''}');
+      if (res.isOrder) {
+        showMessage(context, 'Buyurtma #${res.id} muvaffaqiyatli saqlandi. Avans: ${money(res.paid)}');
+      } else {
+        showMessage(context, 'Savdo #${res.id} saqlandi. To‘landi: ${money(res.paid)}'
+            '${res.debt > 0 ? ', nasiya: ${money(res.debt)}' : ''}');
+      }
       onSold();
       await ReceiptDialog.show(context, res);
     } catch (e) {
@@ -1000,6 +1006,8 @@ class _StepBtn extends StatelessWidget {
 
 class _CheckoutInput {
   final double paid;
+  final String status;
+  final String? note;
   final int? customerId;
   final String? name;
   final String? phone;
@@ -1008,6 +1016,8 @@ class _CheckoutInput {
 
   _CheckoutInput({
     required this.paid,
+    this.status = 'completed',
+    this.note,
     this.customerId,
     this.name,
     this.phone,
@@ -1028,6 +1038,8 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
   final _name = TextEditingController();
   final _phone = TextEditingController();
   final _passport = TextEditingController();
+  final _note = TextEditingController();
+  bool _isOrder = false;
   String? _photoUrl;
   int? _selectedCustomerId;
   List<Customer> _existingCustomers = [];
@@ -1057,6 +1069,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
     _name.dispose();
     _phone.dispose();
     _passport.dispose();
+    _note.dispose();
     super.dispose();
   }
 
@@ -1144,16 +1157,27 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       return;
     }
     final debt = widget.total - paid;
-    if (debt > 0.5 && _name.text.trim().isEmpty) {
-      setState(() {
-        _error = 'Nasiya uchun mijoz ismini kiriting';
-      });
-      return;
+    if (_isOrder) {
+      if (_name.text.trim().isEmpty) {
+        setState(() {
+          _error = 'Buyurtma uchun mijoz ismini kiritish shart';
+        });
+        return;
+      }
+    } else {
+      if (debt > 0.5 && _name.text.trim().isEmpty) {
+        setState(() {
+          _error = 'Nasiya uchun mijoz ismini kiriting';
+        });
+        return;
+      }
     }
     Navigator.pop(
       context,
       _CheckoutInput(
         paid: paid > widget.total ? widget.total : paid,
+        status: _isOrder ? 'order' : 'completed',
+        note: _note.text.trim().isNotEmpty ? _note.text.trim() : null,
         customerId: _selectedCustomerId,
         name: _name.text.trim().isNotEmpty ? _name.text.trim() : null,
         phone: _phone.text.trim().isNotEmpty ? _phone.text.trim() : null,
@@ -1174,7 +1198,10 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
       surfaceTintColor: Colors.transparent,
       shape: _dialogShape,
       title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('To‘lovni qabul qilish', style: TextStyle(fontSize: 14, color: AppColors.muted, fontWeight: FontWeight.w500)),
+        Text(
+          _isOrder ? 'Buyurtma rasmiylashtirish' : 'To‘lovni qabul qilish',
+          style: const TextStyle(fontSize: 14, color: AppColors.muted, fontWeight: FontWeight.w500),
+        ),
         const SizedBox(height: 2),
         Text(money(widget.total), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.green)),
       ]),
@@ -1182,12 +1209,103 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
         width: 440,
         child: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            // To'lov summasi
+            // Savdo yoki Buyurtma tanlash
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: context.isDark ? const Color(0xFF21262D) : const Color(0xFFEFF2F6),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => setState(() {
+                        _isOrder = false;
+                        _error = null;
+                        if (_paid.text.isEmpty || _paid.text == '0') {
+                          _paid.text = widget.total.round().toString();
+                        }
+                      }),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: !_isOrder
+                              ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Darhol Sotuv',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: !_isOrder
+                                ? (context.isDark ? AppColors.ink : Colors.white)
+                                : context.inkColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => setState(() {
+                        _isOrder = true;
+                        _error = null;
+                      }),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _isOrder
+                              ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.assignment_rounded,
+                              size: 15,
+                              color: _isOrder
+                                  ? (context.isDark ? AppColors.ink : Colors.white)
+                                  : context.inkColor,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Buyurtma (Pre-order)',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: _isOrder
+                                    ? (context.isDark ? AppColors.ink : Colors.white)
+                                    : context.inkColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // To'lov / Avans summasi
             TextField(
               controller: _paid,
               autofocus: true,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Hozir to‘langan summa'),
+              decoration: InputDecoration(
+                labelText: _isOrder ? 'Avans summasi (ixtiyoriy)' : 'Hozir to‘langan summa',
+                prefixIcon: const Icon(Icons.payments_outlined),
+              ),
               onChanged: (_) {
                 setState(() {
                   _error = null;
@@ -1196,30 +1314,86 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
             ),
             const SizedBox(height: 10),
             Wrap(spacing: 8, children: [
-              ActionChip(label: const Text('To‘liq to‘lov'), onPressed: () => _setPaid(widget.total)),
-              ActionChip(label: const Text('Hammasi nasiya'), onPressed: () => _setPaid(0)),
+              ActionChip(
+                label: Text(_isOrder ? 'To‘liq avans' : 'To‘liq to‘lov'),
+                onPressed: () => _setPaid(widget.total),
+              ),
+              ActionChip(
+                label: Text(_isOrder ? '50% avans' : 'Yarmi naqd'),
+                onPressed: () => _setPaid(widget.total / 2),
+              ),
+              ActionChip(
+                label: Text(_isOrder ? 'Avanssiz (0)' : 'Hammasi nasiya'),
+                onPressed: () => _setPaid(0),
+              ),
             ]),
             const SizedBox(height: 12),
 
-            // Nasiya holati banneri
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: hasDebt ? const Color(0xFFFFF1DC) : AppColors.greenSoft,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(children: [
-                Icon(hasDebt ? Icons.schedule_rounded : Icons.check_circle_rounded,
-                    size: 20, color: hasDebt ? const Color(0xFFC77700) : AppColors.green),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(hasDebt ? 'Nasiya (qarz): ${money(debt)}' : 'To‘liq to‘lanadi',
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
+            // Holat banneri
+            if (_isOrder)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3B82F6).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.3)),
                 ),
-              ]),
-            ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.info_outline_rounded, size: 20, color: Color(0xFF3B82F6)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Buyurtma holati',
+                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Mahsulotlar ombordan hozir yechilmaydi (topshirilganda yechiladi). Kiritilgan ${money(paid)} summa avans sifatida qayd etiladi. Qolgan summa: ${money(debt)}.',
+                            style: TextStyle(fontSize: 11.5, color: context.inkColor, height: 1.3),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: hasDebt ? const Color(0xFFFFF1DC) : AppColors.greenSoft,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(children: [
+                  Icon(hasDebt ? Icons.schedule_rounded : Icons.check_circle_rounded,
+                      size: 20, color: hasDebt ? const Color(0xFFC77700) : AppColors.green),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(hasDebt ? 'Nasiya (qarz): ${money(debt)}' : 'To‘liq to‘lanadi',
+                        style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.ink)),
+                  ),
+                ]),
+              ),
             const SizedBox(height: 16),
+
+            // Buyurtma izohi / topshirish muddati
+            if (_isOrder) ...[
+              TextField(
+                controller: _note,
+                decoration: const InputDecoration(
+                  labelText: 'Buyurtma izohi / topshirish muddati',
+                  hintText: 'Masalan: 3 kundan keyin olib ketadi, o‘lchami...',
+                  prefixIcon: Icon(Icons.event_note_rounded),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
 
             // Mijoz ma'lumotlari sarlavhasi
             Row(
@@ -1426,13 +1600,22 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Bekor'),
         ),
-        FilledButton(
+        FilledButton.icon(
           onPressed: _ok,
           style: FilledButton.styleFrom(
-            backgroundColor: AppColors.darkCard,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            backgroundColor: _isOrder
+                ? (context.isDark ? AppColors.neonLime : const Color(0xFF2563EB))
+                : (context.isDark ? AppColors.neonLime : AppColors.darkCard),
+            foregroundColor: _isOrder
+                ? (context.isDark ? AppColors.ink : Colors.white)
+                : (context.isDark ? AppColors.ink : Colors.white),
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
           ),
-          child: const Text('Tasdiqlash', style: TextStyle(fontWeight: FontWeight.w700)),
+          icon: Icon(_isOrder ? Icons.assignment_turned_in_rounded : Icons.check_circle_rounded, size: 18),
+          label: Text(
+            _isOrder ? 'Buyurtmani saqlash' : 'Tasdiqlash',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
         ),
       ],
     );

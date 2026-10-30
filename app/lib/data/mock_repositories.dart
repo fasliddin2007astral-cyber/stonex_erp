@@ -368,8 +368,15 @@ class MockSalesRepository implements SalesRepository {
     String? customerPhone,
     String? customerPassport,
     String? customerPhotoUrl,
+    String status = 'completed',
+    String? note,
   }) async {
     if (lines.isEmpty) throw ApiException('Savat bo‘sh', 400);
+    final isOrder = status == 'order';
+    if (isOrder && (customerName == null || customerName.trim().isEmpty)) {
+      throw ApiException('Buyurtma rasmiylashtirish uchun mijoz ko‘rsatilishi shart', 400);
+    }
+
     final reserved = <int, double>{};
     var total = 0.0, cost = 0.0;
     for (final l in lines) {
@@ -377,32 +384,39 @@ class MockSalesRepository implements SalesRepository {
       if (i < 0) throw ApiException('Mahsulot topilmadi', 404);
       final p = _s.products[i];
       final q = l.baseQty;
-      final available = p.stock - (reserved[p.id] ?? 0);
       if (q <= 0) throw ApiException('${p.name}: miqdor 0 dan katta bo‘lsin', 400);
-      if (q > available + 1e-9) throw ApiException('${p.name}: omborda yetarli emas (bor: $available ${p.unit})', 400);
+      if (!isOrder) {
+        final available = p.stock - (reserved[p.id] ?? 0);
+        if (q > available + 1e-9) throw ApiException('${p.name}: omborda yetarli emas (bor: $available ${p.unit})', 400);
+      }
       reserved[p.id] = (reserved[p.id] ?? 0) + q;
       total += q * p.price;
       cost += q * p.costPrice;
     }
     if (paidAmount < 0 || paidAmount > total + 1e-6) throw ApiException('To‘lov summasi noto‘g‘ri', 400);
     final debt = total - paidAmount;
-    if (debt > 0.005 && (customerName == null || customerName.trim().isEmpty)) {
+    if (!isOrder && debt > 0.005 && (customerName == null || customerName.trim().isEmpty)) {
       throw ApiException('Nasiya uchun mijoz ko‘rsatilishi shart', 400);
     }
     final saleId = _s.nextId++;
-    reserved.forEach((id, q) {
-      _s.setStock(id, _s.products[_s.indexOf(id)].stock - q);
-      _s.movements.add(StockMovementRecord(
-        id: _s.nextId++, productId: id, qtyDelta: -q, kind: 'sale',
-        note: 'Savdo #$saleId', createdAt: DateTime.now(),
-      ));
-    });
+
+    if (!isOrder) {
+      reserved.forEach((id, q) {
+        _s.setStock(id, _s.products[_s.indexOf(id)].stock - q);
+        _s.movements.add(StockMovementRecord(
+          id: _s.nextId++, productId: id, qtyDelta: -q, kind: 'sale',
+          note: 'Savdo #$saleId', createdAt: DateTime.now(),
+        ));
+      });
+    }
 
     final res = SaleResult(
       id: saleId,
       total: total,
       paid: paidAmount,
       debt: debt,
+      status: status,
+      note: note,
       customerId: customerId,
       customerName: customerName,
       customerPhone: customerPhone,
@@ -424,33 +438,41 @@ class MockSalesRepository implements SalesRepository {
 
     _s.notifications.add(AppNotification(
       id: _s.nextId++,
-      title: 'Yangi savdo amalga oshirildi',
-      message: 'Savdo #$saleId: ${total.round()} so‘m${customerName != null && customerName.isNotEmpty ? ' ($customerName)' : ''}',
-      kind: 'sale',
+      title: isOrder ? 'Yangi buyurtma qabul qilindi' : 'Yangi savdo amalga oshirildi',
+      message: isOrder
+          ? 'Buyurtma #$saleId: ${total.round()} so‘m (${customerName ?? 'Mijoz'})${paidAmount > 0 ? ', avans: ${paidAmount.round()} so‘m' : ''}'
+          : 'Savdo #$saleId: ${total.round()} so‘m${customerName != null && customerName.isNotEmpty ? ' ($customerName)' : ''}',
+      kind: isOrder ? 'order' : 'sale',
       isRead: false,
       createdAt: DateTime.now(),
     ));
 
-    reserved.forEach((id, q) {
-      final p = _s.products[_s.indexOf(id)];
-      if (p.stock <= 20) {
-        _s.notifications.add(AppNotification(
-          id: _s.nextId++,
-          title: 'Ombor ogohlantirishi: Zaxira kam',
-          message: '${p.name} mahsulotidan atigi ${p.stock.toStringAsFixed(1)} ${p.unit} qoldi!',
-          kind: 'warning',
-          isRead: false,
-          createdAt: DateTime.now(),
-        ));
-      }
-    });
+    if (!isOrder) {
+      reserved.forEach((id, q) {
+        final p = _s.products[_s.indexOf(id)];
+        if (p.stock <= 20) {
+          _s.notifications.add(AppNotification(
+            id: _s.nextId++,
+            title: 'Ombor ogohlantirishi: Zaxira kam',
+            message: '${p.name} mahsulotidan atigi ${p.stock.toStringAsFixed(1)} ${p.unit} qoldi!',
+            kind: 'warning',
+            isRead: false,
+            createdAt: DateTime.now(),
+          ));
+        }
+      });
+    }
 
     return res;
   }
 
   @override
-  Future<List<SaleResult>> listSales({int limit = 50}) async {
-    final all = _s.sales.map((e) => e.result).toList().reversed.toList();
+  Future<List<SaleResult>> listSales({int limit = 50, String? status}) async {
+    Iterable<MockSaleEntry> entries = _s.sales;
+    if (status != null && status.isNotEmpty) {
+      entries = entries.where((e) => e.result.status == status);
+    }
+    final all = entries.map((e) => e.result).toList().reversed.toList();
     if (all.length > limit) return all.sublist(0, limit);
     return all;
   }
@@ -476,15 +498,7 @@ class MockSalesRepository implements SalesRepository {
     }
     final newPaid = entry.result.paid + amount;
     final newDebt = (entry.result.total - newPaid).clamp(0, double.infinity).toDouble();
-    final updated = SaleResult(
-      id: entry.result.id,
-      total: entry.result.total,
-      paid: newPaid,
-      debt: newDebt,
-      customerName: entry.result.customerName,
-      customerPhone: entry.result.customerPhone,
-      createdAt: entry.result.createdAt,
-    );
+    final updated = entry.result.copyWith(paid: newPaid, debt: newDebt);
     entry.result = updated;
     _s.notifications.add(AppNotification(
       id: _s.nextId++,
@@ -494,6 +508,81 @@ class MockSalesRepository implements SalesRepository {
       isRead: false,
       createdAt: DateTime.now(),
     ));
+    return updated;
+  }
+
+  @override
+  Future<SaleResult> fulfillOrder(int saleId) async {
+    final entry = _s.sales.firstWhere(
+      (e) => e.result.id == saleId,
+      orElse: () => throw ApiException('Buyurtma topilmadi', 404),
+    );
+    if (entry.result.status != 'order') {
+      throw ApiException('Faqat faol buyurtmalarni topshirish mumkin', 400);
+    }
+
+    // Omborda mahsulot yetarliligini tekshiramiz
+    for (final item in entry.result.items) {
+      final idx = _s.indexOf(item.productId);
+      if (idx < 0) throw ApiException('${item.productName}: mahsulot omborda topilmadi', 404);
+      final p = _s.products[idx];
+      if (item.quantity > p.stock + 1e-9) {
+        throw ApiException('${p.name}: omborda yetarli emas (mavjud: ${p.stock.toStringAsFixed(1)} ${p.unit}, kerak: ${item.quantity.toStringAsFixed(1)})', 400);
+      }
+    }
+
+    // Ombordan yechamiz va harakat yozamiz
+    for (final item in entry.result.items) {
+      final idx = _s.indexOf(item.productId);
+      final p = _s.products[idx];
+      _s.setStock(p.id, p.stock - item.quantity);
+      _s.movements.add(StockMovementRecord(
+        id: _s.nextId++,
+        productId: p.id,
+        qtyDelta: -item.quantity,
+        kind: 'sale',
+        note: 'Buyurtma topshirildi #$saleId (${entry.result.customerName ?? ''})',
+        createdAt: DateTime.now(),
+      ));
+    }
+
+    final updated = entry.result.copyWith(status: 'completed');
+    entry.result = updated;
+
+    _s.notifications.add(AppNotification(
+      id: _s.nextId++,
+      title: 'Buyurtma topshirildi',
+      message: 'Buyurtma #$saleId mijozga topshirildi (${entry.result.customerName ?? 'Mijoz'})',
+      kind: 'order',
+      isRead: false,
+      createdAt: DateTime.now(),
+    ));
+
+    return updated;
+  }
+
+  @override
+  Future<SaleResult> cancelOrder(int saleId) async {
+    final entry = _s.sales.firstWhere(
+      (e) => e.result.id == saleId,
+      orElse: () => throw ApiException('Buyurtma topilmadi', 404),
+    );
+    if (entry.result.status == 'completed') {
+      throw ApiException('Topshirilgan buyurtmani bekor qilib bo‘lmaydi', 400);
+    }
+
+    final updated = entry.result.copyWith(status: 'cancelled');
+    entry.result = updated;
+
+    _s.notifications.add(AppNotification(
+      id: _s.nextId++,
+      title: 'Buyurtma bekor qilindi',
+      message: 'Buyurtma #$saleId bekor qilindi (${entry.result.customerName ?? 'Mijoz'})',
+      kind: 'warning',
+      isRead: false,
+      createdAt: DateTime.now(),
+    ));
+
     return updated;
   }
 }

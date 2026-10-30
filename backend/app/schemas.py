@@ -145,6 +145,8 @@ class SaleIn(BaseModel):
     customer_phone: str | None = None
     customer_passport: str | None = None
     customer_photo_url: str | None = None
+    status: str = "completed"  # completed | order
+    note: str | None = None
 
 
 class SaleItemOut(ORM):
@@ -163,6 +165,8 @@ class SaleOut(BaseModel):
     total: Decimal
     paid: Decimal
     debt: Decimal
+    status: str = "completed"
+    note: str | None = None
     created_at: datetime
     items: list[SaleItemOut]
     payment_method: str | None = None

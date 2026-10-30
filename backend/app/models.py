@@ -89,6 +89,8 @@ class Sale(Base):
     total: Mapped[Decimal] = mapped_column(MONEY)  # savdo summasi
     total_cost: Mapped[Decimal] = mapped_column(MONEY)  # tannarx (sotilgan paytdagi)
     paid: Mapped[Decimal] = mapped_column(MONEY, default=0)  # to'lovlar yig'indisi (kesh)
+    status: Mapped[str] = mapped_column(String(20), default="completed")  # completed | order | cancelled
+    note: Mapped[str | None] = mapped_column(String(255), nullable=True)  # buyurtma izohi / muddat
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
     items: Mapped[list["SaleItem"]] = relationship(cascade="all, delete-orphan")

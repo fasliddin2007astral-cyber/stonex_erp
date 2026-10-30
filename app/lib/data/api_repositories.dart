@@ -137,6 +137,8 @@ class ApiSalesRepository implements SalesRepository {
     String? customerPhone,
     String? customerPassport,
     String? customerPhotoUrl,
+    String status = 'completed',
+    String? note,
   }) async {
     final j = await _api.post('/sales', body: {
       'items': [
@@ -148,6 +150,8 @@ class ApiSalesRepository implements SalesRepository {
           }
       ],
       'paid_amount': paidAmount,
+      'status': status,
+      if (note != null && note.isNotEmpty) 'note': note,
       if (customerId != null) 'customer_id': customerId,
       if (customerName != null && customerName.isNotEmpty) 'customer_name': customerName,
       if (customerPhone != null && customerPhone.isNotEmpty) 'customer_phone': customerPhone,
@@ -158,8 +162,10 @@ class ApiSalesRepository implements SalesRepository {
   }
 
   @override
-  Future<List<SaleResult>> listSales({int limit = 50}) async {
-    final j = await _api.get('/sales', query: {'limit': '$limit'}) as List;
+  Future<List<SaleResult>> listSales({int limit = 50, String? status}) async {
+    final q = {'limit': '$limit'};
+    if (status != null && status.isNotEmpty) q['status'] = status;
+    final j = await _api.get('/sales', query: q) as List;
     return j.map((e) => SaleResult.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -176,6 +182,18 @@ class ApiSalesRepository implements SalesRepository {
       'method': method,
     });
     return SaleResult.fromJson(j as Map<String, dynamic>);
+  }
+
+  @override
+  Future<SaleResult> fulfillOrder(int saleId) async {
+    final j = await _api.post('/sales/$saleId/fulfill') as Map<String, dynamic>;
+    return SaleResult.fromJson(j);
+  }
+
+  @override
+  Future<SaleResult> cancelOrder(int saleId) async {
+    final j = await _api.post('/sales/$saleId/cancel') as Map<String, dynamic>;
+    return SaleResult.fromJson(j);
   }
 }
 
