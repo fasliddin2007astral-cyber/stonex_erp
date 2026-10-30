@@ -261,6 +261,37 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
   });
 
+  testWidgets('DashboardScreen desktop viewport - symmetrical card heights and zero overflow', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    final authCtrl = AuthController(repos.auth);
+    await authCtrl.login('admin', 'admin123', Role.admin);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          Provider<AppRepositories>.value(value: repos),
+          ChangeNotifierProvider.value(value: authCtrl),
+          ChangeNotifierProvider(create: (_) => CartController(repos.sales)),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: DashboardScreen()),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.textContaining('Ombor Zaxirasi va Savdo'), findsOneWidget);
+    expect(find.text('Ombor Holati va Mahsulotlar'), findsOneWidget);
+    expect(find.text('Jami Savdolar (Daromad)'), findsOneWidget);
+    expect(find.text('Kassaga Tushgan Pul'), findsOneWidget);
+    expect(find.text('Qarzdorlik (Nasiya)'), findsOneWidget);
+    expect(find.text('Sex Sof Foyda Marjasi'), findsOneWidget);
+  });
+
   testWidgets('PosScreen QR scanner dialog - sleek UX, quantity stepper and zero overflow', (WidgetTester tester) async {
     final cartController = CartController(repos.sales);
 

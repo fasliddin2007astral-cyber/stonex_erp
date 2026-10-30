@@ -155,9 +155,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       isTablet: isTablet,
                     ),
 
-                    const SizedBox(height: 20),
-
-                    // 2. O'rta bo'lim: Dinamika grafigi + Mahsulotlar jadvali (Mockupdagi Row 2)
+                    const SizedBox(height: 20),                    // 2. O‘rta bo‘lim: Dinamika grafigi + Mahsulotlar jadvali (Sinxron balandlikda simmetrik)
                     if (isDesktop)
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,49 +163,68 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Expanded(
                             flex: 6,
                             child: _buildStockWaveChartCard(
-                                f, products, sales, movements),
+                              f,
+                              products,
+                              sales,
+                              movements,
+                              height: 440,
+                            ),
                           ),
-                          const SizedBox(width: 20),
+                          const SizedBox(width: 16),
                           Expanded(
                             flex: 4,
-                            child: _buildTagsAndStockTableCard(displayProducts),
+                            child: _buildTagsAndStockTableCard(
+                              displayProducts,
+                              height: 440,
+                            ),
                           ),
                         ],
                       )
                     else ...[
                       _buildStockWaveChartCard(f, products, sales, movements),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
                       _buildTagsAndStockTableCard(displayProducts),
                     ],
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 18),
 
-                    // 3. Pastki bo'lim: 3 ta karta (Savdolar, AI Zaxira tavsiyasi, Ishlab chiqarish topshiriqlari)
+                    // 3. Pastki bo‘lim: 3 ta karta (Sinxron balandlikda simmetrik)
                     if (isDesktop)
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             flex: 4,
-                            child: _buildRecentOrdersCard(f, displaySales),
+                            child: _buildRecentOrdersCard(
+                              f,
+                              displaySales,
+                              height: 390,
+                            ),
                           ),
-                          const SizedBox(width: 20),
+                          const SizedBox(width: 16),
                           Expanded(
                             flex: 3,
-                            child: _buildRestockAiCard(products, sales),
+                            child: _buildRestockAiCard(
+                              products,
+                              sales,
+                              height: 390,
+                            ),
                           ),
-                          const SizedBox(width: 20),
+                          const SizedBox(width: 16),
                           Expanded(
                             flex: 3,
-                            child: _buildTasksQueueCard(tasks),
+                            child: _buildTasksQueueCard(
+                              tasks,
+                              height: 390,
+                            ),
                           ),
                         ],
                       )
                     else ...[
                       _buildRecentOrdersCard(f, displaySales),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
                       _buildRestockAiCard(products, sales),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
                       _buildTasksQueueCard(tasks),
                     ],
                   ],
@@ -420,11 +437,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       badgeProfit = 'Hozircha foyda 0';
     }
 
+        final double? topCardHeight = (isDesktop || isTablet) ? 182.0 : null;
+
     final card1 = _TopDarkStatCard(
       title: 'Jami Savdolar (Daromad)',
       value: money(stats.revenue),
       badgeText: badgeRevenue,
       icon: Icons.shopping_bag_outlined,
+      height: topCardHeight,
       onTap: () => widget.onNavigate?.call(1),
     );
 
@@ -435,6 +455,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       icon: Icons.payments_outlined,
       iconColor: AppColors.green,
       iconBg: AppColors.greenSoft,
+      height: topCardHeight,
       onTap: () => widget.onNavigate?.call(1),
     );
 
@@ -447,16 +468,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
       icon: Icons.pending_actions_rounded,
       ringColor: const Color(0xFFC77700),
       ringBg: const Color(0xFFFFF3D6),
+      height: topCardHeight,
       onTap: () => widget.onNavigate?.call(2),
     );
 
     final card4 = _TopSpeedGaugeCard(
       title: 'Sex Sof Foyda Marjasi',
-      value: '${stats.margin.toStringAsFixed(1)}%',
+      value: '%',
       badgeText: badgeProfit,
       subText: money(stats.profit),
       isPositive: isPositiveProfit,
       icon: Icons.show_chart_rounded,
+      height: topCardHeight,
       onTap: () => _reload(),
     );
 
@@ -910,8 +933,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     FinanceSummary f,
     List<Product> products,
     List<SaleResult> sales,
-    List<StockMovementRecord> movements,
-  ) {
+    List<StockMovementRecord> movements, {
+    double? height,
+  }) {
     final categories = [
       'Barchasi',
       'Toshlar',
@@ -1015,6 +1039,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ];
 
         return Container(
+          height: height,
           padding: EdgeInsets.all(isCompact ? 14 : 22),
           decoration: BoxDecoration(
             color: context.cardColor,
@@ -1023,6 +1048,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: height != null ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
             children: [
               // Sarlavha va boshqaruv elementlari
               if (isCompact) ...[
@@ -1106,7 +1132,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               LayoutBuilder(
                 builder: (context, constraints) {
                   final w = constraints.maxWidth;
-                  final h = isCompact ? 190.0 : 220.0;
+                  final h = height != null
+                      ? (height - (isCompact ? 175.0 : 160.0))
+                      : (isCompact ? 190.0 : 220.0);
                   const padX = 14.0;
                   final usableW = math.max(10.0, w - (padX * 2));
                   final activeX = _chartHoverIndex == null
@@ -1398,7 +1426,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // 2. O'rta o'ng: Mahsulotlar Qoldiq Jadvali (Custom Tags & Labels)
   // ---------------------------------------------------------------------------
 
-  Widget _buildTagsAndStockTableCard(List<Product> products) {
+  Widget _buildTagsAndStockTableCard(List<Product> products, {double? height}) {
     final tags = ['Barchasi', 'Ko‘p sotiladigan', 'Chegirma', 'Kam qolgan'];
 
     var filtered = List<Product>.from(products);
@@ -1416,6 +1444,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (context, cardConstraints) {
         final isCompact = cardConstraints.maxWidth < 480;
         return Container(
+          height: height,
           padding: EdgeInsets.all(isCompact ? 14 : 22),
           decoration: BoxDecoration(
             color: context.cardColor,
@@ -1496,7 +1525,91 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 16),
 
               // Mahsulotlar mini-jadvali
-              if (filtered.isEmpty)
+              if (height != null)
+                Expanded(
+                  child: filtered.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                              child: Text('Mahsulotlar topilmadi',
+                                  style: TextStyle(color: context.mutedColor, fontSize: 13))),
+                        )
+                      : ListView.separated(
+                          shrinkWrap: false,
+                          physics: const BouncingScrollPhysics(),
+                          padding: EdgeInsets.zero,
+                          itemCount: math.min(filtered.length, 5),
+                          separatorBuilder: (_, __) => Divider(height: 12, color: context.borderColor),
+                          itemBuilder: (_, i) {
+                    final p = filtered[i];
+
+                    return InkWell(
+                      onTap: () => widget.onNavigate?.call(3),
+                      borderRadius: BorderRadius.circular(10),
+                      mouseCursor: SystemMouseCursors.click,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            GestureDetector(
+                              onTap: () => showProductImagePreview(
+                                context,
+                                imageUrl: p.imageUrl,
+                                name: p.name,
+                                subtitle: '${money(p.price)} / ${p.unit} • Qoldiq: ${qty(p.stock)} ${p.unit}',
+                              ),
+                              child: ProductThumbnail(
+                                imageUrl: p.imageUrl,
+                                name: p.name,
+                                size: 44,
+                                borderRadius: 10,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    p.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w700, fontSize: 13, color: context.inkColor),
+                                  ),
+                                  Text(
+                                    p.sku.isNotEmpty
+                                        ? p.sku
+                                        : '${qty(p.stock)} ${p.unit}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        color: context.mutedColor, fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              fit: FlexFit.loose,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  money(p.price),
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w800, fontSize: 12, color: context.inkColor),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                )
+              else if (filtered.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Center(
@@ -1588,8 +1701,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // 3. Pastki chap: So'nggi Savdolar (Sales & Orders)
   // ---------------------------------------------------------------------------
 
-  Widget _buildRecentOrdersCard(FinanceSummary f, List<SaleResult> sales) {
+  Widget _buildRecentOrdersCard(FinanceSummary f, List<SaleResult> sales, {double? height}) {
     return Container(
+      height: height,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: context.cardColor,
@@ -1634,7 +1748,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
           const SizedBox(height: 14),
-          if (sales.isEmpty)
+          if (height != null)
+            Expanded(
+              child: sales.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: const BoxDecoration(
+                                color: AppColors.greenSoft, shape: BoxShape.circle),
+                            child: const Icon(Icons.shopping_bag_outlined,
+                                color: AppColors.green, size: 22),
+                          ),
+                          const SizedBox(height: 10),
+                          Text('Hozircha savdolar yo‘q',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 13, color: context.inkColor)),
+                          const SizedBox(height: 4),
+                          Text('Kassadan yangi savdo amalga oshiring',
+                              style: TextStyle(color: context.mutedColor, fontSize: 11)),
+                          const SizedBox(height: 10),
+                          FilledButton.tonal(
+                            onPressed: () => widget.onNavigate?.call(1),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                              foregroundColor: context.isDark ? AppColors.ink : Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                            ),
+                            child: const Text('Savdoga o‘tish',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w700, fontSize: 12)),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      shrinkWrap: false,
+                      physics: const BouncingScrollPhysics(),
+                      padding: EdgeInsets.zero,
+                      itemCount: sales.length > 5 ? 5 : sales.length,
+                      separatorBuilder: (_, __) => Divider(height: 8, color: context.borderColor),
+                      itemBuilder: (_, i) => _buildSaleRowItem(sales[i]),
+                    ),
+            )
+          else if (sales.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Center(
@@ -1673,8 +1834,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             )
           else
-            for (final s in sales.take(5)) ...[
-              Padding(
+            for (final s in sales.take(5))
+              _buildSaleRowItem(s),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSaleRowItem(SaleResult s) {
+    return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: InkWell(
                   onTap: () => _showSaleDetails(s),
@@ -1735,11 +1903,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ],
                   ),
                 ),
-              ),
-            ],
-        ],
-      ),
-    );
+              );
   }
 
   Widget _buildSaleStatusBadge(SaleResult s) {
@@ -2193,13 +2357,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildRestockAiCard(List<Product> products, List<SaleResult> sales) {
+  Widget _buildRestockAiCard(List<Product> products, List<SaleResult> sales, {double? height}) {
     final items = _calculateAiRecommendations(products, sales);
     final critical = items.where((x) => x.urgency == 'critical').toList();
     final warning = items.where((x) => x.urgency == 'warning').toList();
     final urgentList = [...critical, ...warning];
 
     return Container(
+      height: height,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: context.cardColor,
@@ -2208,6 +2373,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: height != null ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
         children: [
           // Sarlavha va status
           Row(
@@ -2399,10 +2565,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // 3. Pastki o'ng: Ishlab Chiqarish Topshiriqlari (Still Not Arrived / Production)
   // ---------------------------------------------------------------------------
 
-  Widget _buildTasksQueueCard(List<ProductionTask> tasks) {
+  Widget _buildTasksQueueCard(List<ProductionTask> tasks, {double? height}) {
     final openTasks = tasks.where((t) => t.status != 'done').toList();
 
     return Container(
+      height: height,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: context.cardColor,
@@ -2411,6 +2578,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: height != null ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2526,6 +2694,7 @@ class _TopDarkStatCard extends StatelessWidget {
     required this.badgeText,
     required this.icon,
     this.onTap,
+    this.height,
   });
 
   final String title;
@@ -2533,6 +2702,7 @@ class _TopDarkStatCard extends StatelessWidget {
   final String badgeText;
   final IconData icon;
   final VoidCallback? onTap;
+  final double? height;
 
   @override
   Widget build(BuildContext context) {
@@ -2544,6 +2714,7 @@ class _TopDarkStatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         mouseCursor: SystemMouseCursors.click,
         child: Container(
+          height: height,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: AppColors.darkCard,
@@ -2552,6 +2723,7 @@ class _TopDarkStatCard extends StatelessWidget {
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: height != null ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2577,24 +2749,33 @@ class _TopDarkStatCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Text(title,
-                  style: const TextStyle(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
                       color: Color(0xFF8E959E),
                       fontSize: 12,
-                      fontWeight: FontWeight.w500)),
-              const SizedBox(height: 6),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  value,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900),
-                ),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      value,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -2603,10 +2784,13 @@ class _TopDarkStatCard extends StatelessWidget {
                 ),
                 child: Text(
                   badgeText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      color: AppColors.greenBright,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700),
+                    color: AppColors.greenBright,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -2626,6 +2810,7 @@ class _TopLightStatCard extends StatelessWidget {
     required this.iconColor,
     required this.iconBg,
     this.onTap,
+    this.height,
   });
 
   final String title;
@@ -2635,6 +2820,7 @@ class _TopLightStatCard extends StatelessWidget {
   final Color iconColor;
   final Color iconBg;
   final VoidCallback? onTap;
+  final double? height;
 
   @override
   Widget build(BuildContext context) {
@@ -2646,6 +2832,7 @@ class _TopLightStatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         mouseCursor: SystemMouseCursors.click,
         child: Container(
+          height: height,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: context.cardColor,
@@ -2654,6 +2841,7 @@ class _TopLightStatCard extends StatelessWidget {
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: height != null ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2679,24 +2867,33 @@ class _TopLightStatCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Text(title,
-                  style: TextStyle(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
                       color: context.mutedColor,
                       fontSize: 12,
-                      fontWeight: FontWeight.w500)),
-              const SizedBox(height: 6),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  value,
-                  style: TextStyle(
-                      color: context.inkColor,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900),
-                ),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        color: context.inkColor,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -2708,9 +2905,10 @@ class _TopLightStatCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      color: context.isDark ? AppColors.greenBright : const Color(0xFF065F46),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700),
+                    color: context.isDark ? AppColors.greenBright : const Color(0xFF065F46),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -2732,6 +2930,7 @@ class _TopGaugeStatCard extends StatelessWidget {
     required this.ringColor,
     required this.ringBg,
     this.onTap,
+    this.height,
   });
 
   final String title;
@@ -2743,6 +2942,7 @@ class _TopGaugeStatCard extends StatelessWidget {
   final Color ringColor;
   final Color ringBg;
   final VoidCallback? onTap;
+  final double? height;
 
   @override
   Widget build(BuildContext context) {
@@ -2754,6 +2954,7 @@ class _TopGaugeStatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         mouseCursor: SystemMouseCursors.click,
         child: Container(
+          height: height,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: context.cardColor,
@@ -2762,6 +2963,7 @@ class _TopGaugeStatCard extends StatelessWidget {
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: height != null ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2787,53 +2989,74 @@ class _TopGaugeStatCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(title,
-                            style: TextStyle(
-                                color: context.mutedColor, fontSize: 12)),
-                        const SizedBox(height: 4),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            value,
-                            style: TextStyle(
-                              color: context.inkColor,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          subText,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              color: context.mutedColor, fontSize: 11),
-                        ),
-                      ],
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: context.mutedColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        color: context.inkColor,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: context.isDark ? const Color(0xFF332512) : const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        subText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: ringColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
                   SizedBox(
-                    width: 52,
-                    height: 52,
+                    width: 32,
+                    height: 32,
                     child: CustomPaint(
                       painter: _VaultCircleRingPainter(
-                          progress: progress, color: ringColor, track: context.isDark ? const Color(0xFF28251B) : ringBg),
+                        progress: progress,
+                        color: ringColor,
+                        track: context.isDark ? const Color(0xFF28251B) : ringBg,
+                      ),
                       child: Center(
                         child: Text(
                           percentageText,
                           style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: ringColor),
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            color: ringColor,
+                          ),
                         ),
                       ),
                     ),
@@ -2857,6 +3080,7 @@ class _TopSpeedGaugeCard extends StatelessWidget {
     required this.isPositive,
     required this.icon,
     this.onTap,
+    this.height,
   });
 
   final String title;
@@ -2866,6 +3090,7 @@ class _TopSpeedGaugeCard extends StatelessWidget {
   final bool isPositive;
   final IconData icon;
   final VoidCallback? onTap;
+  final double? height;
 
   @override
   Widget build(BuildContext context) {
@@ -2877,6 +3102,7 @@ class _TopSpeedGaugeCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         mouseCursor: SystemMouseCursors.click,
         child: Container(
+          height: height,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: context.cardColor,
@@ -2885,6 +3111,7 @@ class _TopSpeedGaugeCard extends StatelessWidget {
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: height != null ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2902,52 +3129,65 @@ class _TopSpeedGaugeCard extends StatelessWidget {
                         color: isPositive ? AppColors.green : AppColors.danger,
                         size: 20),
                   ),
-                  Flexible(
-                    child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: context.isDark
-                            ? (isPositive ? const Color(0xFF132A1E) : const Color(0xFF331515))
-                            : (isPositive ? AppColors.greenSoft : AppColors.dangerSoft),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        badgeText,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: isPositive
-                              ? (context.isDark ? AppColors.greenBright : const Color(0xFF065F46))
-                              : AppColors.danger,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
+                  Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: context.pillColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.arrow_outward_rounded,
+                        color: context.inkColor, size: 16),
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: context.mutedColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        color: context.inkColor,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
-              Text(title,
-                  style: TextStyle(color: context.mutedColor, fontSize: 12)),
-              const SizedBox(height: 4),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  value,
-                  style: TextStyle(
-                      color: context.inkColor,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: context.isDark
+                      ? (isPositive ? const Color(0xFF1E3A2B) : const Color(0xFF3B1E1E))
+                      : (isPositive ? AppColors.greenSoft : AppColors.dangerSoft),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Sof foyda: $subText',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: context.mutedColor, fontSize: 11),
+                child: Text(
+                  ' · ',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isPositive
+                        ? (context.isDark ? AppColors.greenBright : const Color(0xFF065F46))
+                        : AppColors.danger,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ],
           ),
@@ -2956,10 +3196,6 @@ class _TopSpeedGaugeCard extends StatelessWidget {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Custom Painterni chizuvchilar
-// ---------------------------------------------------------------------------
 
 class _LegendDot extends StatelessWidget {
   const _LegendDot({required this.color, required this.label});
