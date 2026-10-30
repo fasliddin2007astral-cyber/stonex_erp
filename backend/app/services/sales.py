@@ -1,3 +1,4 @@
+from datetime import datetime
 """Savdo biznes mantiqi (UI va router'dan ajratilgan).
 
 Bitta tranzaksiyada: qoldiq tekshiruvi -> savdo -> ombor chiqimi -> to'lov.
@@ -189,3 +190,98 @@ def cancel_order(db: Session, user: m.User, sale_id: int) -> m.Sale:
     db.commit()
     db.refresh(sale)
     return sale
+
+def process_return(db: Session, user: m.User, sale_id: int, return_items: list, reason: str | None = None) -> m.Sale:
+    """Chek bo'yicha mahsulotni qaytarib olish (Vozvrat).
+    Qoidalar:
+    1. 10 kunlik muddat (savdo sanasidan 10 kundan oshsa qabul qilinmaydi).
+    2. Kesilgan kafel/toshlar qaytarilmaydi (faqat butun holatdagilar olinadi).
+    """
+    sale = db.get(m.Sale, sale_id, with_for_update=True)
+    if sale is None:
+        raise HTTPException(404, "Savdo topilmadi")
+
+    # 1. 10 kunlik muddat tekshiruvi
+    created_at = sale.created_at or datetime.utcnow()
+    diff_days = (datetime.utcnow() - created_at).total_seconds() / 86400.0
+    if diff_days > 10.0:
+        raise HTTPException(
+            400,
+            f"Mahsulotni qaytarish muddati (10 kun) o‘tgan! Savdo bundan {int(diff_days)} kun oldin qilingan.",
+        )
+
+    if sale.status in ("cancelled", "returned"):
+        raise HTTPException(400, "Ushbu savdo allaqachon bekor qilingan yoki to‘liq qaytarilgan")
+
+    sale_item_map = {item.product_id: item for item in sale.items}
+    total_refund = Decimal(0)
+
+    for ret in return_items:
+        p_id = getattr(ret, "product_id", None) or (ret.get("product_id") if isinstance(ret, dict) else None)
+        raw_qty = getattr(ret, "quantity", None) or (ret.get("quantity", 0) if isinstance(ret, dict) else 0)
+        qty = Decimal(str(raw_qty))
+        if qty <= Decimal(0):
+            continue
+
+        if p_id not in sale_item_map:
+            raise HTTPException(400, f"Mahsulot (ID: {p_id}) ushbu chekda topilmadi")
+        s_item = sale_item_map[p_id]
+
+        # 2. Kesilgan kafel / tosh tekshiruvi
+        p_name = s_item.product_name
+        is_cut = (("[" in p_name and ("]" in p_name or "dona)" in p_name)) or "kesil" in p_name.lower() or "maxsus razmer" in p_name.lower())
+        if is_cut:
+            raise HTTPException(
+                400,
+                f"'{p_name}' maxsus razmerda kesib berilgan! Kesilgan kafellar qaytarib olinmaydi.",
+            )
+
+        if qty > s_item.quantity:
+            raise HTTPException(
+                400,
+                f"Qaytarish miqdori ({qty}) sotilgan miqdordan ({s_item.quantity}) ko‘p bo‘lishi mumkin emas",
+            )
+
+        line_refund = qty * s_item.unit_price
+        total_refund += line_refund
+
+        # Omborga qaytarish (MV_RETURN = 'return')
+        add_movement(
+            db,
+            product_id=s_item.product_id,
+            qty_delta=qty,
+            kind=m.MV_RETURN,
+            ref_type="sale",
+            ref_id=sale.id,
+            note=f"Chek #{sale.id} dan qaytarildi (Vozvrat): {qty} ta. {reason or ''}".strip(),
+            user_id=user.id,
+        )
+
+        s_item.quantity -= qty
+        s_item.line_total = s_item.quantity * s_item.unit_price
+
+    if total_refund <= Decimal(0):
+        raise HTTPException(400, "Qaytarish uchun kamida bitta mahsulot miqdori tanlanishi kerak")
+
+    # 3. Moliyaviy hisob-kitob (Nasiya va Kassa qaytarilishi)
+    remaining_debt = sale.debt
+    debt_reduced = min(remaining_debt, total_refund)
+    cash_refund = total_refund - debt_reduced
+
+    sale.total = max(Decimal(0), sale.total - total_refund)
+    sale.paid = max(Decimal(0), sale.paid - cash_refund)
+
+    all_returned = all(item.quantity <= Decimal(0) for item in sale.items)
+    if all_returned or sale.total <= Decimal(0):
+        sale.status = "returned"
+    else:
+        sale.status = "partially_returned"
+
+    today_str = datetime.utcnow().strftime('%d.%m.%Y')
+    return_note = f"[Qaytarildi: {total_refund:,.0f} so'm ({today_str})]"
+    sale.note = f"{sale.note or ''} {return_note}".strip()
+
+    db.commit()
+    db.refresh(sale)
+    return sale
+

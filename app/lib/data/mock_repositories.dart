@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../core/format.dart';
 import '../domain/models.dart';
 import 'api_client.dart' show ApiException;
 import 'local_image_store.dart';
@@ -640,6 +641,102 @@ class MockSalesRepository implements SalesRepository {
     ));
 
     return updated;
+  }
+
+  @override
+  Future<SaleResult> returnSale(int saleId, {required List<({int productId, double quantity})> items, String? reason}) async {
+    final entry = _s.sales.firstWhere(
+      (e) => e.result.id == saleId,
+      orElse: () => throw ApiException('Savdo topilmadi', 404),
+    );
+    final sale = entry.result;
+
+    // 10 kunlik muddat tekshiruvi
+    final created = sale.createdAt ?? DateTime.now();
+    final diffDays = DateTime.now().difference(created).inDays;
+    if (diffDays > 10) {
+      throw ApiException('Mahsulotni qaytarish muddati (10 kun) o‘tgan! Savdo bundan $diffDays kun oldin qilingan.', 400);
+    }
+
+    if (sale.status == 'cancelled' || sale.status == 'returned') {
+      throw ApiException('Ushbu savdo allaqachon bekor qilingan yoki qaytarilgan', 400);
+    }
+
+    double totalRefund = 0;
+    final updatedItems = List<SaleItemRecord>.from(sale.items);
+
+    for (final ret in items) {
+      if (ret.quantity <= 0) continue;
+      final itemIdx = updatedItems.indexWhere((it) => it.productId == ret.productId);
+      if (itemIdx < 0) throw ApiException('Mahsulot ushbu chekda topilmadi', 400);
+      final it = updatedItems[itemIdx];
+
+      if (it.isCut) {
+        throw ApiException('\'${it.productName}\' maxsus razmerda kesib berilgan! Kesilgan kafellar qaytarib olinmaydi.', 400);
+      }
+
+      if (ret.quantity > it.quantity) {
+        throw ApiException('Qaytarish miqdori (${ret.quantity}) sotilgan miqdordan (${it.quantity}) ko‘p bo‘lishi mumkin emas', 400);
+      }
+
+      totalRefund += ret.quantity * it.unitPrice;
+
+      // Omborga qaytarish
+      final pIdx = _s.products.indexWhere((p) => p.id == ret.productId);
+      if (pIdx >= 0) {
+        final p = _s.products[pIdx];
+        _s.products[pIdx] = p.copyWith(stock: p.stock + ret.quantity);
+        _s.movements.add(StockMovementRecord(
+          id: _s.nextId++,
+          productId: p.id,
+          productName: p.name,
+          qtyDelta: ret.quantity,
+          kind: 'return',
+          note: 'Chek #${sale.id} dan qaytarildi (Vozvrat): ${ret.quantity} ta',
+          createdAt: DateTime.now(),
+        ));
+      }
+
+      // Qatordagi miqdorni yangilash
+      final newQty = it.quantity - ret.quantity;
+      updatedItems[itemIdx] = SaleItemRecord(
+        productId: it.productId,
+        productName: it.productName,
+        quantity: newQty,
+        unitPrice: it.unitPrice,
+        lineTotal: newQty * it.unitPrice,
+      );
+    }
+
+    if (totalRefund <= 0) throw ApiException('Kamida bitta tovar qaytarish uchun tanlanishi kerak', 400);
+
+    final debtReduced = totalRefund < sale.debt ? totalRefund : sale.debt;
+    final cashRefund = totalRefund - debtReduced;
+    final newTotal = (sale.total - totalRefund).clamp(0.0, double.infinity);
+    final newPaid = (sale.paid - cashRefund).clamp(0.0, double.infinity);
+    final allReturned = updatedItems.every((it) => it.quantity <= 0);
+
+    final updatedSale = sale.copyWith(
+      total: newTotal,
+      paid: newPaid,
+      debt: (newTotal - newPaid).clamp(0.0, double.infinity),
+      status: (allReturned || newTotal <= 0) ? 'returned' : 'partially_returned',
+      note: '${sale.note ?? ''} [Qaytarildi: ${money(totalRefund)}]'.trim(),
+      items: updatedItems,
+    );
+
+    entry.result = updatedSale;
+
+    _s.notifications.add(AppNotification(
+      id: _s.nextId++,
+      title: 'Mahsulot qaytarildi (Vozvrat)',
+      message: 'Chek #${sale.id} bo‘yicha ${money(totalRefund)} miqdorida tovar qaytarib olindi.',
+      kind: 'warning',
+      isRead: false,
+      createdAt: DateTime.now(),
+    ));
+
+    return updatedSale;
   }
 }
 

@@ -79,7 +79,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     // Verify all menu buttons exist
-    expect(find.text('Dashboard'), findsWidgets);
+    expect(find.text('Asosiy oyna'), findsWidgets);
     expect(find.text('Ishlab chiqarish'), findsWidgets);
 
     // Click "Ishlab chiqarish"

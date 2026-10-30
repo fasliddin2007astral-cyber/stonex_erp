@@ -407,6 +407,11 @@ class SaleItemRecord {
     required this.lineTotal,
   });
 
+  bool get isCut =>
+      (productName.contains('[') && (productName.contains(']') || productName.contains('dona)'))) ||
+      productName.toLowerCase().contains('kesil') ||
+      productName.toLowerCase().contains('maxsus razmer');
+
   factory SaleItemRecord.fromJson(Map<String, dynamic> j) => SaleItemRecord(
         productId: (j['product_id'] as num?)?.toInt() ?? 0,
         productName: (j['product_name'] ?? '').toString(),

@@ -6,7 +6,7 @@ from .. import models as m
 from .. import roles
 from ..database import get_db
 from ..deps import require_roles
-from ..schemas import PaymentIn, SaleIn, SaleOut
+from ..schemas import PaymentIn, SaleIn, SaleOut, SaleReturnIn
 from ..services import sales as svc
 
 router = APIRouter(prefix="/sales", tags=["sales"])
@@ -108,3 +108,9 @@ def fulfill(sale_id: int, db: Session = Depends(get_db), user: m.User = Depends(
 @router.post("/{sale_id}/cancel", response_model=SaleOut)
 def cancel(sale_id: int, db: Session = Depends(get_db), user: m.User = Depends(_sellers)):
     return to_out(svc.cancel_order(db, user, sale_id))
+
+
+@router.post("/{sale_id}/return", response_model=SaleOut)
+def return_sale(sale_id: int, data: SaleReturnIn, db: Session = Depends(get_db),
+                user: m.User = Depends(_sellers)):
+    return to_out(svc.process_return(db, user, sale_id, data.items, data.reason))

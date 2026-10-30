@@ -196,6 +196,21 @@ class ApiSalesRepository implements SalesRepository {
     final j = await _api.post('/sales/$saleId/cancel') as Map<String, dynamic>;
     return SaleResult.fromJson(j);
   }
+
+  @override
+  Future<SaleResult> returnSale(int saleId, {required List<({int productId, double quantity})> items, String? reason}) async {
+    final j = await _api.post('/sales/$saleId/return', body: {
+      'items': [
+        for (final it in items)
+          {
+            'product_id': it.productId,
+            'quantity': it.quantity,
+          }
+      ],
+      if (reason != null && reason.isNotEmpty) 'reason': reason,
+    }) as Map<String, dynamic>;
+    return SaleResult.fromJson(j);
+  }
 }
 
 class ApiFinanceRepository implements FinanceRepository {

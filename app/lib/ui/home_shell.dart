@@ -35,7 +35,7 @@ class _Dest {
 
 List<_Dest> _destinationsFor(Role role,
     {void Function(int index)? onNavigate}) {
-  final dash = _Dest('Dashboard', Icons.grid_view_rounded,
+  final dash = _Dest('Asosiy oyna', Icons.grid_view_rounded,
       () => DashboardScreen(onNavigate: onNavigate),
       actionLabel: '+ Yangi Savdo');
   const pos = _Dest('Savdo (POS)', Icons.point_of_sale_rounded, PosScreen.new,
@@ -171,7 +171,7 @@ class _HomeShellState extends State<HomeShell> {
     final cur = dests[_index];
     final repos = context.read<AppRepositories>();
 
-    if (cur.label == 'Dashboard') {
+    if (cur.label == 'Asosiy oyna' || cur.label == 'Dashboard') {
       // Savdo (POS) ga o'tish
       final posIndex = dests.indexWhere((d) => d.label.startsWith('Savdo'));
       if (posIndex >= 0) {
@@ -820,7 +820,7 @@ class _HomeShellState extends State<HomeShell> {
       );
     }
 
-    final isDashboard = dests[_index].label == 'Dashboard';
+    final isDashboard = dests[_index].label == 'Asosiy oyna' || dests[_index].label == 'Dashboard';
 
     // Mobil va planshet ekrani
     return Scaffold(
@@ -989,7 +989,7 @@ class _VaultHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDashboard = title == 'Dashboard';
+    final isDashboard = title == 'Asosiy oyna' || title == 'Dashboard';
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(

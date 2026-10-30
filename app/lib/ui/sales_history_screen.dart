@@ -7,6 +7,7 @@ import '../data/repositories.dart';
 import '../domain/models.dart';
 import 'common.dart';
 import 'receipt_dialog.dart';
+import 'return_product_dialog.dart';
 
 class SalesHistoryScreen extends StatefulWidget {
   const SalesHistoryScreen({super.key});
@@ -713,6 +714,17 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                     ),
                     icon: const Icon(Icons.payment_rounded, size: 16),
                     label: const Text('Qarz to‘lash', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                  ),
+                if (sale.status != 'cancelled' && sale.status != 'returned')
+                  OutlinedButton.icon(
+                    onPressed: () => ReturnProductDialog.show(context, sale, onSuccess: _loadSales),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFD97706),
+                      side: const BorderSide(color: Color(0xFFF59E0B)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    icon: const Icon(Icons.assignment_return_rounded, size: 16),
+                    label: const Text('Qaytarish', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
                   ),
                 FilledButton.icon(
                   onPressed: () => ReceiptDialog.show(context, sale),

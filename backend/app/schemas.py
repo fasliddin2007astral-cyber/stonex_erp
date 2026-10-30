@@ -216,6 +216,16 @@ class SaleIn(BaseModel):
     note: str | None = None
 
 
+class SaleReturnItemIn(BaseModel):
+    product_id: int
+    quantity: Decimal = Field(gt=0)
+
+
+class SaleReturnIn(BaseModel):
+    items: list[SaleReturnItemIn] = Field(min_length=1)
+    reason: str | None = None
+
+
 class SaleItemOut(ORM):
     product_id: int
     product_name: str

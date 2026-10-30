@@ -12,6 +12,7 @@ import '../core/format.dart';
 import '../core/theme.dart';
 import '../domain/models.dart';
 import 'common.dart';
+import 'return_product_dialog.dart';
 
 bool isReceiptQr(String code) {
   final c = code.trim().toUpperCase();
@@ -819,6 +820,27 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
                         ),
                       ),
+                      if (widget.sale.status != 'cancelled')
+                        FilledButton.icon(
+                          onPressed: widget.sale.status == 'returned'
+                              ? null
+                              : () {
+                                  Navigator.pop(context);
+                                  ReturnProductDialog.show(context, widget.sale);
+                                },
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFD97706),
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: Colors.grey.shade400,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          icon: const Icon(Icons.assignment_return_rounded, size: 15),
+                          label: Text(
+                            widget.sale.status == 'returned' ? 'Qaytarilgan' : 'Qaytarish (10 kun)',
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                          ),
+                        ),
                       FilledButton.icon(
                         onPressed: _isPrinting ? null : () => _printPdf(context),
                         style: FilledButton.styleFrom(

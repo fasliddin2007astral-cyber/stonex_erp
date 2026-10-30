@@ -149,6 +149,56 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(rep["days_late"], 1)
         self.assertGreater(float(rep["calculated_salary"]), 0)
 
+    def test_sale_return_rules(self):
+        # 1. Yangi mahsulot
+        pr = self.c.post("/products", headers=self.h, json={
+            "name": "Kafel Granit Oq", "unit": "m2", "price": 100000, "cost_price": 60000, "initial_stock": 50
+        })
+        self.assertEqual(pr.status_code, 201)
+        pid = pr.json()["id"]
+
+        # 2. Savdo qilish (3 m2 butun, 2 m2 kesilgan)
+        sr = self.c.post("/sales", headers=self.h, json={
+            "items": [
+                {"product_id": pid, "quantity": 3, "unit": "base"},
+                {"product_id": pid, "quantity": 2, "unit": "base", "custom_name": "Kafel Granit Oq [1.2x0.6m (4 dona)]"}
+            ],
+            "paid_amount": 500000
+        })
+        self.assertEqual(sr.status_code, 201)
+        sale_id = sr.json()["id"]
+
+        # 3. Kesilgan mahsulotni qaytarishga urinish (bloklanishi shart)
+        ret_fail = self.c.post(f"/sales/{sale_id}/return", headers=self.h, json={
+            "items": [{"product_id": pid, "quantity": 1}],
+            "reason": "Kesilgan tosh"
+        })
+        self.assertEqual(ret_fail.status_code, 400)
+        self.assertIn("kesilgan", ret_fail.json()["detail"].lower())
+
+        # 4. Faqat butun mahsulotli yangi savdo
+        pr2 = self.c.post("/products", headers=self.h, json={
+            "name": "Butun Kafel 60x60", "unit": "dona", "price": 50000, "cost_price": 30000, "initial_stock": 100
+        })
+        pid2 = pr2.json()["id"]
+
+        sr2 = self.c.post("/sales", headers=self.h, json={
+            "items": [{"product_id": pid2, "quantity": 10, "unit": "base"}],
+            "paid_amount": 500000
+        })
+        sale2_id = sr2.json()["id"]
+
+        # 5. Butun mahsulotdan 3 dona qaytarish
+        ret_ok = self.c.post(f"/sales/{sale2_id}/return", headers=self.h, json={
+            "items": [{"product_id": pid2, "quantity": 3}],
+            "reason": "Mijoz ortib qolgan butun kafelni qaytardi"
+        })
+        self.assertEqual(ret_ok.status_code, 200)
+        # Ombordagi qoldiq tiklanishi kerak: 100 - 10 + 3 = 93
+        prod_check = self.c.get("/products", headers=self.h)
+        p_obj = next(x for x in prod_check.json() if x["id"] == pid2)
+        self.assertEqual(float(p_obj["stock"]), 93.0)
+
 
 if __name__ == "__main__":
     unittest.main()

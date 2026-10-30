@@ -34,6 +34,7 @@ abstract class SalesRepository {
   Future<SaleResult> payDebt(int saleId, double amount, {String method = 'cash'});
   Future<SaleResult> fulfillOrder(int saleId);
   Future<SaleResult> cancelOrder(int saleId);
+  Future<SaleResult> returnSale(int saleId, {required List<({int productId, double quantity})> items, String? reason});
 }
 
 abstract class CustomerRepository {

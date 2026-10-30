@@ -148,4 +148,60 @@ void main() {
     cart.add(p2);
     expect(cart.lines.first.sort, '2');
   });
+
+  test('Mahsulotni qaytarish (Vozvrat) qoidalari: 10 kunlik muddat va kesilgan kafellar olinmasligi', () async {
+    final s = MockStore();
+    final salesRepo = MockSalesRepository(s);
+    final prodRepo = MockProductRepository(s);
+
+    final pWhole = await prodRepo.create(const Product(
+      id: 0,
+      name: 'Marmar Butun Plita',
+      unit: 'dona',
+      price: 100000,
+      costPrice: 60000,
+    ), initialStock: 50);
+
+    // 1. Savdo qilish: 10 dona butun plita
+    final sale1 = await salesRepo.createSale(
+      lines: [CartLine(pWhole, quantity: 10)],
+      paidAmount: 1000000,
+    );
+    expect(s.products.firstWhere((p) => p.id == pWhole.id).stock, 40); // 50 - 10
+
+    // 2. Butun plitadan 4 dona qaytarish (10 kun ichida) -> muvaffaqiyatli
+    final updated1 = await salesRepo.returnSale(
+      sale1.id,
+      items: [(productId: pWhole.id, quantity: 4)],
+      reason: 'Ortib qolgan butun plitalar',
+    );
+    expect(updated1.status, 'partially_returned');
+    expect(updated1.total, 600000); // 1000000 - 400000
+    // Ombor qoldig'i 4 taga oshishi kerak: 40 + 4 = 44
+    final reloadedP = s.products.firstWhere((p) => p.id == pWhole.id);
+    expect(reloadedP.stock, 44);
+
+    // 3. Kesilgan mahsulot qaytarilishiga yo'l qo'yilmaydi
+    final cutLine = CartLine(pWhole, quantity: 2, cutLength: 1.2, cutWidth: 0.6, cutPieces: 4, cutSpec: '1.2×0.6m (4 dona)');
+    expect(cutLine.displayName.contains('['), true);
+    final saleCut = await salesRepo.createSale(
+      lines: [cutLine],
+      paidAmount: 200000,
+    );
+    expect(
+      () => salesRepo.returnSale(saleCut.id, items: [(productId: pWhole.id, quantity: 1)]),
+      throwsA(isA<Exception>()),
+    );
+
+    // 4. 10 kundan oshgan chek qaytarilishiga yo'l qo'yilmaydi
+    final oldSale = sale1.copyWith(
+      id: 9999,
+      createdAt: DateTime.now().subtract(const Duration(days: 15)),
+    );
+    s.sales.add(MockSaleEntry(result: oldSale, cost: 400000));
+    expect(
+      () => salesRepo.returnSale(9999, items: [(productId: pWhole.id, quantity: 1)]),
+      throwsA(isA<Exception>()),
+    );
+  });
 }
