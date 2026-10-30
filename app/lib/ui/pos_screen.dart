@@ -346,9 +346,9 @@ class _PosScreenState extends State<PosScreen> {
           Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.isDark ? const Color(0xFF161B22) : Colors.white,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: context.borderColor),
             ),
             child: Row(
               children: [
@@ -359,14 +359,18 @@ class _PosScreenState extends State<PosScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
-                        color: _mobileTab == 0 ? AppColors.darkCard : Colors.transparent,
+                        color: _mobileTab == 0
+                            ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       alignment: Alignment.center,
                       child: Text(
                         'Katalog',
                         style: TextStyle(
-                          color: _mobileTab == 0 ? Colors.white : AppColors.ink,
+                          color: _mobileTab == 0
+                              ? (context.isDark ? AppColors.ink : Colors.white)
+                              : context.mutedColor,
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
                         ),
@@ -381,7 +385,9 @@ class _PosScreenState extends State<PosScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
-                        color: _mobileTab == 1 ? AppColors.darkCard : Colors.transparent,
+                        color: _mobileTab == 1
+                            ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       alignment: Alignment.center,
@@ -391,7 +397,9 @@ class _PosScreenState extends State<PosScreen> {
                           Text(
                             'Savat',
                             style: TextStyle(
-                              color: _mobileTab == 1 ? Colors.white : AppColors.ink,
+                              color: _mobileTab == 1
+                                  ? (context.isDark ? AppColors.ink : Colors.white)
+                                  : context.mutedColor,
                               fontWeight: FontWeight.w700,
                               fontSize: 13,
                             ),
@@ -401,13 +409,15 @@ class _PosScreenState extends State<PosScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
-                                color: _mobileTab == 1 ? AppColors.neonLime : AppColors.greenSoft,
+                                color: _mobileTab == 1
+                                    ? (context.isDark ? AppColors.ink : AppColors.neonLime)
+                                    : (context.isDark ? AppColors.neonLime.withValues(alpha: 0.2) : AppColors.greenSoft),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
                                 '${cartController.lines.length}',
-                                style: const TextStyle(
-                                  color: AppColors.ink,
+                                style: TextStyle(
+                                  color: _mobileTab == 1 && context.isDark ? AppColors.neonLime : AppColors.ink,
                                   fontWeight: FontWeight.w900,
                                   fontSize: 11,
                                 ),

@@ -2119,237 +2119,502 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     showDialog<void>(
       context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: ctx.cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 680, maxHeight: 600),
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Sarlavha
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: ctx.isDark ? const Color(0xFF2B3310) : AppColors.neonLimeSoft,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.auto_awesome_rounded,
-                      size: 20,
-                      color: ctx.isDark ? AppColors.neonLime : AppColors.darkCard,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'AI Zaxira va Xarid Prognozi',
-                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: ctx.inkColor),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Oxirgi sotuvlar tezligi va joriy qoldiq asosida hisoblangan tavsiyalar',
-                          style: TextStyle(fontSize: 11.5, color: ctx.mutedColor),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    icon: const Icon(Icons.close_rounded, size: 20),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
+      builder: (ctx) {
+        String filter = 'all'; // 'all', 'critical', 'warning', 'optimal'
+        String search = '';
 
-              // Mini hisobot paneli
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: ctx.isDark ? const Color(0xFF1E2822) : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: ctx.borderColor),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final filteredItems = items.where((it) {
+              if (filter == 'critical' && it.urgency != 'critical') return false;
+              if (filter == 'warning' && it.urgency != 'warning') return false;
+              if (filter == 'optimal' && it.urgency != 'optimal') return false;
+              if (search.trim().isNotEmpty) {
+                final q = search.trim().toLowerCase();
+                if (!it.product.name.toLowerCase().contains(q)) return false;
+              }
+              return true;
+            }).toList();
+
+            return Dialog(
+              backgroundColor: ctx.cardColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 720, maxHeight: 660),
+                padding: const EdgeInsets.all(22),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Column(
+                    // Sarlavha
+                    Row(
                       children: [
-                        const Text('Kritik tanqislik', style: TextStyle(fontSize: 11, color: AppColors.muted)),
-                        const SizedBox(height: 2),
-                        Text('${critical.length} ta tovar', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.danger)),
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: ctx.isDark
+                                  ? [const Color(0xFF283618), const Color(0xFF1B2A15)]
+                                  : [AppColors.neonLimeSoft, const Color(0xFFDCFCE7)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.neonLime.withValues(alpha: 0.5),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.auto_awesome_rounded,
+                            size: 22,
+                            color: AppColors.neonLime,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    'AI Zaxira va Xarid Prognozi',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 18,
+                                      color: ctx.inkColor,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.neonLime.withValues(alpha: 0.18),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Text(
+                                      'SMART ENGINE',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w900,
+                                        color: AppColors.neonLime,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Kunlik sarf tezligi (burn rate) va joriy qoldiq asosida hisoblangan tavsiyalar',
+                                style: TextStyle(fontSize: 12, color: ctx.mutedColor),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.close_rounded, size: 20),
+                        ),
                       ],
                     ),
-                    Container(width: 1, height: 26, color: ctx.borderColor),
-                    Column(
+                    const SizedBox(height: 14),
+
+                    // Mini KPI paneli
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: ctx.isDark ? const Color(0xFF161F1A) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: ctx.borderColor),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(10),
+                              onTap: () => setDialogState(() => filter = filter == 'critical' ? 'all' : 'critical'),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: filter == 'critical'
+                                      ? AppColors.danger.withValues(alpha: 0.12)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Column(
+                                  children: [
+                                    const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.error_rounded, size: 14, color: AppColors.danger),
+                                        SizedBox(width: 4),
+                                        Text('Kritik tanqislik', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.muted)),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text('${critical.length} ta tovar', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.danger)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          Container(width: 1, height: 32, color: ctx.borderColor),
+                          Expanded(
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(10),
+                              onTap: () => setDialogState(() => filter = filter == 'warning' ? 'all' : 'warning'),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: filter == 'warning'
+                                      ? const Color(0xFFD97706).withValues(alpha: 0.12)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Column(
+                                  children: [
+                                    const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.warning_amber_rounded, size: 14, color: Color(0xFFD97706)),
+                                        SizedBox(width: 4),
+                                        Text('Zaxira zarur', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.muted)),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text('${warning.length} ta tovar', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFFD97706))),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          Container(width: 1, height: 32, color: ctx.borderColor),
+                          Expanded(
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(10),
+                              onTap: () => setDialogState(() => filter = filter == 'optimal' ? 'all' : 'optimal'),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: filter == 'optimal'
+                                      ? AppColors.green.withValues(alpha: 0.12)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Column(
+                                  children: [
+                                    const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.check_circle_rounded, size: 14, color: AppColors.green),
+                                        SizedBox(width: 4),
+                                        Text('Yetarli zaxira', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.muted)),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text('${optimal.length} ta tovar', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.green)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Filter va qidiruv paneli
+                    Row(
                       children: [
-                        const Text('Zaxira zarur', style: TextStyle(fontSize: 11, color: AppColors.muted)),
-                        const SizedBox(height: 2),
-                        Text('${warning.length} ta tovar', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFFD97706))),
+                        Expanded(
+                          child: SizedBox(
+                            height: 38,
+                            child: TextField(
+                              onChanged: (val) => setDialogState(() => search = val),
+                              style: TextStyle(fontSize: 12.5, color: ctx.inkColor),
+                              decoration: InputDecoration(
+                                hintText: 'Tovar nomini qidirish...',
+                                hintStyle: TextStyle(fontSize: 12, color: ctx.mutedColor),
+                                prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                                filled: true,
+                                fillColor: ctx.isDark ? const Color(0xFF1A222C) : const Color(0xFFF1F5F9),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Wrap(
+                          spacing: 6,
+                          children: [
+                            ChoiceChip(
+                              label: Text('Barchasi (${items.length})', style: const TextStyle(fontSize: 11.5)),
+                              selected: filter == 'all',
+                              onSelected: (_) => setDialogState(() => filter = 'all'),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            ChoiceChip(
+                              label: Text('Kritik (${critical.length})', style: const TextStyle(fontSize: 11.5)),
+                              selected: filter == 'critical',
+                              onSelected: (_) => setDialogState(() => filter = 'critical'),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            ChoiceChip(
+                              label: Text('Kam (${warning.length})', style: const TextStyle(fontSize: 11.5)),
+                              selected: filter == 'warning',
+                              onSelected: (_) => setDialogState(() => filter = 'warning'),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                    Container(width: 1, height: 26, color: ctx.borderColor),
-                    Column(
+                    const SizedBox(height: 12),
+
+                    // Tovarlar ro'yxati
+                    Expanded(
+                      child: filteredItems.isEmpty
+                          ? Center(
+                              child: Text(
+                                "Tanlangan parametr bo'yicha tovarlar topilmadi.",
+                                style: TextStyle(color: ctx.mutedColor, fontSize: 13),
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: filteredItems.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 8),
+                              itemBuilder: (_, i) {
+                                final item = filteredItems[i];
+                                final isCrit = item.urgency == 'critical';
+                                final isWarn = item.urgency == 'warning';
+                                final isOut = item.currentStock <= 0;
+
+                                Color statusColor = AppColors.green;
+                                String statusText = 'Yetarli (~${item.daysRemaining} kun)';
+                                if (isCrit) {
+                                  statusColor = AppColors.danger;
+                                  statusText = isOut ? 'Tugagan (0 ${item.product.unit})' : 'Kritik (~${item.daysRemaining} kun)';
+                                } else if (isWarn) {
+                                  statusColor = const Color(0xFFD97706);
+                                  statusText = 'Kam (~${item.daysRemaining} kun)';
+                                }
+
+                                final totalTarget = item.currentStock + item.recommendedQty;
+                                final progress = totalTarget > 0 ? (item.currentStock / totalTarget).clamp(0.0, 1.0) : 1.0;
+
+                                return Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: ctx.cardColor,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: isCrit
+                                          ? AppColors.danger.withValues(alpha: 0.35)
+                                          : (isWarn
+                                              ? const Color(0xFFD97706).withValues(alpha: 0.3)
+                                              : ctx.borderColor),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          ProductThumbnail(
+                                            imageUrl: item.product.imageUrl,
+                                            name: item.product.name,
+                                            size: 46,
+                                            borderRadius: 12,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: Text(
+                                                        item.product.name,
+                                                        style: TextStyle(
+                                                          fontWeight: FontWeight.w800,
+                                                          fontSize: 14.5,
+                                                          color: ctx.inkColor,
+                                                        ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                      decoration: BoxDecoration(
+                                                        color: statusColor.withValues(alpha: 0.12),
+                                                        borderRadius: BorderRadius.circular(8),
+                                                        border: Border.all(
+                                                          color: statusColor.withValues(alpha: 0.3),
+                                                        ),
+                                                      ),
+                                                      child: Text(
+                                                        statusText,
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.w800,
+                                                          color: statusColor,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  item.reason,
+                                                  style: TextStyle(fontSize: 11.5, color: ctx.mutedColor),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 10),
+
+                                      // Zaxira ko'rsatkichi progress bar
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: LinearProgressIndicator(
+                                          value: progress,
+                                          minHeight: 5,
+                                          backgroundColor: ctx.isDark ? const Color(0xFF28323E) : const Color(0xFFE2E8F0),
+                                          valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+
+                                      // Tafsilotlar paneli va Harakat tugmalari
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: ctx.isDark ? const Color(0xFF1E2833) : const Color(0xFFF1F5F9),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Text(
+                                              'Qoldiq: ${qty(item.currentStock)} ${item.product.unit}',
+                                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ctx.inkColor),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: ctx.isDark ? const Color(0xFF1E2833) : const Color(0xFFF1F5F9),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Text(
+                                              'Kunlik: ~${item.dailyBurn.toStringAsFixed(1)} ${item.product.unit}',
+                                              style: TextStyle(fontSize: 11, color: ctx.mutedColor),
+                                            ),
+                                          ),
+                                          const Spacer(),
+                                          if (item.recommendedQty > 0) ...[
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: ctx.isDark ? AppColors.neonLime.withValues(alpha: 0.18) : AppColors.greenSoft,
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                'AI: +${qty(item.recommendedQty)} ${item.product.unit}',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w900,
+                                                  color: ctx.isDark ? AppColors.neonLime : const Color(0xFF065F46),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            FilledButton(
+                                              onPressed: () {
+                                                Navigator.pop(ctx);
+                                                _openQuickPurchase();
+                                              },
+                                              style: FilledButton.styleFrom(
+                                                backgroundColor: isCrit
+                                                    ? AppColors.danger
+                                                    : (ctx.isDark ? AppColors.neonLime : AppColors.darkCard),
+                                                foregroundColor: isCrit
+                                                    ? Colors.white
+                                                    : (ctx.isDark ? AppColors.ink : Colors.white),
+                                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                                visualDensity: VisualDensity.compact,
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              ),
+                                              child: const Text('Kirim', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Pastki umumiy harakat tugmalari
+                    Row(
                       children: [
-                        const Text('Yetarli zaxira', style: TextStyle(fontSize: 11, color: AppColors.muted)),
-                        const SizedBox(height: 2),
-                        Text('${optimal.length} ta tovar', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.green)),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _openQuickProduction();
+                            },
+                            icon: const Icon(Icons.precision_manufacturing_rounded, size: 16),
+                            label: const Text('Sexga topshiriq ochish', style: TextStyle(fontWeight: FontWeight.w700)),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: ctx.inkColor,
+                              side: BorderSide(color: ctx.borderColor),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _openQuickPurchase();
+                            },
+                            icon: const Icon(Icons.shopping_bag_rounded, size: 16),
+                            label: const Text('+ Xarid Kirim Qilish', style: TextStyle(fontWeight: FontWeight.w800)),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.neonLime,
+                              foregroundColor: AppColors.ink,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
-
-              // Tovarlar ro'yxati
-              Expanded(
-                child: ListView.separated(
-                  itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) {
-                    final item = items[i];
-                    final isCrit = item.urgency == 'critical';
-                    final isWarn = item.urgency == 'warning';
-
-                    Color statusColor = AppColors.green;
-                    String statusText = 'Yetarli (${qty(item.currentStock)} ${item.product.unit})';
-                    if (isCrit) {
-                      statusColor = AppColors.danger;
-                      statusText = item.currentStock <= 0 ? 'Tugagan (0 ${item.product.unit})' : 'Kritik: ${qty(item.currentStock)} ${item.product.unit}';
-                    } else if (isWarn) {
-                      statusColor = const Color(0xFFD97706);
-                      statusText = 'Kam qolgan (${qty(item.currentStock)} ${item.product.unit})';
-                    }
-
-                    return Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: ctx.cardColor,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isCrit ? AppColors.danger.withValues(alpha: 0.3) : ctx.borderColor,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          ProductThumbnail(
-                            imageUrl: item.product.imageUrl,
-                            name: item.product.name,
-                            size: 44,
-                            borderRadius: 10,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        item.product.name,
-                                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: ctx.inkColor),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: statusColor.withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        statusText,
-                                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: statusColor),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  item.reason,
-                                  style: TextStyle(fontSize: 11, color: ctx.mutedColor),
-                                ),
-                                if (item.recommendedQty > 0) ...[
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.tips_and_updates_outlined, size: 13, color: AppColors.green),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'AI Tavsiya: +${qty(item.recommendedQty)} ${item.product.unit} buyurtma berish',
-                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.green),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          if (item.recommendedQty > 0)
-                            FilledButton(
-                              onPressed: () {
-                                Navigator.pop(ctx);
-                                _openQuickPurchase();
-                              },
-                              style: FilledButton.styleFrom(
-                                backgroundColor: isCrit ? AppColors.danger : (ctx.isDark ? AppColors.neonLime : AppColors.darkCard),
-                                foregroundColor: isCrit ? Colors.white : (ctx.isDark ? AppColors.ink : Colors.white),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-                              ),
-                              child: const Text('Kirim'),
-                            ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Pastki tugmalar
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _openQuickProduction();
-                      },
-                      icon: const Icon(Icons.precision_manufacturing_rounded, size: 16),
-                      label: const Text('Ishlab chiqarishga berish'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _openQuickPurchase();
-                      },
-                      icon: const Icon(Icons.shopping_bag_rounded, size: 16),
-                      label: const Text('+ Xarid Kirimi'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.neonLime,
-                        foregroundColor: AppColors.ink,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -2365,189 +2630,435 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: context.cardColor,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: critical.isNotEmpty ? AppColors.danger.withValues(alpha: 0.35) : context.borderColor),
+        border: Border.all(
+          color: critical.isNotEmpty
+              ? AppColors.danger.withValues(alpha: 0.35)
+              : (warning.isNotEmpty ? const Color(0xFFD97706).withValues(alpha: 0.3) : context.borderColor),
+          width: critical.isNotEmpty ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: critical.isNotEmpty
+                ? AppColors.danger.withValues(alpha: 0.06)
+                : Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: height != null ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
         children: [
-          // Sarlavha va status
+          // 1. Sarlavha va Urgency Chip
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(7),
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
-                  color: context.isDark ? const Color(0xFF2B3310) : AppColors.neonLimeSoft,
-                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: context.isDark
+                        ? [const Color(0xFF283618), const Color(0xFF1B2A15)]
+                        : [AppColors.neonLimeSoft, const Color(0xFFDCFCE7)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.neonLime.withValues(alpha: 0.5),
+                    width: 1.2,
+                  ),
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.auto_awesome_rounded,
-                  size: 17,
-                  color: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                  size: 20,
+                  color: AppColors.neonLime,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'AI Zaxira Tavsiyasi',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: context.inkColor,
+                              letterSpacing: -0.3,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: AppColors.neonLime.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'PROGNOZ',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.neonLime,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
                     Text(
-                      'AI Zaxira Tavsiyasi',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: context.inkColor,
-                      ),
+                      'Sotuv surati & qoldiq tahlili',
+                      style: TextStyle(fontSize: 11, color: context.mutedColor),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      'Avtomatik tahlil',
-                      style: TextStyle(fontSize: 10.5, color: context.mutedColor),
                     ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
                   color: critical.isNotEmpty
-                      ? const Color(0xFFFCE4E3)
-                      : (warning.isNotEmpty ? const Color(0xFFFEF3C7) : AppColors.greenSoft),
+                      ? (context.isDark ? const Color(0xFF3B1818) : const Color(0xFFFEE2E2))
+                      : (warning.isNotEmpty
+                          ? (context.isDark ? const Color(0xFF38250A) : const Color(0xFFFEF3C7))
+                          : (context.isDark ? const Color(0xFF10281E) : AppColors.greenSoft)),
                   borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  critical.isNotEmpty
-                      ? '${critical.length} ta kritik'
-                      : (warning.isNotEmpty ? '${warning.length} ta kam' : 'Optimal'),
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
+                  border: Border.all(
                     color: critical.isNotEmpty
-                        ? AppColors.danger
-                        : (warning.isNotEmpty ? const Color(0xFFD97706) : AppColors.darkCard),
+                        ? AppColors.danger.withValues(alpha: 0.5)
+                        : (warning.isNotEmpty
+                            ? const Color(0xFFD97706).withValues(alpha: 0.5)
+                            : AppColors.green.withValues(alpha: 0.4)),
                   ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      critical.isNotEmpty
+                          ? Icons.error_rounded
+                          : (warning.isNotEmpty ? Icons.warning_amber_rounded : Icons.check_circle_rounded),
+                      size: 13,
+                      color: critical.isNotEmpty
+                          ? AppColors.danger
+                          : (warning.isNotEmpty ? const Color(0xFFD97706) : AppColors.green),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      critical.isNotEmpty
+                          ? '${critical.length} ta kritik'
+                          : (warning.isNotEmpty ? '${warning.length} ta kam' : 'Optimal'),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: critical.isNotEmpty
+                            ? AppColors.danger
+                            : (warning.isNotEmpty ? const Color(0xFFD97706) : AppColors.green),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
 
-          // Mini grafik chiziq
-          SizedBox(
-            height: 48,
-            width: double.infinity,
-            child: CustomPaint(
-              painter: _MiniSparklinePainter(),
+          // 2. AI Aqlli Xulosa Banneri (Oldingi dummy sparkline o'rniga haqiqiy tahlil!)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: context.isDark
+                    ? [const Color(0xFF131D19), const Color(0xFF18221D)]
+                    : [const Color(0xFFF0FDF4), const Color(0xFFF7FEE7)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: context.isDark
+                    ? const Color(0xFF264233)
+                    : const Color(0xFFBBF7D0),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.psychology_rounded,
+                  size: 18,
+                  color: AppColors.greenBright,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: RichText(
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    text: TextSpan(
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: context.inkColor,
+                        height: 1.35,
+                      ),
+                      children: critical.isNotEmpty
+                          ? [
+                              const TextSpan(
+                                text: 'Diqqat: ',
+                                style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.danger),
+                              ),
+                              TextSpan(
+                                text: '${critical.first.product.name} ',
+                                style: const TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                              TextSpan(
+                                text: critical.length > 1
+                                    ? "va yana ${critical.length - 1} ta tovar tez orada tugaydi. Zudlik bilan to'ldirish tavsiya etiladi."
+                                    : 'zaxirasi kritik darajada. Xarid kirimi qilish tavsiya etiladi.',
+                                style: TextStyle(color: context.subtextColor),
+                              ),
+                            ]
+                          : warning.isNotEmpty
+                              ? [
+                                  const TextSpan(
+                                    text: 'Ogohlantirish: ',
+                                    style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFFD97706)),
+                                  ),
+                                  TextSpan(
+                                    text: '${warning.length} ta tovar xavfsiz zaxira chegarasidan past. Oldindan buyurtma bering.',
+                                    style: TextStyle(color: context.subtextColor),
+                                  ),
+                                ]
+                              : [
+                                  const TextSpan(
+                                    text: 'Holat barqaror: ',
+                                    style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.green),
+                                  ),
+                                  TextSpan(
+                                    text: "Barcha asosiy tovarlar yetarli. Keyingi 14 kunlik zaxira ta'minlangan.",
+                                    style: TextStyle(color: context.subtextColor),
+                                  ),
+                                ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 10),
 
-          // Tavsiya ro'yxati (eng xavfli 2 ta tovar)
-          if (urgentList.isNotEmpty) ...[
-            for (final it in urgentList.take(2))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: context.isDark ? const Color(0xFF1E2822) : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: it.urgency == 'critical'
-                          ? AppColors.danger.withValues(alpha: 0.25)
-                          : context.borderColor,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      ProductThumbnail(
-                        imageUrl: it.product.imageUrl,
-                        name: it.product.name,
-                        size: 34,
-                        borderRadius: 8,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              it.product.name,
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: context.inkColor),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+          // 3. Tavsiya etilgan tovarlar ro'yxati
+          Builder(
+            builder: (context) {
+              final itemsListView = urgentList.isNotEmpty
+                  ? ListView.separated(
+                      padding: EdgeInsets.zero,
+                      itemCount: urgentList.take(2).length,
+                      shrinkWrap: height == null,
+                      physics: const NeverScrollableScrollPhysics(),
+                      separatorBuilder: (_, __) => const SizedBox(height: 7),
+                      itemBuilder: (_, i) {
+                        final it = urgentList[i];
+                        final isCrit = it.urgency == 'critical';
+                        final isOut = it.currentStock <= 0;
+
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: context.isDark ? const Color(0xFF1A222C) : const Color(0xFFF9FAFB),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isCrit
+                                  ? AppColors.danger.withValues(alpha: 0.3)
+                                  : context.borderColor,
                             ),
-                            Text(
-                              it.currentStock <= 0 ? 'Tugagan (0 ${it.product.unit})' : 'Qoldiq: ${qty(it.currentStock)} ${it.product.unit}',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w600,
-                                color: it.urgency == 'critical' ? AppColors.danger : const Color(0xFFD97706),
+                          ),
+                          child: Row(
+                            children: [
+                              ProductThumbnail(
+                                imageUrl: it.product.imageUrl,
+                                name: it.product.name,
+                                size: 34,
+                                borderRadius: 10,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      it.product.name,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12,
+                                        color: context.inkColor,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Wrap(
+                                      spacing: 4,
+                                      runSpacing: 2,
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                          decoration: BoxDecoration(
+                                            color: isOut
+                                                ? AppColors.danger.withValues(alpha: 0.15)
+                                                : (isCrit
+                                                    ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
+                                                    : context.borderColor.withValues(alpha: 0.3)),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            isOut
+                                                ? '🔥 Tugagan'
+                                                : (it.daysRemaining <= 5
+                                                    ? '⏳ ~${it.daysRemaining} kun'
+                                                    : 'Qoldiq: ${qty(it.currentStock)}'),
+                                            style: TextStyle(
+                                              fontSize: 9.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: isOut
+                                                  ? AppColors.danger
+                                                  : (isCrit ? const Color(0xFFD97706) : context.mutedColor),
+                                            ),
+                                          ),
+                                        ),
+                                        Text(
+                                          '~${it.dailyBurn.toStringAsFixed(1)} ${it.product.unit}/k',
+                                          style: TextStyle(fontSize: 9.5, color: context.mutedColor),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                                    decoration: BoxDecoration(
+                                      color: isCrit
+                                          ? AppColors.danger.withValues(alpha: 0.12)
+                                          : (context.isDark
+                                              ? AppColors.neonLime.withValues(alpha: 0.18)
+                                              : AppColors.greenSoft),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: isCrit
+                                            ? AppColors.danger.withValues(alpha: 0.4)
+                                            : (context.isDark
+                                                ? AppColors.neonLime.withValues(alpha: 0.5)
+                                                : AppColors.green.withValues(alpha: 0.3)),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '+${qty(it.recommendedQty)} ${it.product.unit}',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w900,
+                                        color: isCrit
+                                            ? AppColors.danger
+                                            : (context.isDark ? AppColors.neonLime : const Color(0xFF065F46)),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Tavsiya',
+                                    style: TextStyle(fontSize: 8.5, color: context.mutedColor),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    )
+                  : Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: context.isDark ? const Color(0xFF142018) : const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.verified_rounded, color: AppColors.green, size: 18),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                "Barcha tovarlar zaxirasi me'yorda!",
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: context.inkColor,
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.greenSoft,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '+${qty(it.recommendedQty)} ${it.product.unit}',
-                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.darkCard),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ] else ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.check_circle_rounded, color: AppColors.green, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Barcha tovarlar zaxirasi optimal holatda.',
-                      style: TextStyle(fontSize: 11.5, color: context.mutedColor),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+                    );
 
-          const SizedBox(height: 8),
+              return height != null ? Expanded(child: itemsListView) : itemsListView;
+            },
+          ),
+          const SizedBox(height: 10),
 
-          // Tugmalar
+          // 4. Pastki harakat tugmalari
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(
+                child: OutlinedButton.icon(
                   onPressed: () => _showAiRestockDetails(items),
+                  icon: const Icon(Icons.analytics_outlined, size: 15),
+                  label: Text(
+                    'Batafsil (${items.length})',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: context.inkColor,
                     side: BorderSide(color: context.borderColor),
                     padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('Batafsil', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: FilledButton(
+                child: FilledButton.icon(
                   onPressed: _openQuickPurchase,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
-                    foregroundColor: context.isDark ? AppColors.ink : Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  icon: const Icon(Icons.add_shopping_cart_rounded, size: 15),
+                  label: const Text(
+                    'Tezkor Kirim',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
                   ),
-                  child: const Text('Xarid', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.neonLime,
+                    foregroundColor: AppColors.ink,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
                 ),
               ),
             ],
