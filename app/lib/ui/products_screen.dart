@@ -115,7 +115,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filters = ['Barchasi', 'Toshlar (m²)', 'Dona', 'Kam qolgan'];
+    final filters = ['Barchasi', 'Toshlar (m²)', 'Sortli', 'Dona', 'Kam qolgan'];
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
@@ -149,6 +149,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
           if (_selectedFilter == 'Toshlar (m²)') {
             displayList = displayList.where((p) => p.unit == 'm2').toList();
+          } else if (_selectedFilter == 'Sortli') {
+            displayList = displayList.where((p) => p.hasSorts || (p.sort != null && p.sort!.isNotEmpty)).toList();
           } else if (_selectedFilter == 'Dona') {
             displayList = displayList.where((p) => p.hasDona || p.unit == 'dona').toList();
           } else if (_selectedFilter == 'Kam qolgan') {
@@ -481,6 +483,28 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                                     child: const Text('1 dona = 0.25 m²',
                                                         style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
                                                   ),
+                                                if (p.sort != null && p.sort!.isNotEmpty)
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                                    decoration: BoxDecoration(
+                                                      color: context.isDark ? const Color(0xFF332512) : const Color(0xFFFEF3C7),
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    child: Text(
+                                                      p.sort == 'oliy' ? 'Oliy sort' : '${p.sort}-sort',
+                                                      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFFD97706)),
+                                                    ),
+                                                  )
+                                                else if (p.hasSorts)
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                                    decoration: BoxDecoration(
+                                                      color: context.isDark ? const Color(0xFF1B2E1D) : const Color(0xFFECFDF5),
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    child: const Text('1 • 1.5 • 2 sort',
+                                                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.green)),
+                                                  ),
                                               ],
                                             ),
                                           ],
@@ -624,6 +648,31 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                               ),
                                               child: const Text('1 dona = 0.25 m²',
                                                   style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
+                                            ),
+                                          ],
+                                          if (p.sort != null && p.sort!.isNotEmpty) ...[
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: context.isDark ? const Color(0xFF332512) : const Color(0xFFFEF3C7),
+                                                borderRadius: BorderRadius.circular(10),
+                                              ),
+                                              child: Text(
+                                                p.sort == 'oliy' ? 'Oliy sort' : '\-sort',
+                                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD97706)),
+                                              ),
+                                            ),
+                                          ] else if (p.hasSorts) ...[
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: context.isDark ? const Color(0xFF1B2E1D) : const Color(0xFFECFDF5),
+                                                borderRadius: BorderRadius.circular(10),
+                                              ),
+                                              child: const Text('1 • 1.5 • 2 sort',
+                                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.green)),
                                             ),
                                           ],
                                         ],
@@ -838,12 +887,81 @@ class _ProductDialogState extends State<ProductDialog> {
   final _stock = TextEditingController();
   late String _unit = widget.product?.unit ?? 'm2';
   late bool _stone = widget.product?.hasDona ?? false;
-  late bool _hasSorts = widget.product?.hasSorts ?? (widget.product == null ? false : false);
+  late bool _hasSorts = widget.product?.hasSorts ?? false;
+  late String? _sort = widget.product?.sort;
   String? _error;
   bool _busy = false;
   bool _uploadingImage = false;
 
   static const _units = ['m2', 'dona', 'kg', 'm', 'litr'];
+
+  void _autoAppendSortToName(String sortText) {
+    String current = _name.text.trim();
+    if (current.isEmpty) return;
+    final sortRegex = RegExp(r'\s*\((1|1\.5|2|3|Oliy|oliy)[ -]sort\)', caseSensitive: false);
+    if (sortRegex.hasMatch(current)) {
+      current = current.replaceAll(sortRegex, '').trim();
+    }
+    if (sortText.isNotEmpty) {
+      _name.text = '$current ($sortText)';
+    } else {
+      _name.text = current;
+    }
+  }
+
+  Widget _buildSortChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+    IconData? badgeIcon,
+  }) {
+    final isDark = context.isDark;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected
+              ? (isDark ? AppColors.neonLime : AppColors.darkCard)
+              : (isDark ? const Color(0xFF1B232A) : const Color(0xFFE2E8F0)),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected
+                ? (isDark ? AppColors.neonLime : AppColors.darkCard)
+                : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (badgeIcon != null) ...[
+              Icon(
+                badgeIcon,
+                size: 13,
+                color: selected
+                    ? (isDark ? AppColors.ink : AppColors.neonLime)
+                    : context.mutedColor,
+              ),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                color: selected
+                    ? (isDark ? AppColors.ink : Colors.white)
+                    : context.inkColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -1000,6 +1118,7 @@ class _ProductDialogState extends State<ProductDialog> {
       qrCode: _qr.text.trim(),
       unit: _unit,
       donaM2: (_stone && _unit == 'm2') ? Units.stoneDonaM2 : null,
+      sort: _sort,
       hasSorts: _hasSorts,
       price: price,
       costPrice: cost,
@@ -1464,18 +1583,150 @@ class _ProductDialogState extends State<ProductDialog> {
                     });
                   },
                 ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('3 xil sorti bor (1 / 1.5 / 2)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Kassada sotuv paytida qalinlik/sortni (1, 1.5, 2) tanlash imkonini beradi', style: TextStyle(fontSize: 11, color: AppColors.muted)),
-                  value: _hasSorts,
-                  onChanged: (v) {
-                    setState(() {
-                      _hasSorts = v;
-                    });
-                  },
-                ),
               ],
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: context.isDark ? AppColors.darkCard : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: context.borderColor),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.layers_outlined, size: 18, color: context.isDark ? AppColors.neonLime : AppColors.ink),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Mahsulot sorti (qalinligi / navi)',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: context.inkColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Ushbu mahsulot qaysi sortga tegishli yoki kassada tanlanadimi?',
+                      style: TextStyle(fontSize: 11, color: context.mutedColor),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildSortChip(
+                          label: 'Sortsiz (Oddiy)',
+                          selected: !_hasSorts && (_sort == null || _sort!.isEmpty),
+                          onTap: () {
+                            setState(() {
+                              _hasSorts = false;
+                              _sort = null;
+                              _autoAppendSortToName('');
+                            });
+                          },
+                        ),
+                        _buildSortChip(
+                          label: '1-sort',
+                          selected: !_hasSorts && _sort == '1',
+                          onTap: () {
+                            setState(() {
+                              _hasSorts = false;
+                              _sort = '1';
+                              _autoAppendSortToName('1-sort');
+                            });
+                          },
+                        ),
+                        _buildSortChip(
+                          label: '1.5-sort',
+                          selected: !_hasSorts && _sort == '1.5',
+                          onTap: () {
+                            setState(() {
+                              _hasSorts = false;
+                              _sort = '1.5';
+                              _autoAppendSortToName('1.5-sort');
+                            });
+                          },
+                        ),
+                        _buildSortChip(
+                          label: '2-sort',
+                          selected: !_hasSorts && _sort == '2',
+                          onTap: () {
+                            setState(() {
+                              _hasSorts = false;
+                              _sort = '2';
+                              _autoAppendSortToName('2-sort');
+                            });
+                          },
+                        ),
+                        _buildSortChip(
+                          label: '3-sort',
+                          selected: !_hasSorts && _sort == '3',
+                          onTap: () {
+                            setState(() {
+                              _hasSorts = false;
+                              _sort = '3';
+                              _autoAppendSortToName('3-sort');
+                            });
+                          },
+                        ),
+                        _buildSortChip(
+                          label: 'Oliy sort',
+                          selected: !_hasSorts && _sort == 'oliy',
+                          onTap: () {
+                            setState(() {
+                              _hasSorts = false;
+                              _sort = 'oliy';
+                              _autoAppendSortToName('Oliy sort');
+                            });
+                          },
+                        ),
+                        _buildSortChip(
+                          label: '3 xil sorti bor (1 / 1.5 / 2)',
+                          selected: _hasSorts,
+                          badgeIcon: Icons.auto_awesome,
+                          onTap: () {
+                            setState(() {
+                              _hasSorts = true;
+                              _sort = null;
+                              _autoAppendSortToName('');
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    if (_hasSorts) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: context.isDark ? const Color(0xFF1B2E1D) : const Color(0xFFECFDF5),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: context.isDark ? const Color(0xFF22542B) : const Color(0xFFA7F3D0),
+                          ),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.info_outline_rounded, size: 14, color: AppColors.green),
+                            SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Kassada (POS) sotuvchi har bir sotuvda 1, 1.5 yoki 2-sortni tanlay oladi.',
+                                style: TextStyle(fontSize: 11, color: AppColors.green, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: _price,

@@ -113,6 +113,7 @@ class ProductIn(BaseModel):
     dona_m2: Decimal | None = Field(default=None, gt=0)
     price: Decimal = Field(ge=0)
     cost_price: Decimal = Field(default=Decimal(0), ge=0)
+    sort: str | None = None
     has_sorts: bool = False
     image_url: str | None = None
     initial_stock: Decimal = Field(default=Decimal(0), ge=0)  # faqat yaratishda
@@ -126,6 +127,7 @@ class ProductUpdate(BaseModel):
     dona_m2: Decimal | None = Field(default=None, gt=0)
     price: Decimal | None = Field(default=None, ge=0)
     cost_price: Decimal | None = Field(default=None, ge=0)
+    sort: str | None = None
     has_sorts: bool | None = None
     image_url: str | None = None
 
@@ -139,6 +141,7 @@ class ProductOut(BaseModel):
     dona_m2: Decimal | None
     price: Decimal
     cost_price: Decimal
+    sort: str | None = None
     has_sorts: bool = False
     image_url: str | None = None
     is_active: bool

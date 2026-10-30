@@ -24,6 +24,7 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 def to_out(p: m.Product, stock) -> ProductOut:
     return ProductOut(id=p.id, name=p.name, sku=p.sku, qr_code=p.qr_code, unit=p.unit,
                       dona_m2=p.dona_m2, price=p.price, cost_price=p.cost_price,
+                      sort=getattr(p, 'sort', None),
                       has_sorts=getattr(p, 'has_sorts', False) or False,
                       image_url=p.image_url, is_active=p.is_active, stock=stock)
 
@@ -85,7 +86,7 @@ def create_product(data: ProductIn, db: Session = Depends(get_db),
                    admin: m.User = Depends(require_roles(roles.ADMIN))):
     p = m.Product(name=data.name.strip(), sku=data.sku or None, qr_code=data.qr_code or None,
                   unit=data.unit, dona_m2=data.dona_m2, price=data.price,
-                  cost_price=data.cost_price, has_sorts=data.has_sorts, image_url=data.image_url)
+                  cost_price=data.cost_price, sort=data.sort, has_sorts=data.has_sorts, image_url=data.image_url)
     db.add(p)
     try:
         db.flush()

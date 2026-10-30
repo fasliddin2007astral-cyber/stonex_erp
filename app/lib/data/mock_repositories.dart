@@ -366,7 +366,7 @@ class MockProductRepository implements ProductRepository {
     }
     final created = Product(
       id: _s.nextProductId++, name: p.name, sku: p.sku, qrCode: p.qrCode, unit: p.unit,
-      donaM2: p.donaM2, price: p.price, costPrice: p.costPrice, stock: initialStock,
+      donaM2: p.donaM2, sort: p.sort, hasSorts: p.hasSorts, price: p.price, costPrice: p.costPrice, stock: initialStock,
       imageUrl: p.imageUrl,
     );
     _s.products.add(created);
@@ -386,7 +386,7 @@ class MockProductRepository implements ProductRepository {
     final old = _s.products[i];
     final updated = Product(
       id: p.id, name: p.name, sku: p.sku, qrCode: p.qrCode, unit: p.unit, donaM2: p.donaM2,
-      price: p.price, costPrice: p.costPrice, stock: old.stock, // qoldiq faqat harakatlar orqali o'zgaradi
+      sort: p.sort, hasSorts: p.hasSorts, price: p.price, costPrice: p.costPrice, stock: old.stock, // qoldiq faqat harakatlar orqali o'zgaradi
       imageUrl: p.imageUrl ?? old.imageUrl,
     );
     _s.products[i] = updated;

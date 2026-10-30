@@ -226,7 +226,8 @@ class Product {
   final String qrCode;
   final String unit; // m2, dona, kg, m
   final double? donaM2; // faqat toshlar uchun (0.25)
-  final bool hasSorts; // 1, 1.5, 2 sortlari mavjudligi
+  final String? sort; // 1, 1.5, 2, 3, oliy
+  final bool hasSorts; // 1, 1.5, 2 sortlari mavjudligi (kassada tanlanadi)
   final double price; // bazaviy birlik narxi
   final double costPrice;
   final double stock;
@@ -239,6 +240,7 @@ class Product {
     this.qrCode = '',
     required this.unit,
     this.donaM2,
+    this.sort,
     this.hasSorts = false,
     required this.price,
     this.costPrice = 0,
@@ -248,6 +250,16 @@ class Product {
 
   bool get hasDona => donaM2 != null && donaM2! > 0;
 
+  String get sortLabel {
+    if (sort != null && sort!.isNotEmpty) {
+      return sort == 'oliy' ? 'Oliy sort' : '$sort-sort';
+    }
+    if (hasSorts) {
+      return '1 • 1.5 • 2 sort';
+    }
+    return '';
+  }
+
   Product copyWith({
     int? id,
     String? name,
@@ -255,6 +267,7 @@ class Product {
     String? qrCode,
     String? unit,
     double? donaM2,
+    String? sort,
     bool? hasSorts,
     double? price,
     double? costPrice,
@@ -268,6 +281,7 @@ class Product {
         qrCode: qrCode ?? this.qrCode,
         unit: unit ?? this.unit,
         donaM2: donaM2 ?? this.donaM2,
+        sort: sort ?? this.sort,
         hasSorts: hasSorts ?? this.hasSorts,
         price: price ?? this.price,
         costPrice: costPrice ?? this.costPrice,
@@ -282,6 +296,7 @@ class Product {
         qrCode: (j['qr_code'] ?? '').toString(),
         unit: (j['unit'] ?? 'm²').toString(),
         donaM2: j['dona_m2'] == null ? null : parseNum(j['dona_m2']),
+        sort: j['sort']?.toString(),
         hasSorts: j['has_sorts'] == true,
         price: parseNum(j['price']),
         costPrice: parseNum(j['cost_price']),
@@ -305,11 +320,12 @@ class Product {
         'qr_code': qrCode.isEmpty ? null : qrCode,
         'unit': unit,
         'dona_m2': donaM2,
+        'sort': sort,
         'has_sorts': hasSorts,
         'price': price,
         'cost_price': costPrice,
-        'image_url': imageUrl,
         'initial_stock': initialStock,
+        'image_url': imageUrl,
       };
 }
 

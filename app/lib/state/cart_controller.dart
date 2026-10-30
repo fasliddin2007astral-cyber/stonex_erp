@@ -22,7 +22,7 @@ class CartController extends ChangeNotifier {
     int? cutPieces,
     String? cutSpec,
   }) {
-    final effectiveSort = sort ?? (p.hasSorts ? '1.5' : null);
+    final effectiveSort = sort ?? (p.hasSorts ? '1.5' : (p.sort != null && p.sort!.isNotEmpty ? p.sort : null));
     final existing = lines.where((l) =>
         l.product.id == p.id &&
         l.sort == effectiveSort &&

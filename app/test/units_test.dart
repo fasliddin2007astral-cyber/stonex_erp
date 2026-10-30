@@ -101,4 +101,51 @@ void main() {
     final adminReport = reports.firstWhere((r) => r.userId == 1);
     expect(adminReport.netSalary > 0, true);
   });
+
+  test('Mahsulot qo‘shishda sort tanlash (1, 1.5, 2, oliy va hasSorts) to‘g‘ri saqlanadi', () async {
+    final s = MockStore();
+    final repo = MockProductRepository(s);
+
+    // 1-sort tosh mahsuloti
+    final p1 = await repo.create(const Product(
+      id: 0,
+      name: 'Marmar Oq (1-sort)',
+      unit: 'm2',
+      sort: '1',
+      price: 220000,
+      costPrice: 150000,
+    ));
+    expect(p1.sort, '1');
+    expect(p1.sortLabel, '1-sort');
+
+    // 2-sort tosh mahsuloti
+    final p2 = await repo.create(const Product(
+      id: 0,
+      name: 'Marmar Oq (2-sort)',
+      unit: 'm2',
+      sort: '2',
+      price: 180000,
+      costPrice: 120000,
+    ));
+    expect(p2.sort, '2');
+    expect(p2.sortLabel, '2-sort');
+
+    // 3 xil sorti bor mahsulot (kassada tanlanadi)
+    final pMulti = await repo.create(const Product(
+      id: 0,
+      name: 'Granit Granit',
+      unit: 'm2',
+      hasSorts: true,
+      price: 300000,
+      costPrice: 200000,
+    ));
+    expect(pMulti.hasSorts, true);
+    expect(pMulti.sortLabel, '1 • 1.5 • 2 sort');
+
+    // CartController ga qo'shilganda mahsulot sorti avtomatik biriktiriladi
+    final sales = MockSalesRepository(s);
+    final cart = CartController(sales);
+    cart.add(p2);
+    expect(cart.lines.first.sort, '2');
+  });
 }

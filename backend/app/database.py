@@ -45,6 +45,8 @@ def ensure_migrations():
                 conn.execute(text("ALTER TABLE products ADD COLUMN image_url TEXT NULL"))
             if "has_sorts" not in columns:
                 conn.execute(text("ALTER TABLE products ADD COLUMN has_sorts BOOLEAN DEFAULT FALSE"))
+            if "sort" not in columns:
+                conn.execute(text("ALTER TABLE products ADD COLUMN sort VARCHAR(16) NULL"))
     if "customers" in table_names:
         c_columns = [c["name"] for c in inspector.get_columns("customers")]
         with engine.begin() as conn:
