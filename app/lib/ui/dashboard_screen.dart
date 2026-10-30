@@ -1422,18 +1422,143 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // 2. O'rta o'ng: Mahsulotlar Qoldiq Jadvali (Custom Tags & Labels)
   // ---------------------------------------------------------------------------
 
+    Widget _buildProductStockRow(BuildContext context, Product p) {
+    final isOut = p.stock <= 0;
+    final isLow = p.stock > 0 && p.stock < 15;
+
+    Color stockBg;
+    Color stockColor;
+    String stockText;
+
+    if (isOut) {
+      stockBg = context.isDark ? const Color(0xFF3B1818) : const Color(0xFFFEE2E2);
+      stockColor = AppColors.danger;
+      stockText = 'Tugagan';
+    } else if (isLow) {
+      stockBg = context.isDark ? const Color(0xFF38250A) : const Color(0xFFFEF3C7);
+      stockColor = const Color(0xFFD97706);
+      stockText = 'Kam: ${qty(p.stock)} ${p.unit}';
+    } else {
+      stockBg = context.isDark ? const Color(0xFF10281E) : AppColors.greenSoft;
+      stockColor = context.isDark ? AppColors.greenBright : const Color(0xFF047857);
+      stockText = '${qty(p.stock)} ${p.unit}';
+    }
+
+    return InkWell(
+      onTap: () => widget.onNavigate?.call(3),
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: () => showProductImagePreview(
+                context,
+                imageUrl: p.imageUrl,
+                name: p.name,
+                subtitle: "${money(p.price)} / ${p.unit} • Qoldiq: ${qty(p.stock)} ${p.unit}",
+              ),
+              child: ProductThumbnail(
+                imageUrl: p.imageUrl,
+                name: p.name,
+                size: 40,
+                borderRadius: 10,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          p.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: context.inkColor,
+                          ),
+                        ),
+                      ),
+                      if (p.hasSorts) ...[
+                        const SizedBox(width: 5),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: AppColors.neonLime.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: const Text(
+                            '1·1.5·2 sort',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.neonLime,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    p.sku.isNotEmpty ? "${p.sku} · ${money(p.price)} / ${p.unit}" : "${money(p.price)} / ${p.unit}",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: context.mutedColor, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+              decoration: BoxDecoration(
+                color: stockBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: stockColor.withValues(alpha: 0.3)),
+              ),
+              child: Text(
+                stockText,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  color: stockColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTagsAndStockTableCard(List<Product> products, {double? height}) {
-    final tags = ['Barchasi', 'Ko‘p sotiladigan', 'Chegirma', 'Kam qolgan'];
+    final lowStock = products.where((p) => p.stock > 0 && p.stock < 15).toList();
+    final outOfStock = products.where((p) => p.stock <= 0).toList();
+    final inStock = products.where((p) => p.stock >= 15).toList();
+    final sortProducts = products.where((p) => p.hasSorts).toList();
+
+    final tags = ['Barchasi', 'Kam qolgan', 'Tugagan', 'Yetarli', 'Sortli'];
+
+    if (!tags.contains(_selectedTag)) {
+      _selectedTag = 'Barchasi';
+    }
 
     var filtered = List<Product>.from(products);
     if (_selectedTag == 'Kam qolgan') {
-      filtered = filtered.where((p) => p.stock < 15).toList();
-    } else if (_selectedTag == 'Ko‘p sotiladigan') {
-      filtered.sort((a, b) => (b.stock * b.price).compareTo(a.stock * a.price));
-    } else if (_selectedTag == 'Chegirma') {
-      filtered = filtered
-          .where((p) => p.costPrice > 0 && p.price > p.costPrice)
-          .toList();
+      filtered = lowStock;
+    } else if (_selectedTag == 'Tugagan') {
+      filtered = outOfStock;
+    } else if (_selectedTag == 'Yetarli') {
+      filtered = inStock;
+    } else if (_selectedTag == 'Sortli') {
+      filtered = sortProducts;
     }
 
     return LayoutBuilder(
@@ -1441,7 +1566,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final isCompact = cardConstraints.maxWidth < 480;
         return Container(
           height: height,
-          padding: EdgeInsets.all(isCompact ? 14 : 22),
+          padding: EdgeInsets.all(isCompact ? 14 : 20),
           decoration: BoxDecoration(
             color: context.cardColor,
             borderRadius: BorderRadius.circular(22),
@@ -1450,18 +1575,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Sarlavha qatori
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
-                    child: Text(
-                      'Ombor Holati va Mahsulotlar',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: isCompact ? 14.5 : 16,
-                          fontWeight: FontWeight.w800,
-                          color: context.inkColor),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: context.isDark ? const Color(0xFF1E2822) : const Color(0xFFECFDF5),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: context.isDark ? const Color(0xFF264233) : const Color(0xFFA7F3D0),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.inventory_2_rounded,
+                            size: 16,
+                            color: AppColors.greenBright,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'Ombor Holati va Mahsulotlar',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: isCompact ? 14 : 15.5,
+                              fontWeight: FontWeight.w800,
+                              color: context.inkColor,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -1473,9 +1622,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Text(
                         'Barchasi →',
                         style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: context.isDark ? AppColors.neonLime : AppColors.ink),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: context.isDark ? AppColors.neonLime : AppColors.ink,
+                        ),
                       ),
                     ),
                   ),
@@ -1483,7 +1633,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Teglar qatori
+              // Teglar (Filterlar) qatori
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -1492,13 +1642,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       GestureDetector(
                         onTap: () => setState(() => _selectedTag = tag),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
                             color: _selectedTag == tag
                                 ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
                                 : context.pillColor,
                             borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: _selectedTag == tag
+                                  ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+                                  : context.borderColor.withValues(alpha: 0.5),
+                            ),
                           ),
                           child: Text(
                             tag,
@@ -1507,7 +1661,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               color: _selectedTag == tag
                                   ? (context.isDark ? AppColors.ink : Colors.white)
                                   : context.mutedColor,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: _selectedTag == tag ? FontWeight.w800 : FontWeight.w600,
                             ),
                           ),
                         ),
@@ -1518,182 +1672,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
-              // Mahsulotlar mini-jadvali
+              // Mahsulotlar ro'yxati
               if (height != null)
                 Expanded(
                   child: filtered.isEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 24),
-                          child: Center(
-                              child: Text('Mahsulotlar topilmadi',
-                                  style: TextStyle(color: context.mutedColor, fontSize: 13))),
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.inbox_rounded, size: 36, color: context.mutedColor.withValues(alpha: 0.5)),
+                                const SizedBox(height: 8),
+                                Text(
+                                  "Bu toifada mahsulotlar yo'q",
+                                  style: TextStyle(color: context.mutedColor, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
                         )
                       : ListView.separated(
                           shrinkWrap: false,
                           physics: const BouncingScrollPhysics(),
                           padding: EdgeInsets.zero,
-                          itemCount: math.min(filtered.length, 5),
-                          separatorBuilder: (_, __) => Divider(height: 12, color: context.borderColor),
-                          itemBuilder: (_, i) {
-                    final p = filtered[i];
-
-                    return InkWell(
-                      onTap: () => widget.onNavigate?.call(3),
-                      borderRadius: BorderRadius.circular(10),
-                      mouseCursor: SystemMouseCursors.click,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            GestureDetector(
-                              onTap: () => showProductImagePreview(
-                                context,
-                                imageUrl: p.imageUrl,
-                                name: p.name,
-                                subtitle: '${money(p.price)} / ${p.unit} • Qoldiq: ${qty(p.stock)} ${p.unit}',
-                              ),
-                              child: ProductThumbnail(
-                                imageUrl: p.imageUrl,
-                                name: p.name,
-                                size: 44,
-                                borderRadius: 10,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    p.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w700, fontSize: 13, color: context.inkColor),
-                                  ),
-                                  Text(
-                                    p.sku.isNotEmpty
-                                        ? p.sku
-                                        : '${qty(p.stock)} ${p.unit}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        color: context.mutedColor, fontSize: 11),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              fit: FlexFit.loose,
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  money(p.price),
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w800, fontSize: 12, color: context.inkColor),
-                                ),
-                              ),
-                            ),
-                          ],
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, __) => Divider(height: 8, color: context.borderColor),
+                          itemBuilder: (_, i) => _buildProductStockRow(context, filtered[i]),
                         ),
-                      ),
-                    );
-                  },
-                ),
                 )
               else if (filtered.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
-                  child: Center(
-                      child: Text('Mahsulotlar topilmadi',
-                          style: TextStyle(color: context.mutedColor, fontSize: 13))),
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      "Bu toifada mahsulotlar yo'q",
+                      style: TextStyle(color: context.mutedColor, fontSize: 13),
+                    ),
+                  ),
                 )
               else
                 ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: math.min(filtered.length, 5),
-                  separatorBuilder: (_, __) => Divider(height: 14, color: context.borderColor),
-                  itemBuilder: (_, i) {
-                    final p = filtered[i];
-
-                    return InkWell(
-                      onTap: () => widget.onNavigate?.call(3),
-                      borderRadius: BorderRadius.circular(10),
-                      mouseCursor: SystemMouseCursors.click,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            GestureDetector(
-                              onTap: () => showProductImagePreview(
-                                context,
-                                imageUrl: p.imageUrl,
-                                name: p.name,
-                                subtitle: '${money(p.price)} / ${p.unit} • Qoldiq: ${qty(p.stock)} ${p.unit}',
-                              ),
-                              child: ProductThumbnail(
-                                imageUrl: p.imageUrl,
-                                name: p.name,
-                                size: 44,
-                                borderRadius: 10,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    p.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w700, fontSize: 13, color: context.inkColor),
-                                  ),
-                                  Text(
-                                    p.sku.isNotEmpty
-                                        ? p.sku
-                                        : '${qty(p.stock)} ${p.unit}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        color: context.mutedColor, fontSize: 11),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              fit: FlexFit.loose,
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  money(p.price),
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w800, fontSize: 12, color: context.inkColor),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+                  itemCount: math.min(filtered.length, 6),
+                  separatorBuilder: (_, __) => Divider(height: 8, color: context.borderColor),
+                  itemBuilder: (_, i) => _buildProductStockRow(context, filtered[i]),
                 ),
             ],
           ),
         );
       },
     );
-}
+  }
 
-  // ---------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
   // 3. Pastki chap: So'nggi Savdolar (Sales & Orders)
   // ---------------------------------------------------------------------------
 
