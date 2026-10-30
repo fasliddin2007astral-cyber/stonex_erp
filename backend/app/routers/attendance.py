@@ -288,3 +288,4 @@ def get_salary_report(
         )
 
     return report
+

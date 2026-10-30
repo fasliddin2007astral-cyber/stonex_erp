@@ -32,6 +32,9 @@ def get_db():
 
 def ensure_migrations():
     """Jadvallarga yangi ustunlarni xavfsiz qo'shish."""
+    from . import models  # Modellar metadatasini yuklash
+    Base.metadata.create_all(engine)
+
     from sqlalchemy import inspect, text
     inspector = inspect(engine)
     table_names = inspector.get_table_names()
@@ -56,4 +59,11 @@ def ensure_migrations():
                 conn.execute(text("ALTER TABLE sales ADD COLUMN status VARCHAR(20) DEFAULT 'completed'"))
             if "note" not in s_columns:
                 conn.execute(text("ALTER TABLE sales ADD COLUMN note VARCHAR(255) NULL"))
+    if "users" in table_names:
+        u_columns = [c["name"] for c in inspector.get_columns("users")]
+        with engine.begin() as conn:
+            if "salary" not in u_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN salary DECIMAL(14, 2) DEFAULT 0.00"))
+            if "salary_type" not in u_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN salary_type VARCHAR(16) DEFAULT 'monthly'"))
 

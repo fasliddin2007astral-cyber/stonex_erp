@@ -38,9 +38,26 @@ class ApiClient {
     }
 
     final text = utf8.decode(res.bodyBytes);
-    final data = text.isEmpty ? null : jsonDecode(text);
+    dynamic data;
+    if (text.isNotEmpty) {
+      try {
+        data = jsonDecode(text);
+      } catch (_) {
+        data = null;
+      }
+    }
     if (res.statusCode >= 400) {
-      throw ApiException(_detail(data) ?? 'Rasm yuklashda xatolik (${res.statusCode})', res.statusCode);
+      final msg = _detail(data);
+      if (msg != null && msg.isNotEmpty) {
+        throw ApiException(msg, res.statusCode);
+      }
+      if (res.statusCode == 500) {
+        throw ApiException('Serverda ichki xatolik yuz berdi (500). Serverni tekshiring.', res.statusCode);
+      }
+      throw ApiException(
+        text.isNotEmpty && text.length < 100 && !text.contains('<html') ? text : 'Rasm yuklashda xatolik (${res.statusCode})',
+        res.statusCode,
+      );
     }
     return data;
   }
@@ -73,9 +90,26 @@ class ApiClient {
     }
 
     final text = utf8.decode(res.bodyBytes);
-    final data = text.isEmpty ? null : jsonDecode(text);
+    dynamic data;
+    if (text.isNotEmpty) {
+      try {
+        data = jsonDecode(text);
+      } catch (_) {
+        data = null;
+      }
+    }
     if (res.statusCode >= 400) {
-      throw ApiException(_detail(data) ?? 'Xatolik (${res.statusCode})', res.statusCode);
+      final msg = _detail(data);
+      if (msg != null && msg.isNotEmpty) {
+        throw ApiException(msg, res.statusCode);
+      }
+      if (res.statusCode == 500) {
+        throw ApiException('Serverda ichki xatolik yuz berdi (500). Serverni tekshiring.', res.statusCode);
+      }
+      throw ApiException(
+        text.isNotEmpty && text.length < 100 && !text.contains('<html') ? text : 'Xatolik (${res.statusCode})',
+        res.statusCode,
+      );
     }
     return data;
   }
