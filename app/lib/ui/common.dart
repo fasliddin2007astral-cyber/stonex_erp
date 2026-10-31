@@ -313,3 +313,64 @@ class NotImplementedView extends StatelessWidget {
         ),
       );
 }
+
+Color getStoneColor(String? colorName) {
+  if (colorName == null) return Colors.grey;
+  final c = colorName.trim().toLowerCase();
+  if (c.contains('qora') || c.contains('black') || c.contains('dark')) return const Color(0xFF1E293B);
+  if (c.contains('oq') || c.contains('white')) return const Color(0xFFF1F5F9);
+  if (c.contains('ko‘k') || c.contains("ko'k") || c.contains('kok') || c.contains('blue')) return const Color(0xFF2563EB);
+  if (c.contains('kulrang') || c.contains('grey') || c.contains('gray')) return const Color(0xFF64748B);
+  if (c.contains('bej') || c.contains('beige') || c.contains('krem')) return const Color(0xFFD4B996);
+  if (c.contains('yashil') || c.contains('green')) return const Color(0xFF10B981);
+  if (c.contains('qizil') || c.contains('red')) return const Color(0xFFEF4444);
+  if (c.contains('jigarrang') || c.contains('brown')) return const Color(0xFF854D0E);
+  if (c.contains('sariq') || c.contains('yellow')) return const Color(0xFFF59E0B);
+  return const Color(0xFF64748B);
+}
+
+class StoneColorBadge extends StatelessWidget {
+  const StoneColorBadge({super.key, required this.colorName, this.fontSize = 10});
+  final String colorName;
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final dotColor = getStoneColor(colorName);
+    final isWhite = dotColor.value == const Color(0xFFF1F5F9).value;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: context.isDark ? const Color(0xFF21262D) : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: context.borderColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: dotColor,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isWhite ? Colors.grey : dotColor.withValues(alpha: 0.5),
+                width: 1,
+              ),
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            colorName,
+            style: TextStyle(
+              fontSize: fontSize,
+              fontWeight: FontWeight.w700,
+              color: context.inkColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

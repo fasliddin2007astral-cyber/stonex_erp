@@ -116,6 +116,7 @@ class ProductIn(BaseModel):
     cost_price: Decimal = Field(default=Decimal(0), ge=0)
     sort: str | None = None
     has_sorts: bool = False
+    color: str | None = None
     price_sort1: Decimal | None = Field(default=None, ge=0)
     price_sort1_5: Decimal | None = Field(default=None, ge=0)
     price_sort2: Decimal | None = Field(default=None, ge=0)
@@ -134,6 +135,7 @@ class ProductUpdate(BaseModel):
     cost_price: Decimal | None = Field(default=None, ge=0)
     sort: str | None = None
     has_sorts: bool | None = None
+    color: str | None = None
     price_sort1: Decimal | None = Field(default=None, ge=0)
     price_sort1_5: Decimal | None = Field(default=None, ge=0)
     price_sort2: Decimal | None = Field(default=None, ge=0)
@@ -152,6 +154,7 @@ class ProductOut(BaseModel):
     cost_price: Decimal
     sort: str | None = None
     has_sorts: bool = False
+    color: str | None = None
     price_sort1: Decimal | None = None
     price_sort1_5: Decimal | None = None
     price_sort2: Decimal | None = None
@@ -216,6 +219,7 @@ class SaleItemIn(BaseModel):
     custom_name: str | None = None
     price: Decimal | None = None
     sort: str | None = None
+    color: str | None = None
 
 
 class SaleIn(BaseModel):

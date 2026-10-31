@@ -347,7 +347,12 @@ class MockProductRepository implements ProductRepository {
   @override
   Future<List<Product>> list({String? query}) async {
     final q = (query ?? '').trim().toLowerCase();
-    final all = _s.products.where((p) => q.isEmpty || p.name.toLowerCase().contains(q) || p.qrCode.toLowerCase().contains(q) || p.sku.toLowerCase().contains(q));
+    final all = _s.products.where((p) =>
+        q.isEmpty ||
+        p.name.toLowerCase().contains(q) ||
+        p.qrCode.toLowerCase().contains(q) ||
+        p.sku.toLowerCase().contains(q) ||
+        (p.color != null && p.color!.toLowerCase().contains(q)));
     return all.toList()..sort((a, b) => a.name.compareTo(b.name));
   }
 
@@ -368,6 +373,7 @@ class MockProductRepository implements ProductRepository {
     final created = Product(
       id: _s.nextProductId++, name: p.name, sku: p.sku, qrCode: p.qrCode, unit: p.unit,
       donaM2: p.donaM2, thickness: p.thickness, sort: p.sort, hasSorts: p.hasSorts,
+      color: p.color,
       priceSort1: p.priceSort1, priceSort1_5: p.priceSort1_5, priceSort2: p.priceSort2,
       price: p.price, costPrice: p.costPrice, stock: initialStock,
       imageUrl: p.imageUrl,
@@ -390,6 +396,7 @@ class MockProductRepository implements ProductRepository {
     final updated = Product(
       id: p.id, name: p.name, sku: p.sku, qrCode: p.qrCode, unit: p.unit, donaM2: p.donaM2,
       thickness: p.thickness, sort: p.sort, hasSorts: p.hasSorts,
+      color: p.color,
       priceSort1: p.priceSort1, priceSort1_5: p.priceSort1_5, priceSort2: p.priceSort2,
       price: p.price, costPrice: p.costPrice, stock: old.stock, // qoldiq faqat harakatlar orqali o'zgaradi
       imageUrl: p.imageUrl ?? old.imageUrl,

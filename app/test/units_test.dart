@@ -267,4 +267,59 @@ void main() {
     expect(sale.total, 1700000);
     expect(sale.items.first.unitPrice, 170000);
   });
+
+  test('Mahsulot rangi (masalan Angola: Ko‘k, Oq, Qora) va savatda rang tanlash', () async {
+    final s = MockStore();
+    final salesRepo = MockSalesRepository(s);
+    final prodRepo = MockProductRepository(s);
+
+    // Angola toshi: Ko'k, Oq, Qora ranglari mavjud
+    final angola = await prodRepo.create(const Product(
+      id: 0,
+      name: 'Angola Granit',
+      unit: 'm2',
+      color: 'Ko‘k, Oq, Qora',
+      price: 250000,
+      costPrice: 160000,
+    ), initialStock: 80);
+
+    expect(angola.color, 'Ko‘k, Oq, Qora');
+    expect(angola.hasMultipleColors, true);
+    expect(angola.availableColors, ['Ko‘k', 'Oq', 'Qora']);
+
+    // Rang bo'yicha qidiruv
+    final foundBlue = await prodRepo.list(query: 'ko‘k');
+    expect(foundBlue.any((p) => p.id == angola.id), true);
+
+    // Savatga qo'shish
+    final cart = CartController(salesRepo);
+    cart.add(angola, quantity: 5); // default birinchi rang: Ko'k
+    expect(cart.lines.first.color, 'Ko‘k');
+    expect(cart.lines.first.displayName, contains('(Ko‘k)'));
+
+    // Rangini Oq ga o'zgartirish
+    cart.update(cart.lines.first, color: 'Oq');
+    expect(cart.lines.first.color, 'Oq');
+    expect(cart.lines.first.displayName, contains('(Oq)'));
+
+    // Bitta aniq rangli mahsulot (masalan Angola Qora)
+    final angolaBlack = await prodRepo.create(const Product(
+      id: 0,
+      name: 'Angola Black',
+      unit: 'm2',
+      color: 'Qora',
+      price: 260000,
+      costPrice: 170000,
+    ), initialStock: 40);
+
+    expect(angolaBlack.availableColors, ['Qora']);
+    expect(angolaBlack.hasMultipleColors, false);
+
+    cart.add(angolaBlack, quantity: 2);
+    expect(cart.lines.last.color, 'Qora');
+
+    final sale = await cart.checkout(paid: cart.total);
+    expect(sale.items.length, 2);
+    expect(sale.items.first.productName, contains('(Oq)'));
+  });
 }

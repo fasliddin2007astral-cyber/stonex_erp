@@ -17,6 +17,7 @@ class CartController extends ChangeNotifier {
     Product p, {
     double quantity = 1,
     String? sort,
+    String? color,
     double? cutLength,
     double? cutWidth,
     double? cutThickness,
@@ -24,9 +25,11 @@ class CartController extends ChangeNotifier {
     String? cutSpec,
   }) {
     final effectiveSort = sort ?? (p.hasSorts ? '1.5' : (p.sort != null && p.sort!.isNotEmpty ? p.sort : null));
+    final effectiveColor = color ?? (p.availableColors.isNotEmpty ? p.availableColors.first : p.color);
     final existing = lines.where((l) =>
         l.product.id == p.id &&
         l.sort == effectiveSort &&
+        l.color == effectiveColor &&
         l.cutSpec == cutSpec);
     if (existing.isNotEmpty && cutSpec == null) {
       existing.first.quantity += quantity;
@@ -35,6 +38,7 @@ class CartController extends ChangeNotifier {
         p,
         quantity: quantity,
         sort: effectiveSort,
+        color: effectiveColor,
         cutLength: cutLength,
         cutWidth: cutWidth,
         cutThickness: cutThickness ?? p.thickness,
@@ -50,6 +54,7 @@ class CartController extends ChangeNotifier {
     double? quantity,
     bool? inDona,
     String? sort,
+    String? color,
     double? cutLength,
     double? cutWidth,
     double? cutThickness,
@@ -60,6 +65,7 @@ class CartController extends ChangeNotifier {
     if (quantity != null && quantity > 0) l.quantity = quantity;
     if (inDona != null) l.inDona = inDona && l.product.hasDona;
     if (sort != null) l.sort = sort;
+    if (color != null) l.color = color;
     if (cutLength != null) l.cutLength = cutLength;
     if (cutWidth != null) l.cutWidth = cutWidth;
     if (cutThickness != null) l.cutThickness = cutThickness;

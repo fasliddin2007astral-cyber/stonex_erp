@@ -47,6 +47,8 @@ def ensure_migrations():
                 conn.execute(text("ALTER TABLE products ADD COLUMN has_sorts BOOLEAN DEFAULT FALSE"))
             if "sort" not in columns:
                 conn.execute(text("ALTER TABLE products ADD COLUMN sort VARCHAR(16) NULL"))
+            if "color" not in columns:
+                conn.execute(text("ALTER TABLE products ADD COLUMN color VARCHAR(64) NULL"))
             if "thickness" not in columns:
                 conn.execute(text("ALTER TABLE products ADD COLUMN thickness DECIMAL(14, 3) NULL"))
             if "price_sort1" not in columns:

@@ -690,6 +690,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                               ),
                                             ),
                                           ],
+                                          if (p.color != null && p.color!.isNotEmpty) ...[
+                                            const SizedBox(width: 6),
+                                            StoneColorBadge(colorName: p.color!),
+                                          ],
                                         ],
                                       ),
                                       const SizedBox(height: 3),
@@ -899,6 +903,7 @@ class _ProductDialogState extends State<ProductDialog> {
   late final _price = TextEditingController(text: widget.product == null ? '' : qty(widget.product!.price));
   late final _cost = TextEditingController(text: widget.product == null ? '' : qty(widget.product!.costPrice));
   late final _thickness = TextEditingController(text: widget.product?.thickness != null ? qty(widget.product!.thickness!) : '');
+  late final _color = TextEditingController(text: widget.product?.color ?? '');
   late final _priceSort1 = TextEditingController(text: widget.product?.priceSort1 != null ? qty(widget.product!.priceSort1!) : '');
   late final _priceSort1_5 = TextEditingController(text: widget.product?.priceSort1_5 != null ? qty(widget.product!.priceSort1_5!) : '');
   late final _priceSort2 = TextEditingController(text: widget.product?.priceSort2 != null ? qty(widget.product!.priceSort2!) : '');
@@ -990,6 +995,7 @@ class _ProductDialogState extends State<ProductDialog> {
     _price.dispose();
     _cost.dispose();
     _thickness.dispose();
+    _color.dispose();
     _priceSort1.dispose();
     _priceSort1_5.dispose();
     _priceSort2.dispose();
@@ -1152,6 +1158,7 @@ class _ProductDialogState extends State<ProductDialog> {
       thickness: (_unit == 'm2' && thick != null && thick > 0) ? thick : null,
       sort: _sort,
       hasSorts: _hasSorts,
+      color: _color.text.trim().isNotEmpty ? _color.text.trim() : null,
       priceSort1: _hasSorts ? p1 : null,
       priceSort1_5: _hasSorts ? p1_5 : null,
       priceSort2: _hasSorts ? p2 : null,
@@ -1759,6 +1766,111 @@ class _ProductDialogState extends State<ProductDialog> {
                         ),
                       ),
                     ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: context.isDark ? const Color(0xFF1B2028) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: context.borderColor),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.palette_outlined, size: 16, color: AppColors.green),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Rangi (masalan: Ko‘k, Oq, Qora)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: context.inkColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final c in ['Qora', 'Oq', 'Ko‘k', 'Kulrang', 'Bej', 'Yashil', 'Qizil', 'Jigarrang', 'Sariq'])
+                          InkWell(
+                            borderRadius: BorderRadius.circular(20),
+                            onTap: () {
+                              setState(() {
+                                final cur = _color.text.trim();
+                                if (cur.isEmpty) {
+                                  _color.text = c;
+                                } else if (cur.contains(c)) {
+                                  final parts = cur.split(RegExp(r'[,/•|]')).map((s) => s.trim()).where((s) => s.isNotEmpty && s != c).toList();
+                                  _color.text = parts.join(', ');
+                                } else {
+                                  _color.text = '$cur, $c';
+                                }
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _color.text.contains(c)
+                                    ? (context.isDark ? AppColors.neonLime.withValues(alpha: 0.25) : AppColors.greenSoft)
+                                    : (context.isDark ? const Color(0xFF242C38) : Colors.white),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: _color.text.contains(c) ? AppColors.green : context.borderColor,
+                                  width: _color.text.contains(c) ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: getStoneColor(c),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.black26),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    c,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: _color.text.contains(c) ? FontWeight.w800 : FontWeight.w600,
+                                      color: context.inkColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _color,
+                      decoration: InputDecoration(
+                        labelText: 'Rang (yoki bir nechta: Ko‘k, Oq, Qora)',
+                        hintText: 'Masalan: Ko‘k yoki Qora, Oq',
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        suffixIcon: _color.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear_rounded, size: 16),
+                                onPressed: () => setState(() => _color.clear()),
+                              )
+                            : null,
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
                   ],
                 ),
               ),

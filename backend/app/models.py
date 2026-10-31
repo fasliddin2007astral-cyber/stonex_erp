@@ -68,6 +68,7 @@ class Product(Base):
     cost_price: Mapped[Decimal] = mapped_column(MONEY, default=0)  # o'rtacha tannarx
     sort: Mapped[str | None] = mapped_column(String(16), nullable=True)  # 1, 1.5, 2, 3, oliy
     has_sorts: Mapped[bool] = mapped_column(Boolean, default=False)  # 1, 1.5, 2 sortlari mavjudmi
+    color: Mapped[str | None] = mapped_column(String(64), nullable=True)  # rangi: ko'k, oq, qora ...
     price_sort1: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)  # 1-sort narxi
     price_sort1_5: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)  # 1.5-sort narxi
     price_sort2: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)  # 2-sort narxi

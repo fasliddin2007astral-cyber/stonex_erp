@@ -229,6 +229,7 @@ class Product {
   final double? thickness; // tosh qalinligi (sm, masalan: 2.0 sm)
   final String? sort; // 1, 1.5, 2, 3, oliy
   final bool hasSorts; // 1, 1.5, 2 sortlari mavjudligi (kassada tanlanadi)
+  final String? color; // rangi (masalan: Ko'k, Oq, Qora yoki vergul bilan ajratilgan)
   final double? priceSort1; // 1-sort narxi
   final double? priceSort1_5; // 1.5-sort narxi
   final double? priceSort2; // 2-sort narxi
@@ -247,6 +248,7 @@ class Product {
     this.thickness,
     this.sort,
     this.hasSorts = false,
+    this.color,
     this.priceSort1,
     this.priceSort1_5,
     this.priceSort2,
@@ -257,6 +259,17 @@ class Product {
   });
 
   bool get hasDona => donaM2 != null && donaM2! > 0;
+
+  List<String> get availableColors {
+    if (color == null || color!.trim().isEmpty) return const [];
+    return color!
+        .split(RegExp(r'[,/•|]'))
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+  }
+
+  bool get hasMultipleColors => availableColors.length > 1;
 
   double priceForSort(String? s) {
     if (s == '1' && priceSort1 != null && priceSort1! > 0) return priceSort1!;
@@ -285,6 +298,7 @@ class Product {
     double? thickness,
     String? sort,
     bool? hasSorts,
+    String? color,
     double? priceSort1,
     double? priceSort1_5,
     double? priceSort2,
@@ -303,6 +317,7 @@ class Product {
         thickness: thickness ?? this.thickness,
         sort: sort ?? this.sort,
         hasSorts: hasSorts ?? this.hasSorts,
+        color: color ?? this.color,
         priceSort1: priceSort1 ?? this.priceSort1,
         priceSort1_5: priceSort1_5 ?? this.priceSort1_5,
         priceSort2: priceSort2 ?? this.priceSort2,
@@ -322,6 +337,7 @@ class Product {
         thickness: j['thickness'] == null ? null : parseNum(j['thickness']),
         sort: j['sort']?.toString(),
         hasSorts: j['has_sorts'] == true,
+        color: j['color']?.toString(),
         priceSort1: j['price_sort1'] == null ? null : parseNum(j['price_sort1']),
         priceSort1_5: j['price_sort1_5'] == null ? null : parseNum(j['price_sort1_5']),
         priceSort2: j['price_sort2'] == null ? null : parseNum(j['price_sort2']),
@@ -350,6 +366,7 @@ class Product {
         'thickness': thickness,
         'sort': sort,
         'has_sorts': hasSorts,
+        'color': color,
         'price_sort1': priceSort1,
         'price_sort1_5': priceSort1_5,
         'price_sort2': priceSort2,
@@ -365,6 +382,7 @@ class CartLine {
   double quantity;
   bool inDona;
   String? sort; // '1', '1.5', '2'
+  String? color; // rangi (masalan: Ko'k, Oq, Qora)
   double? cutLength; // metrda
   double? cutWidth; // metrda
   double? cutThickness; // santimetrda (sm)
@@ -377,6 +395,7 @@ class CartLine {
     this.quantity = 1,
     this.inDona = false,
     this.sort,
+    this.color,
     this.cutLength,
     this.cutWidth,
     this.cutThickness,
@@ -387,6 +406,11 @@ class CartLine {
     if (product.hasSorts && sort == null) {
       sort = '1.5';
     }
+    if (color == null && product.availableColors.isNotEmpty) {
+      color = product.availableColors.first;
+    } else if (color == null && product.color != null && product.color!.isNotEmpty) {
+      color = product.color;
+    }
   }
 
   double get unitPrice => unitPriceOverride ?? product.priceForSort(sort);
@@ -394,9 +418,12 @@ class CartLine {
   double get lineTotal => baseQty * unitPrice;
 
   String get displayName {
-    final s = (sort != null && sort!.isNotEmpty) ? ' ($sort-sort)' : '';
+    final col = (color != null && color!.isNotEmpty && !product.name.toLowerCase().contains(color!.toLowerCase()))
+        ? ' ($color)'
+        : '';
+    final s = (sort != null && sort!.isNotEmpty) ? ' [$sort-sort]' : '';
     final c = (cutSpec != null && cutSpec!.isNotEmpty) ? ' [$cutSpec]' : '';
-    return '${product.name}$s$c';
+    return '${product.name}$col$s$c';
   }
 
   CartLine copy() => CartLine(
@@ -404,6 +431,7 @@ class CartLine {
         quantity: quantity,
         inDona: inDona,
         sort: sort,
+        color: color,
         cutLength: cutLength,
         cutWidth: cutWidth,
         cutThickness: cutThickness,

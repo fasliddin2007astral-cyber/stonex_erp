@@ -683,6 +683,11 @@ class _ProductCardState extends State<_ProductCard> {
                                   color: context.inkColor,
                                 ),
                               ),
+                              if (p.color != null && p.color!.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 2),
+                                  child: StoneColorBadge(colorName: p.color!, fontSize: 9.5),
+                                ),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
@@ -1418,6 +1423,45 @@ class _CartLineTile extends StatelessWidget {
               onPressed: () => cart.remove(l),
             ),
           ]),
+
+          // Rang tanlash (agar Angola kabi bir nechta rangi bo'lsa yoki bitta rang belgilangan bo'lsa)
+          if (p.availableColors.length > 1) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Text('Rang:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.subtextColor)),
+                const SizedBox(width: 6),
+                for (final col in p.availableColors)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 5),
+                    child: ChoiceChip(
+                      avatar: Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          color: getStoneColor(col),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      label: Text(col, style: const TextStyle(fontSize: 11)),
+                      selected: (l.color ?? p.availableColors.first) == col,
+                      onSelected: (sel) {
+                        if (sel) cart.update(l, color: col);
+                      },
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+              ],
+            ),
+          ] else if (l.color != null && l.color!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Text('Rang: ', style: TextStyle(fontSize: 11, color: context.subtextColor)),
+                StoneColorBadge(colorName: l.color!, fontSize: 10),
+              ],
+            ),
+          ],
 
           // Sort tanlash (1, 1.5, 2)
           if (p.hasSorts) ...[
