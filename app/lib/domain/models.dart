@@ -226,8 +226,12 @@ class Product {
   final String qrCode;
   final String unit; // m2, dona, kg, m
   final double? donaM2; // faqat toshlar uchun (0.25)
+  final double? thickness; // tosh qalinligi (sm, masalan: 2.0 sm)
   final String? sort; // 1, 1.5, 2, 3, oliy
   final bool hasSorts; // 1, 1.5, 2 sortlari mavjudligi (kassada tanlanadi)
+  final double? priceSort1; // 1-sort narxi
+  final double? priceSort1_5; // 1.5-sort narxi
+  final double? priceSort2; // 2-sort narxi
   final double price; // bazaviy birlik narxi
   final double costPrice;
   final double stock;
@@ -240,8 +244,12 @@ class Product {
     this.qrCode = '',
     required this.unit,
     this.donaM2,
+    this.thickness,
     this.sort,
     this.hasSorts = false,
+    this.priceSort1,
+    this.priceSort1_5,
+    this.priceSort2,
     required this.price,
     this.costPrice = 0,
     this.stock = 0,
@@ -249,6 +257,13 @@ class Product {
   });
 
   bool get hasDona => donaM2 != null && donaM2! > 0;
+
+  double priceForSort(String? s) {
+    if (s == '1' && priceSort1 != null && priceSort1! > 0) return priceSort1!;
+    if (s == '1.5' && priceSort1_5 != null && priceSort1_5! > 0) return priceSort1_5!;
+    if (s == '2' && priceSort2 != null && priceSort2! > 0) return priceSort2!;
+    return price;
+  }
 
   String get sortLabel {
     if (sort != null && sort!.isNotEmpty) {
@@ -267,8 +282,12 @@ class Product {
     String? qrCode,
     String? unit,
     double? donaM2,
+    double? thickness,
     String? sort,
     bool? hasSorts,
+    double? priceSort1,
+    double? priceSort1_5,
+    double? priceSort2,
     double? price,
     double? costPrice,
     double? stock,
@@ -281,8 +300,12 @@ class Product {
         qrCode: qrCode ?? this.qrCode,
         unit: unit ?? this.unit,
         donaM2: donaM2 ?? this.donaM2,
+        thickness: thickness ?? this.thickness,
         sort: sort ?? this.sort,
         hasSorts: hasSorts ?? this.hasSorts,
+        priceSort1: priceSort1 ?? this.priceSort1,
+        priceSort1_5: priceSort1_5 ?? this.priceSort1_5,
+        priceSort2: priceSort2 ?? this.priceSort2,
         price: price ?? this.price,
         costPrice: costPrice ?? this.costPrice,
         stock: stock ?? this.stock,
@@ -296,8 +319,12 @@ class Product {
         qrCode: (j['qr_code'] ?? '').toString(),
         unit: (j['unit'] ?? 'm²').toString(),
         donaM2: j['dona_m2'] == null ? null : parseNum(j['dona_m2']),
+        thickness: j['thickness'] == null ? null : parseNum(j['thickness']),
         sort: j['sort']?.toString(),
         hasSorts: j['has_sorts'] == true,
+        priceSort1: j['price_sort1'] == null ? null : parseNum(j['price_sort1']),
+        priceSort1_5: j['price_sort1_5'] == null ? null : parseNum(j['price_sort1_5']),
+        priceSort2: j['price_sort2'] == null ? null : parseNum(j['price_sort2']),
         price: parseNum(j['price']),
         costPrice: parseNum(j['cost_price']),
         stock: parseNum(j['stock']),
@@ -320,8 +347,12 @@ class Product {
         'qr_code': qrCode.isEmpty ? null : qrCode,
         'unit': unit,
         'dona_m2': donaM2,
+        'thickness': thickness,
         'sort': sort,
         'has_sorts': hasSorts,
+        'price_sort1': priceSort1,
+        'price_sort1_5': priceSort1_5,
+        'price_sort2': priceSort2,
         'price': price,
         'cost_price': costPrice,
         'initial_stock': initialStock,
@@ -336,8 +367,10 @@ class CartLine {
   String? sort; // '1', '1.5', '2'
   double? cutLength; // metrda
   double? cutWidth; // metrda
+  double? cutThickness; // santimetrda (sm)
   int? cutPieces; // donasi
-  String? cutSpec; // masalan: '1.2 × 0.6 m (5 dona)'
+  String? cutSpec; // masalan: '1.2 × 0.6 m (2 sm, 5 dona)'
+  double? unitPriceOverride;
 
   CartLine(
     this.product, {
@@ -346,16 +379,19 @@ class CartLine {
     this.sort,
     this.cutLength,
     this.cutWidth,
+    this.cutThickness,
     this.cutPieces,
     this.cutSpec,
+    this.unitPriceOverride,
   }) {
     if (product.hasSorts && sort == null) {
       sort = '1.5';
     }
   }
 
+  double get unitPrice => unitPriceOverride ?? product.priceForSort(sort);
   double get baseQty => (inDona && product.hasDona) ? quantity * product.donaM2! : quantity;
-  double get lineTotal => baseQty * product.price;
+  double get lineTotal => baseQty * unitPrice;
 
   String get displayName {
     final s = (sort != null && sort!.isNotEmpty) ? ' ($sort-sort)' : '';
@@ -370,8 +406,10 @@ class CartLine {
         sort: sort,
         cutLength: cutLength,
         cutWidth: cutWidth,
+        cutThickness: cutThickness,
         cutPieces: cutPieces,
         cutSpec: cutSpec,
+        unitPriceOverride: unitPriceOverride,
       );
 }
 

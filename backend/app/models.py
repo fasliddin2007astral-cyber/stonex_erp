@@ -63,10 +63,14 @@ class Product(Base):
     qr_code: Mapped[str | None] = mapped_column(String(128), unique=True, nullable=True)
     unit: Mapped[str] = mapped_column(String(16))  # m2, dona, kg, m ...
     dona_m2: Mapped[Decimal | None] = mapped_column(QTY, nullable=True)  # faqat toshlar: 0.25
+    thickness: Mapped[Decimal | None] = mapped_column(QTY, nullable=True)  # tosh qalinligi (sm, masalan: 2.0)
     price: Mapped[Decimal] = mapped_column(MONEY, default=0)  # bazaviy birlik uchun sotuv narxi
     cost_price: Mapped[Decimal] = mapped_column(MONEY, default=0)  # o'rtacha tannarx
     sort: Mapped[str | None] = mapped_column(String(16), nullable=True)  # 1, 1.5, 2, 3, oliy
     has_sorts: Mapped[bool] = mapped_column(Boolean, default=False)  # 1, 1.5, 2 sortlari mavjudmi
+    price_sort1: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)  # 1-sort narxi
+    price_sort1_5: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)  # 1.5-sort narxi
+    price_sort2: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)  # 2-sort narxi
     image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

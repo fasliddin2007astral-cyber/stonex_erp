@@ -111,10 +111,14 @@ class ProductIn(BaseModel):
     qr_code: str | None = None
     unit: str = Field(min_length=1, max_length=16)
     dona_m2: Decimal | None = Field(default=None, gt=0)
+    thickness: Decimal | None = Field(default=None, gt=0)
     price: Decimal = Field(ge=0)
     cost_price: Decimal = Field(default=Decimal(0), ge=0)
     sort: str | None = None
     has_sorts: bool = False
+    price_sort1: Decimal | None = Field(default=None, ge=0)
+    price_sort1_5: Decimal | None = Field(default=None, ge=0)
+    price_sort2: Decimal | None = Field(default=None, ge=0)
     image_url: str | None = None
     initial_stock: Decimal = Field(default=Decimal(0), ge=0)  # faqat yaratishda
 
@@ -125,10 +129,14 @@ class ProductUpdate(BaseModel):
     qr_code: str | None = None
     unit: str | None = None
     dona_m2: Decimal | None = Field(default=None, gt=0)
+    thickness: Decimal | None = Field(default=None, gt=0)
     price: Decimal | None = Field(default=None, ge=0)
     cost_price: Decimal | None = Field(default=None, ge=0)
     sort: str | None = None
     has_sorts: bool | None = None
+    price_sort1: Decimal | None = Field(default=None, ge=0)
+    price_sort1_5: Decimal | None = Field(default=None, ge=0)
+    price_sort2: Decimal | None = Field(default=None, ge=0)
     image_url: str | None = None
 
 
@@ -139,10 +147,14 @@ class ProductOut(BaseModel):
     qr_code: str | None
     unit: str
     dona_m2: Decimal | None
+    thickness: Decimal | None = None
     price: Decimal
     cost_price: Decimal
     sort: str | None = None
     has_sorts: bool = False
+    price_sort1: Decimal | None = None
+    price_sort1_5: Decimal | None = None
+    price_sort2: Decimal | None = None
     image_url: str | None = None
     is_active: bool
     stock: Decimal
@@ -202,6 +214,8 @@ class SaleItemIn(BaseModel):
     quantity: Decimal = Field(gt=0)
     unit: Literal["base", "dona"] = "base"
     custom_name: str | None = None
+    price: Decimal | None = None
+    sort: str | None = None
 
 
 class SaleIn(BaseModel):

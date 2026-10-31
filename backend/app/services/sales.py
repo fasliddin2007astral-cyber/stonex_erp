@@ -26,7 +26,7 @@ def to_base_qty(product: m.Product, quantity: Decimal, unit: str) -> Decimal:
 
 def create_sale(db: Session, cashier: m.User, data: SaleIn) -> m.Sale:
     reserved: dict[int, Decimal] = {}
-    lines: list[tuple[m.Product, Decimal]] = []
+    lines: list[tuple[m.Product, Decimal, str | None, Decimal]] = []
     is_order = (getattr(data, "status", "completed") == "order")
 
     for it in data.items:
@@ -43,10 +43,21 @@ def create_sale(db: Session, cashier: m.User, data: SaleIn) -> m.Sale:
                     400, f"{product.name}: omborda yetarli emas (bor: {available} {product.unit})"
                 )
             reserved[product.id] = reserved.get(product.id, Decimal(0)) + qty
-        lines.append((product, qty, it.custom_name))
 
-    total = sum((q2(q * p.price) for p, q, _ in lines), Decimal(0))
-    total_cost = sum((q2(q * p.cost_price) for p, q, _ in lines), Decimal(0))
+        eff_price = product.price
+        if it.price is not None and it.price > 0:
+            eff_price = q2(it.price)
+        elif it.sort == "1" and product.price_sort1:
+            eff_price = product.price_sort1
+        elif it.sort == "1.5" and product.price_sort1_5:
+            eff_price = product.price_sort1_5
+        elif it.sort == "2" and product.price_sort2:
+            eff_price = product.price_sort2
+
+        lines.append((product, qty, it.custom_name, eff_price))
+
+    total = sum((q2(q * pr) for p, q, _, pr in lines), Decimal(0))
+    total_cost = sum((q2(q * p.cost_price) for p, q, _, _ in lines), Decimal(0))
     paid = q2(data.paid_amount)
     if paid > total:
         raise HTTPException(400, "To'lov savdo summasidan oshib ketdi")
@@ -83,11 +94,11 @@ def create_sale(db: Session, cashier: m.User, data: SaleIn) -> m.Sale:
     db.add(sale)
     db.flush()
 
-    for product, qty, custom_name in lines:
+    for product, qty, custom_name, pr in lines:
         item_name = custom_name.strip() if (custom_name and custom_name.strip()) else product.name
         db.add(m.SaleItem(sale_id=sale.id, product_id=product.id, product_name=item_name,
-                          quantity=qty, unit_price=product.price, unit_cost=product.cost_price,
-                          line_total=q2(qty * product.price)))
+                          quantity=qty, unit_price=pr, unit_cost=product.cost_price,
+                          line_total=q2(qty * pr)))
         if not is_order:
             add_movement(db, product_id=product.id, qty_delta=-qty, kind=m.MV_SALE,
                          ref_type="sale", ref_id=sale.id, user_id=cashier.id)

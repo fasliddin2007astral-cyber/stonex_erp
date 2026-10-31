@@ -47,6 +47,14 @@ def ensure_migrations():
                 conn.execute(text("ALTER TABLE products ADD COLUMN has_sorts BOOLEAN DEFAULT FALSE"))
             if "sort" not in columns:
                 conn.execute(text("ALTER TABLE products ADD COLUMN sort VARCHAR(16) NULL"))
+            if "thickness" not in columns:
+                conn.execute(text("ALTER TABLE products ADD COLUMN thickness DECIMAL(14, 3) NULL"))
+            if "price_sort1" not in columns:
+                conn.execute(text("ALTER TABLE products ADD COLUMN price_sort1 DECIMAL(14, 2) NULL"))
+            if "price_sort1_5" not in columns:
+                conn.execute(text("ALTER TABLE products ADD COLUMN price_sort1_5 DECIMAL(14, 2) NULL"))
+            if "price_sort2" not in columns:
+                conn.execute(text("ALTER TABLE products ADD COLUMN price_sort2 DECIMAL(14, 2) NULL"))
     if "customers" in table_names:
         c_columns = [c["name"] for c in inspector.get_columns("customers")]
         with engine.begin() as conn:

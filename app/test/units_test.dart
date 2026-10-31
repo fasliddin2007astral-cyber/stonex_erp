@@ -204,4 +204,67 @@ void main() {
       throwsA(isA<Exception>()),
     );
   });
+
+  test('Mahsulot sortiga qarab har xil narx, tosh qalinligi va savat dinamikasi', () async {
+    final s = MockStore();
+    final salesRepo = MockSalesRepository(s);
+    final prodRepo = MockProductRepository(s);
+
+    // Kafel tosh mahsuloti: 3 xil sorti bor, qalinligi 2.0 sm
+    final stone = await prodRepo.create(const Product(
+      id: 0,
+      name: 'Travertin Klassik',
+      unit: 'm2',
+      hasSorts: true,
+      thickness: 2.0,
+      price: 200000, // standart / bazaviy
+      priceSort1: 220000, // 1-sort narxi
+      priceSort1_5: 200000, // 1.5-sort narxi
+      priceSort2: 170000, // 2-sort narxi
+      costPrice: 120000,
+    ), initialStock: 100);
+
+    expect(stone.thickness, 2.0);
+    expect(stone.priceForSort('1'), 220000);
+    expect(stone.priceForSort('1.5'), 200000);
+    expect(stone.priceForSort('2'), 170000);
+    expect(stone.priceForSort('oliy'), 200000); // fallback to base
+
+    final cart = CartController(salesRepo);
+    cart.add(stone, quantity: 10); // default sort = '1.5'
+    expect(cart.lines.first.sort, '1.5');
+    expect(cart.lines.first.unitPrice, 200000);
+    expect(cart.lines.first.lineTotal, 2000000);
+    expect(cart.total, 2000000);
+
+    // Kassir 1-sortni tanlaganda narx avtomatik 220 000 ga o'zgaradi
+    cart.update(cart.lines.first, sort: '1');
+    expect(cart.lines.first.unitPrice, 220000);
+    expect(cart.lines.first.lineTotal, 2200000);
+    expect(cart.total, 2200000);
+
+    // Kassir 2-sortni tanlaganda narx avtomatik 170 000 ga o'zgaradi
+    cart.update(cart.lines.first, sort: '2');
+    expect(cart.lines.first.unitPrice, 170000);
+    expect(cart.lines.first.lineTotal, 1700000);
+    expect(cart.total, 1700000);
+
+    // Razmer / kesish kalkulyatori: qalinlik (2.0 sm), bo'yi 1.2m, eni 0.6m, 5 dona
+    cart.update(
+      cart.lines.first,
+      cutLength: 1.2,
+      cutWidth: 0.6,
+      cutThickness: 2.0,
+      cutPieces: 5,
+      cutSpec: '1.2×0.6m (2 sm, 5 dona)',
+    );
+    expect(cart.lines.first.cutThickness, 2.0);
+    expect(cart.lines.first.displayName, contains('2 sm, 5 dona'));
+    expect(cart.lines.first.displayName, contains('2-sort'));
+
+    // Savdoni yakunlash
+    final sale = await cart.checkout(paid: cart.total);
+    expect(sale.total, 1700000);
+    expect(sale.items.first.unitPrice, 170000);
+  });
 }

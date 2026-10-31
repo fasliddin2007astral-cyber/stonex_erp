@@ -367,7 +367,9 @@ class MockProductRepository implements ProductRepository {
     }
     final created = Product(
       id: _s.nextProductId++, name: p.name, sku: p.sku, qrCode: p.qrCode, unit: p.unit,
-      donaM2: p.donaM2, sort: p.sort, hasSorts: p.hasSorts, price: p.price, costPrice: p.costPrice, stock: initialStock,
+      donaM2: p.donaM2, thickness: p.thickness, sort: p.sort, hasSorts: p.hasSorts,
+      priceSort1: p.priceSort1, priceSort1_5: p.priceSort1_5, priceSort2: p.priceSort2,
+      price: p.price, costPrice: p.costPrice, stock: initialStock,
       imageUrl: p.imageUrl,
     );
     _s.products.add(created);
@@ -387,7 +389,9 @@ class MockProductRepository implements ProductRepository {
     final old = _s.products[i];
     final updated = Product(
       id: p.id, name: p.name, sku: p.sku, qrCode: p.qrCode, unit: p.unit, donaM2: p.donaM2,
-      sort: p.sort, hasSorts: p.hasSorts, price: p.price, costPrice: p.costPrice, stock: old.stock, // qoldiq faqat harakatlar orqali o'zgaradi
+      thickness: p.thickness, sort: p.sort, hasSorts: p.hasSorts,
+      priceSort1: p.priceSort1, priceSort1_5: p.priceSort1_5, priceSort2: p.priceSort2,
+      price: p.price, costPrice: p.costPrice, stock: old.stock, // qoldiq faqat harakatlar orqali o'zgaradi
       imageUrl: p.imageUrl ?? old.imageUrl,
     );
     _s.products[i] = updated;
@@ -447,7 +451,7 @@ class MockSalesRepository implements SalesRepository {
         if (q > available + 1e-9) throw ApiException('${p.name}: omborda yetarli emas (bor: $available ${p.unit})', 400);
       }
       reserved[p.id] = (reserved[p.id] ?? 0) + q;
-      total += q * p.price;
+      total += l.lineTotal;
       cost += q * p.costPrice;
     }
     if (paidAmount < 0 || paidAmount > total + 1e-6) throw ApiException('To‘lov summasi noto‘g‘ri', 400);
@@ -487,7 +491,7 @@ class MockSalesRepository implements SalesRepository {
         productId: l.product.id,
         productName: l.displayName,
         quantity: l.baseQty,
-        unitPrice: l.product.price,
+        unitPrice: l.unitPrice,
         lineTotal: l.lineTotal,
       )).toList(),
     );

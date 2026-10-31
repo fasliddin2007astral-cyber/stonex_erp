@@ -155,7 +155,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       isTablet: isTablet,
                     ),
 
-                    const SizedBox(height: 20),                    // 2. O‘rta bo‘lim: Dinamika grafigi + Mahsulotlar jadvali (Sinxron balandlikda simmetrik)
+                    const SizedBox(
+                        height:
+                            20), // 2. O‘rta bo‘lim: Dinamika grafigi + Mahsulotlar jadvali (Sinxron balandlikda simmetrik)
                     if (isDesktop)
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -284,8 +286,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       prevStart = DateTime(now.year, now.month, now.day - 1);
       prevEnd = filterStart;
     } else if (period == 'Haftalik') {
-      filterStart =
-          DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6));
+      filterStart = DateTime(now.year, now.month, now.day)
+          .subtract(const Duration(days: 6));
       prevStart = filterStart.subtract(const Duration(days: 7));
       prevEnd = filterStart;
     } else if (period == 'Oylik') {
@@ -716,14 +718,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final currentCatStock = catProducts.fold<double>(
       0.0,
       (sum, p) =>
-          sum + (p.stock * (p.price > 0 ? p.price : (p.costPrice > 0 ? p.costPrice : 0.0))),
+          sum +
+          (p.stock *
+              (p.price > 0 ? p.price : (p.costPrice > 0 ? p.costPrice : 0.0))),
     );
     final totalAllStock = allProducts.fold<double>(
       0.0,
       (sum, p) =>
-          sum + (p.stock * (p.price > 0 ? p.price : (p.costPrice > 0 ? p.costPrice : 0.0))),
+          sum +
+          (p.stock *
+              (p.price > 0 ? p.price : (p.costPrice > 0 ? p.costPrice : 0.0))),
     );
-    final catRatio = totalAllStock > 0 ? (currentCatStock / totalAllStock) : 0.25;
+    final catRatio =
+        totalAllStock > 0 ? (currentCatStock / totalAllStock) : 0.25;
 
     // Har bir mahsulotning narxi
     final allProductPrices = {
@@ -758,7 +765,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       for (final m in movements) {
         final mDate = m.createdAt.toLocal();
         if (mDate.isAfter(timePoint)) {
-          final isCat = category == 'Barchasi' || catProductIds.contains(m.productId);
+          final isCat =
+              category == 'Barchasi' || catProductIds.contains(m.productId);
           if (isCat) {
             final pr = allProductPrices[m.productId] ?? 0.0;
             movementDelta += m.qtyDelta * pr;
@@ -821,7 +829,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       for (int i = 0; i < 7; i++) {
         final daysAgo = 6 - i;
-        final dayStart = DateTime(now.year, now.month, now.day).subtract(Duration(days: daysAgo));
+        final dayStart = DateTime(now.year, now.month, now.day)
+            .subtract(Duration(days: daysAgo));
         final dayEnd = dayStart.add(const Duration(days: 1));
         final wDay = dayStart.weekday;
 
@@ -830,21 +839,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
           fullLabels.add('${dayLongs[wDay - 1]} (Bugun)');
         } else {
           labels.add(dayShorts[wDay - 1]);
-          fullLabels.add('${dayLongs[wDay - 1]}, ${dayStart.day}-${monthNames[dayStart.month - 1]}');
+          fullLabels.add(
+              '${dayLongs[wDay - 1]}, ${dayStart.day}-${monthNames[dayStart.month - 1]}');
         }
 
         double daySales = 0.0;
         for (final s in sales) {
           final sDate = s.createdAt?.toLocal();
-          if (sDate != null && !sDate.isBefore(dayStart) && sDate.isBefore(dayEnd)) {
+          if (sDate != null &&
+              !sDate.isBefore(dayStart) &&
+              sDate.isBefore(dayEnd)) {
             daySales += getSaleAmountForCategory(s);
           }
         }
         salesPoints[i] = daySales;
-        stockPoints[i] = daysAgo == 0 ? currentCatStock : getStockAtTime(dayEnd);
+        stockPoints[i] =
+            daysAgo == 0 ? currentCatStock : getStockAtTime(dayEnd);
       }
     } else if (period == 'Yillik') {
-      labels = ['Yan-Fev', 'Mar-Apr', 'May-Iyn', 'Iyl-Avg', 'Sen-Okt', 'Noy-Dek'];
+      labels = [
+        'Yan-Fev',
+        'Mar-Apr',
+        'May-Iyn',
+        'Iyl-Avg',
+        'Sen-Okt',
+        'Noy-Dek'
+      ];
       fullLabels = [
         'Yanvar - Fevral',
         'Mart - Aprel',
@@ -867,7 +887,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         double biMonthSales = 0.0;
         for (final s in sales) {
           final sDate = s.createdAt?.toLocal();
-          if (sDate != null && !sDate.isBefore(periodStart) && sDate.isBefore(periodEnd)) {
+          if (sDate != null &&
+              !sDate.isBefore(periodStart) &&
+              sDate.isBefore(periodEnd)) {
             biMonthSales += getSaleAmountForCategory(s);
           }
         }
@@ -888,10 +910,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       final monthStr = monthNames[now.month - 1];
       final weekIntervals = [
-        (DateTime(now.year, now.month, 1), DateTime(now.year, now.month, 8), '1-7 $monthStr'),
-        (DateTime(now.year, now.month, 8), DateTime(now.year, now.month, 15), '8-14 $monthStr'),
-        (DateTime(now.year, now.month, 15), DateTime(now.year, now.month, 22), '15-21 $monthStr'),
-        (DateTime(now.year, now.month, 22), DateTime(now.year, now.month + 1, 1), '22-oy oxiri $monthStr'),
+        (
+          DateTime(now.year, now.month, 1),
+          DateTime(now.year, now.month, 8),
+          '1-7 $monthStr'
+        ),
+        (
+          DateTime(now.year, now.month, 8),
+          DateTime(now.year, now.month, 15),
+          '8-14 $monthStr'
+        ),
+        (
+          DateTime(now.year, now.month, 15),
+          DateTime(now.year, now.month, 22),
+          '15-21 $monthStr'
+        ),
+        (
+          DateTime(now.year, now.month, 22),
+          DateTime(now.year, now.month + 1, 1),
+          '22-oy oxiri $monthStr'
+        ),
       ];
 
       for (int i = 0; i < 4; i++) {
@@ -902,7 +940,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (!wStart.isAfter(now)) {
           for (final s in sales) {
             final sDate = s.createdAt?.toLocal();
-            if (sDate != null && !sDate.isBefore(wStart) && sDate.isBefore(wEnd)) {
+            if (sDate != null &&
+                !sDate.isBefore(wStart) &&
+                sDate.isBefore(wEnd)) {
               intervalSales += getSaleAmountForCategory(s);
             }
           }
@@ -959,7 +999,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final catStockVal = catProducts.fold<double>(
       0.0,
       (sum, p) =>
-          sum + (p.stock * (p.price > 0 ? p.price : (p.costPrice > 0 ? p.costPrice : 0.0))),
+          sum +
+          (p.stock *
+              (p.price > 0 ? p.price : (p.costPrice > 0 ? p.costPrice : 0.0))),
     );
     final catSalesVal = salesPoints.fold<double>(0.0, (sum, v) => sum + v);
 
@@ -976,8 +1018,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         hoverIndex != null ? stockPoints[hoverIndex] : catStockVal;
     final activeSaleVal =
         hoverIndex != null ? salesPoints[hoverIndex] : catSalesVal;
-    final activeLabel =
-        hoverIndex != null ? fullLabels[hoverIndex] : '';
+    final activeLabel = hoverIndex != null ? fullLabels[hoverIndex] : '';
 
     return LayoutBuilder(
       builder: (context, cardConstraints) {
@@ -987,16 +1028,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           initialValue: _selectedPeriod,
           tooltip: 'Davrni tanlash',
           onSelected: (v) => setState(() => _selectedPeriod = v),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           itemBuilder: (_) => const [
             PopupMenuItem(value: 'Haftalik', child: Text('Haftalik')),
             PopupMenuItem(value: 'Oylik', child: Text('Oylik')),
             PopupMenuItem(value: 'Yillik', child: Text('Yillik')),
           ],
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: context.pillColor,
               borderRadius: BorderRadius.circular(20),
@@ -1044,7 +1084,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: height != null ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
+            mainAxisAlignment: height != null
+                ? MainAxisAlignment.spaceBetween
+                : MainAxisAlignment.start,
             children: [
               // Sarlavha va boshqaruv elementlari
               if (isCompact) ...[
@@ -1137,16 +1179,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ? 0.0
                       : padX +
                           (labels.length > 1
-                              ? (usableW * _chartHoverIndex! / (labels.length - 1))
+                              ? (usableW *
+                                  _chartHoverIndex! /
+                                  (labels.length - 1))
                               : (usableW / 2));
                   final tooltipW = math.min(240.0, math.max(140.0, w - 24.0));
                   final maxTooltipX = math.max(4.0, w - tooltipW - 4.0);
-                  final tooltipX = (activeX - (tooltipW / 2)).clamp(4.0, maxTooltipX);
+                  final tooltipX =
+                      (activeX - (tooltipW / 2)).clamp(4.0, maxTooltipX);
 
                   return MouseRegion(
                     onHover: (e) {
                       if (labels.isEmpty) return;
-                      final relX = (e.localPosition.dx - padX).clamp(0.0, usableW);
+                      final relX =
+                          (e.localPosition.dx - padX).clamp(0.0, usableW);
                       final newIdx = (labels.length > 1
                               ? ((relX / usableW) * (labels.length - 1)).round()
                               : 0)
@@ -1167,9 +1213,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: GestureDetector(
                       onPanDown: (d) {
                         if (labels.isEmpty) return;
-                        final relX = (d.localPosition.dx - padX).clamp(0.0, usableW);
+                        final relX =
+                            (d.localPosition.dx - padX).clamp(0.0, usableW);
                         final newIdx = (labels.length > 1
-                                ? ((relX / usableW) * (labels.length - 1)).round()
+                                ? ((relX / usableW) * (labels.length - 1))
+                                    .round()
                                 : 0)
                             .clamp(0, labels.length - 1);
                         if (_chartHoverIndex != newIdx) {
@@ -1180,9 +1228,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       },
                       onPanUpdate: (d) {
                         if (labels.isEmpty) return;
-                        final relX = (d.localPosition.dx - padX).clamp(0.0, usableW);
+                        final relX =
+                            (d.localPosition.dx - padX).clamp(0.0, usableW);
                         final newIdx = (labels.length > 1
-                                ? ((relX / usableW) * (labels.length - 1)).round()
+                                ? ((relX / usableW) * (labels.length - 1))
+                                    .round()
                                 : 0)
                             .clamp(0, labels.length - 1);
                         if (_chartHoverIndex != newIdx) {
@@ -1238,20 +1288,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.35),
+                                        color: Colors.black
+                                            .withValues(alpha: 0.35),
                                         blurRadius: 16,
                                         offset: const Offset(0, 6),
                                       ),
                                     ],
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Row(
                                         children: [
-                                          const Icon(Icons.calendar_today_rounded,
-                                              size: 11, color: Color(0xFF9CA3AF)),
+                                          const Icon(
+                                              Icons.calendar_today_rounded,
+                                              size: 11,
+                                              color: Color(0xFF9CA3AF)),
                                           const SizedBox(width: 5),
                                           Flexible(
                                             child: Text(
@@ -1267,11 +1321,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           const SizedBox(width: 6),
                                           Flexible(
                                             child: Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 5, vertical: 1.5),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 5,
+                                                      vertical: 1.5),
                                               decoration: BoxDecoration(
-                                                color: Colors.white.withValues(alpha: 0.08),
-                                                borderRadius: BorderRadius.circular(6),
+                                                color: Colors.white
+                                                    .withValues(alpha: 0.08),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
                                               ),
                                               child: Text(
                                                 _selectedCategory,
@@ -1280,7 +1338,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                                 style: const TextStyle(
                                                     color: Color(0xFF9CA3AF),
                                                     fontSize: 9.5,
-                                                    fontWeight: FontWeight.w600),
+                                                    fontWeight:
+                                                        FontWeight.w600),
                                               ),
                                             ),
                                           ),
@@ -1360,69 +1419,73 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 ),
                               ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-
-          const SizedBox(height: 16),
-
-          // Kategoriyalar filtri pill-tugmalari
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final cat in categories) ...[
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedCategory = cat;
-                      });
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: _selectedCategory == cat
-                            ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
-                            : context.pillColor,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        cat,
-                        style: TextStyle(
-                          color: _selectedCategory == cat
-                              ? (context.isDark ? AppColors.ink : Colors.white)
-                              : context.mutedColor,
-                          fontSize: 12,
-                          fontWeight: _selectedCategory == cat
-                              ? FontWeight.w700
-                              : FontWeight.w500,
+                          ],
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-              ],
-            ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 16),
+
+              // Kategoriyalar filtri pill-tugmalari
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final cat in categories) ...[
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedCategory = cat;
+                          });
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _selectedCategory == cat
+                                ? (context.isDark
+                                    ? AppColors.neonLime
+                                    : AppColors.darkCard)
+                                : context.pillColor,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            cat,
+                            style: TextStyle(
+                              color: _selectedCategory == cat
+                                  ? (context.isDark
+                                      ? AppColors.ink
+                                      : Colors.white)
+                                  : context.mutedColor,
+                              fontSize: 12,
+                              fontWeight: _selectedCategory == cat
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
-  },
-);
-}
+  }
 
   // ---------------------------------------------------------------------------
   // 2. O'rta o'ng: Mahsulotlar Qoldiq Jadvali (Custom Tags & Labels)
   // ---------------------------------------------------------------------------
 
-    Widget _buildProductStockRow(BuildContext context, Product p) {
+  Widget _buildProductStockRow(BuildContext context, Product p) {
     final isOut = p.stock <= 0;
     final isLow = p.stock > 0 && p.stock < 15;
 
@@ -1431,16 +1494,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     String stockText;
 
     if (isOut) {
-      stockBg = context.isDark ? const Color(0xFF3B1818) : const Color(0xFFFEE2E2);
+      stockBg =
+          context.isDark ? const Color(0xFF3B1818) : const Color(0xFFFEE2E2);
       stockColor = AppColors.danger;
       stockText = 'Tugagan';
     } else if (isLow) {
-      stockBg = context.isDark ? const Color(0xFF38250A) : const Color(0xFFFEF3C7);
+      stockBg =
+          context.isDark ? const Color(0xFF38250A) : const Color(0xFFFEF3C7);
       stockColor = const Color(0xFFD97706);
       stockText = 'Kam: ${qty(p.stock)} ${p.unit}';
     } else {
       stockBg = context.isDark ? const Color(0xFF10281E) : AppColors.greenSoft;
-      stockColor = context.isDark ? AppColors.greenBright : const Color(0xFF047857);
+      stockColor =
+          context.isDark ? AppColors.greenBright : const Color(0xFF047857);
       stockText = '${qty(p.stock)} ${p.unit}';
     }
 
@@ -1456,7 +1522,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 context,
                 imageUrl: p.imageUrl,
                 name: p.name,
-                subtitle: "${money(p.price)} / ${p.unit} • Qoldiq: ${qty(p.stock)} ${p.unit}",
+                subtitle:
+                    "${money(p.price)} / ${p.unit} • Qoldiq: ${qty(p.stock)} ${p.unit}",
               ),
               child: ProductThumbnail(
                 imageUrl: p.imageUrl,
@@ -1488,7 +1555,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       if (p.hasSorts) ...[
                         const SizedBox(width: 5),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 1),
                           decoration: BoxDecoration(
                             color: AppColors.neonLime.withValues(alpha: 0.18),
                             borderRadius: BorderRadius.circular(5),
@@ -1507,7 +1575,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    p.sku.isNotEmpty ? "${p.sku} · ${money(p.price)} / ${p.unit}" : "${money(p.price)} / ${p.unit}",
+                    p.sku.isNotEmpty
+                        ? "${p.sku} · ${money(p.price)} / ${p.unit}"
+                        : "${money(p.price)} / ${p.unit}",
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: context.mutedColor, fontSize: 11),
@@ -1539,7 +1609,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildTagsAndStockTableCard(List<Product> products, {double? height}) {
-    final lowStock = products.where((p) => p.stock > 0 && p.stock < 15).toList();
+    final lowStock =
+        products.where((p) => p.stock > 0 && p.stock < 15).toList();
     final outOfStock = products.where((p) => p.stock <= 0).toList();
     final inStock = products.where((p) => p.stock >= 15).toList();
     final sortProducts = products.where((p) => p.hasSorts).toList();
@@ -1585,10 +1656,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: context.isDark ? const Color(0xFF1E2822) : const Color(0xFFECFDF5),
+                            color: context.isDark
+                                ? const Color(0xFF1E2822)
+                                : const Color(0xFFECFDF5),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: context.isDark ? const Color(0xFF264233) : const Color(0xFFA7F3D0),
+                              color: context.isDark
+                                  ? const Color(0xFF264233)
+                                  : const Color(0xFFA7F3D0),
                             ),
                           ),
                           child: const Icon(
@@ -1618,13 +1693,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     onTap: () => widget.onNavigate?.call(3),
                     borderRadius: BorderRadius.circular(8),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 2),
                       child: Text(
                         'Barchasi →',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: context.isDark ? AppColors.neonLime : AppColors.ink,
+                          color: context.isDark
+                              ? AppColors.neonLime
+                              : AppColors.ink,
                         ),
                       ),
                     ),
@@ -1642,15 +1720,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       GestureDetector(
                         onTap: () => setState(() => _selectedTag = tag),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
                             color: _selectedTag == tag
-                                ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+                                ? (context.isDark
+                                    ? AppColors.neonLime
+                                    : AppColors.darkCard)
                                 : context.pillColor,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: _selectedTag == tag
-                                  ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+                                  ? (context.isDark
+                                      ? AppColors.neonLime
+                                      : AppColors.darkCard)
                                   : context.borderColor.withValues(alpha: 0.5),
                             ),
                           ),
@@ -1659,9 +1742,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             style: TextStyle(
                               fontSize: 11,
                               color: _selectedTag == tag
-                                  ? (context.isDark ? AppColors.ink : Colors.white)
+                                  ? (context.isDark
+                                      ? AppColors.ink
+                                      : Colors.white)
                                   : context.mutedColor,
-                              fontWeight: _selectedTag == tag ? FontWeight.w800 : FontWeight.w600,
+                              fontWeight: _selectedTag == tag
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
                             ),
                           ),
                         ),
@@ -1684,11 +1771,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.inbox_rounded, size: 36, color: context.mutedColor.withValues(alpha: 0.5)),
+                                Icon(Icons.inbox_rounded,
+                                    size: 36,
+                                    color: context.mutedColor
+                                        .withValues(alpha: 0.5)),
                                 const SizedBox(height: 8),
                                 Text(
                                   "Bu toifada mahsulotlar yo'q",
-                                  style: TextStyle(color: context.mutedColor, fontSize: 13),
+                                  style: TextStyle(
+                                      color: context.mutedColor, fontSize: 13),
                                 ),
                               ],
                             ),
@@ -1699,8 +1790,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           physics: const BouncingScrollPhysics(),
                           padding: EdgeInsets.zero,
                           itemCount: filtered.length,
-                          separatorBuilder: (_, __) => Divider(height: 8, color: context.borderColor),
-                          itemBuilder: (_, i) => _buildProductStockRow(context, filtered[i]),
+                          separatorBuilder: (_, __) =>
+                              Divider(height: 8, color: context.borderColor),
+                          itemBuilder: (_, i) =>
+                              _buildProductStockRow(context, filtered[i]),
                         ),
                 )
               else if (filtered.isEmpty)
@@ -1718,8 +1811,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: math.min(filtered.length, 6),
-                  separatorBuilder: (_, __) => Divider(height: 8, color: context.borderColor),
-                  itemBuilder: (_, i) => _buildProductStockRow(context, filtered[i]),
+                  separatorBuilder: (_, __) =>
+                      Divider(height: 8, color: context.borderColor),
+                  itemBuilder: (_, i) =>
+                      _buildProductStockRow(context, filtered[i]),
                 ),
             ],
           ),
@@ -1728,11 +1823,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-    // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   // 3. Pastki chap: So'nggi Savdolar (Sales & Orders)
   // ---------------------------------------------------------------------------
 
-  Widget _buildRecentOrdersCard(FinanceSummary f, List<SaleResult> sales, {double? height}) {
+  Widget _buildRecentOrdersCard(FinanceSummary f, List<SaleResult> sales,
+      {double? height}) {
     return Container(
       height: height,
       padding: const EdgeInsets.all(22),
@@ -1772,7 +1868,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: context.isDark ? AppColors.neonLime : AppColors.ink),
+                        color: context.isDark
+                            ? AppColors.neonLime
+                            : AppColors.ink),
                   ),
                 ),
               ),
@@ -1790,23 +1888,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             width: 44,
                             height: 44,
                             decoration: const BoxDecoration(
-                                color: AppColors.greenSoft, shape: BoxShape.circle),
+                                color: AppColors.greenSoft,
+                                shape: BoxShape.circle),
                             child: const Icon(Icons.shopping_bag_outlined,
                                 color: AppColors.green, size: 22),
                           ),
                           const SizedBox(height: 10),
                           Text('Hozircha savdolar yo‘q',
                               style: TextStyle(
-                                  fontWeight: FontWeight.w700, fontSize: 13, color: context.inkColor)),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: context.inkColor)),
                           const SizedBox(height: 4),
                           Text('Kassadan yangi savdo amalga oshiring',
-                              style: TextStyle(color: context.mutedColor, fontSize: 11)),
+                              style: TextStyle(
+                                  color: context.mutedColor, fontSize: 11)),
                           const SizedBox(height: 10),
                           FilledButton.tonal(
                             onPressed: () => widget.onNavigate?.call(1),
                             style: FilledButton.styleFrom(
-                              backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
-                              foregroundColor: context.isDark ? AppColors.ink : Colors.white,
+                              backgroundColor: context.isDark
+                                  ? AppColors.neonLime
+                                  : AppColors.darkCard,
+                              foregroundColor:
+                                  context.isDark ? AppColors.ink : Colors.white,
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 16, vertical: 8),
                             ),
@@ -1822,7 +1927,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       physics: const BouncingScrollPhysics(),
                       padding: EdgeInsets.zero,
                       itemCount: sales.length > 5 ? 5 : sales.length,
-                      separatorBuilder: (_, __) => Divider(height: 8, color: context.borderColor),
+                      separatorBuilder: (_, __) =>
+                          Divider(height: 8, color: context.borderColor),
                       itemBuilder: (_, i) => _buildSaleRowItem(sales[i]),
                     ),
             )
@@ -1843,16 +1949,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 10),
                     Text('Hozircha savdolar yo‘q',
                         style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 13, color: context.inkColor)),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: context.inkColor)),
                     const SizedBox(height: 4),
                     Text('Kassadan yangi savdo amalga oshiring',
-                        style: TextStyle(color: context.mutedColor, fontSize: 11)),
+                        style:
+                            TextStyle(color: context.mutedColor, fontSize: 11)),
                     const SizedBox(height: 10),
                     FilledButton.tonal(
                       onPressed: () => widget.onNavigate?.call(1),
                       style: FilledButton.styleFrom(
-                        backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
-                        foregroundColor: context.isDark ? AppColors.ink : Colors.white,
+                        backgroundColor: context.isDark
+                            ? AppColors.neonLime
+                            : AppColors.darkCard,
+                        foregroundColor:
+                            context.isDark ? AppColors.ink : Colors.white,
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 8),
                       ),
@@ -1865,8 +1977,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             )
           else
-            for (final s in sales.take(5))
-              _buildSaleRowItem(s),
+            for (final s in sales.take(5)) _buildSaleRowItem(s),
         ],
       ),
     );
@@ -1874,67 +1985,70 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildSaleRowItem(SaleResult s) {
     return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: InkWell(
-                  onTap: () => _showSaleDetails(s),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 16,
-                        backgroundColor: context.pillColor,
-                        child: Text(
-                          s.customerName != null && s.customerName!.isNotEmpty
-                              ? s.customerName![0].toUpperCase()
-                              : '#',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 12,
-                              color: context.inkColor),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              s.customerName?.isNotEmpty == true
-                                  ? s.customerName!
-                                  : 'Savdo #${s.id}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w700, fontSize: 13, color: context.inkColor),
-                            ),
-                            Text(
-                              s.createdAt != null
-                                  ? '${s.createdAt!.day.toString().padLeft(2, '0')}.${s.createdAt!.month.toString().padLeft(2, '0')} ${s.createdAt!.hour.toString().padLeft(2, '0')}:${s.createdAt!.minute.toString().padLeft(2, '0')}  ·  #${s.id}'
-                                  : 'Savdo #${s.id}',
-                              style: TextStyle(
-                                  color: context.mutedColor, fontSize: 10),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            money(s.total),
-                            style: TextStyle(
-                                fontWeight: FontWeight.w800, fontSize: 12, color: context.inkColor),
-                          ),
-                          const SizedBox(height: 4),
-                          _buildSaleStatusBadge(s),
-                        ],
-                      ),
-                    ],
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: InkWell(
+        onTap: () => _showSaleDetails(s),
+        borderRadius: BorderRadius.circular(10),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: context.pillColor,
+              child: Text(
+                s.customerName != null && s.customerName!.isNotEmpty
+                    ? s.customerName![0].toUpperCase()
+                    : '#',
+                style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    color: context.inkColor),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    s.customerName?.isNotEmpty == true
+                        ? s.customerName!
+                        : 'Savdo #${s.id}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: context.inkColor),
                   ),
+                  Text(
+                    s.createdAt != null
+                        ? '${s.createdAt!.day.toString().padLeft(2, '0')}.${s.createdAt!.month.toString().padLeft(2, '0')} ${s.createdAt!.hour.toString().padLeft(2, '0')}:${s.createdAt!.minute.toString().padLeft(2, '0')}  ·  #${s.id}'
+                        : 'Savdo #${s.id}',
+                    style: TextStyle(color: context.mutedColor, fontSize: 10),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  money(s.total),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                      color: context.inkColor),
                 ),
-              );
+                const SizedBox(height: 4),
+                _buildSaleStatusBadge(s),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildSaleStatusBadge(SaleResult s) {
@@ -1977,11 +2091,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
         title: Row(
           children: [
-            Icon(Icons.receipt_rounded, color: context.isDark ? AppColors.neonLime : AppColors.ink),
+            Icon(Icons.receipt_rounded,
+                color: context.isDark ? AppColors.neonLime : AppColors.ink),
             const SizedBox(width: 10),
             Text('Savdo #${s.id}',
-                style:
-                    TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: context.inkColor)),
+                style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: context.inkColor)),
           ],
         ),
         content: SizedBox(
@@ -2020,17 +2137,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Navigator.pop(ctx);
                 widget.onNavigate?.call(2); // Nasiyalar sahifasiga o'tish
               },
-              style:
-                  FilledButton.styleFrom(
-                    backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
-                    foregroundColor: context.isDark ? AppColors.ink : Colors.white,
-                  ),
+              style: FilledButton.styleFrom(
+                backgroundColor:
+                    context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                foregroundColor: context.isDark ? AppColors.ink : Colors.white,
+              ),
               child: const Text('Qarz undirish'),
             ),
         ],
       ),
     );
-}
+  }
 
   Widget _detailRow(String label, String value,
       {bool bold = false, Color? color}) {
@@ -2052,17 +2169,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
     );
-}
+  }
 
   // ---------------------------------------------------------------------------
   // 3. Pastki o'rta: AI Zaxira Tavsiyasi (AI Restock Recommendation)
   // ---------------------------------------------------------------------------
 
-  List<AiRestockItem> _calculateAiRecommendations(List<Product> products, List<SaleResult> sales) {
+  List<AiRestockItem> _calculateAiRecommendations(
+      List<Product> products, List<SaleResult> sales) {
     final salesVolume = <int, double>{};
     for (final s in sales) {
       for (final it in s.items) {
-        salesVolume[it.productId] = (salesVolume[it.productId] ?? 0) + it.quantity;
+        salesVolume[it.productId] =
+            (salesVolume[it.productId] ?? 0) + it.quantity;
       }
     }
 
@@ -2079,15 +2198,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (stock <= 0) {
         urgency = 'critical';
-        reason = 'Omborda butunlay tugagan! Zudlik bilan xarid yoki ishlab chiqarish kerak.';
+        reason =
+            'Omborda butunlay tugagan! Zudlik bilan xarid yoki ishlab chiqarish kerak.';
         recommended = (daily * 30).clamp(20.0, 300.0).roundToDouble();
       } else if (stock < 15 || daysLeft <= 5) {
         urgency = 'critical';
-        reason = 'Zaxira ~$daysLeft kunga yetadi (Kunlik sotuv: ~${daily.toStringAsFixed(1)} ${p.unit}).';
+        reason =
+            'Zaxira ~$daysLeft kunga yetadi (Kunlik sotuv: ~${daily.toStringAsFixed(1)} ${p.unit}).';
         recommended = ((daily * 30) - stock).clamp(10.0, 250.0).roundToDouble();
       } else if (stock < 35 || daysLeft <= 14) {
         urgency = 'warning';
-        reason = 'Xavfsiz zaxira miqdoridan past. Oldindan buyurtma berish tavsiya etiladi.';
+        reason =
+            'Xavfsiz zaxira miqdoridan past. Oldindan buyurtma berish tavsiya etiladi.';
         recommended = ((daily * 30) - stock).clamp(10.0, 200.0).roundToDouble();
       } else {
         urgency = 'optimal';
@@ -2109,7 +2231,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     items.sort((a, b) {
       const priority = {'critical': 0, 'warning': 1, 'optimal': 2};
-      final pComp = (priority[a.urgency] ?? 2).compareTo(priority[b.urgency] ?? 2);
+      final pComp =
+          (priority[a.urgency] ?? 2).compareTo(priority[b.urgency] ?? 2);
       if (pComp != 0) return pComp;
       return a.daysRemaining.compareTo(b.daysRemaining);
     });
@@ -2161,7 +2284,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             final filteredItems = items.where((it) {
-              if (filter == 'critical' && it.urgency != 'critical') return false;
+              if (filter == 'critical' && it.urgency != 'critical')
+                return false;
               if (filter == 'warning' && it.urgency != 'warning') return false;
               if (filter == 'optimal' && it.urgency != 'optimal') return false;
               if (search.trim().isNotEmpty) {
@@ -2173,9 +2297,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
             return Dialog(
               backgroundColor: ctx.cardColor,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24)),
               child: Container(
-                constraints: const BoxConstraints(maxWidth: 720, maxHeight: 660),
+                constraints:
+                    const BoxConstraints(maxWidth: 720, maxHeight: 660),
                 padding: const EdgeInsets.all(22),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2189,8 +2315,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: ctx.isDark
-                                  ? [const Color(0xFF283618), const Color(0xFF1B2A15)]
-                                  : [AppColors.neonLimeSoft, const Color(0xFFDCFCE7)],
+                                  ? [
+                                      const Color(0xFF283618),
+                                      const Color(0xFF1B2A15)
+                                    ]
+                                  : [
+                                      AppColors.neonLimeSoft,
+                                      const Color(0xFFDCFCE7)
+                                    ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -2224,9 +2356,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: AppColors.neonLime.withValues(alpha: 0.18),
+                                      color: AppColors.neonLime
+                                          .withValues(alpha: 0.18),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: const Text(
@@ -2244,7 +2378,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 'Kunlik sarf tezligi (burn rate) va joriy qoldiq asosida hisoblangan tavsiyalar',
-                                style: TextStyle(fontSize: 12, color: ctx.mutedColor),
+                                style: TextStyle(
+                                    fontSize: 12, color: ctx.mutedColor),
                               ),
                             ],
                           ),
@@ -2259,9 +2394,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                     // Mini KPI paneli
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
-                        color: ctx.isDark ? const Color(0xFF161F1A) : const Color(0xFFF8FAFC),
+                        color: ctx.isDark
+                            ? const Color(0xFF161F1A)
+                            : const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: ctx.borderColor),
                       ),
@@ -2270,9 +2408,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Expanded(
                             child: InkWell(
                               borderRadius: BorderRadius.circular(10),
-                              onTap: () => setDialogState(() => filter = filter == 'critical' ? 'all' : 'critical'),
+                              onTap: () => setDialogState(() => filter =
+                                  filter == 'critical' ? 'all' : 'critical'),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4),
                                 decoration: BoxDecoration(
                                   color: filter == 'critical'
                                       ? AppColors.danger.withValues(alpha: 0.12)
@@ -2282,57 +2422,84 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 child: Column(
                                   children: [
                                     const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
-                                        Icon(Icons.error_rounded, size: 14, color: AppColors.danger),
+                                        Icon(Icons.error_rounded,
+                                            size: 14, color: AppColors.danger),
                                         SizedBox(width: 4),
-                                        Text('Kritik tanqislik', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.muted)),
+                                        Text('Kritik tanqislik',
+                                            style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.muted)),
                                       ],
                                     ),
                                     const SizedBox(height: 3),
-                                    Text('${critical.length} ta tovar', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.danger)),
+                                    Text('${critical.length} ta tovar',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 16,
+                                            color: AppColors.danger)),
                                   ],
                                 ),
                               ),
                             ),
                           ),
-                          Container(width: 1, height: 32, color: ctx.borderColor),
+                          Container(
+                              width: 1, height: 32, color: ctx.borderColor),
                           Expanded(
                             child: InkWell(
                               borderRadius: BorderRadius.circular(10),
-                              onTap: () => setDialogState(() => filter = filter == 'warning' ? 'all' : 'warning'),
+                              onTap: () => setDialogState(() => filter =
+                                  filter == 'warning' ? 'all' : 'warning'),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4),
                                 decoration: BoxDecoration(
                                   color: filter == 'warning'
-                                      ? const Color(0xFFD97706).withValues(alpha: 0.12)
+                                      ? const Color(0xFFD97706)
+                                          .withValues(alpha: 0.12)
                                       : Colors.transparent,
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Column(
                                   children: [
                                     const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
-                                        Icon(Icons.warning_amber_rounded, size: 14, color: Color(0xFFD97706)),
+                                        Icon(Icons.warning_amber_rounded,
+                                            size: 14, color: Color(0xFFD97706)),
                                         SizedBox(width: 4),
-                                        Text('Zaxira zarur', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.muted)),
+                                        Text('Zaxira zarur',
+                                            style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.muted)),
                                       ],
                                     ),
                                     const SizedBox(height: 3),
-                                    Text('${warning.length} ta tovar', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFFD97706))),
+                                    Text('${warning.length} ta tovar',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 16,
+                                            color: Color(0xFFD97706))),
                                   ],
                                 ),
                               ),
                             ),
                           ),
-                          Container(width: 1, height: 32, color: ctx.borderColor),
+                          Container(
+                              width: 1, height: 32, color: ctx.borderColor),
                           Expanded(
                             child: InkWell(
                               borderRadius: BorderRadius.circular(10),
-                              onTap: () => setDialogState(() => filter = filter == 'optimal' ? 'all' : 'optimal'),
+                              onTap: () => setDialogState(() => filter =
+                                  filter == 'optimal' ? 'all' : 'optimal'),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4),
                                 decoration: BoxDecoration(
                                   color: filter == 'optimal'
                                       ? AppColors.green.withValues(alpha: 0.12)
@@ -2342,15 +2509,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 child: Column(
                                   children: [
                                     const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
-                                        Icon(Icons.check_circle_rounded, size: 14, color: AppColors.green),
+                                        Icon(Icons.check_circle_rounded,
+                                            size: 14, color: AppColors.green),
                                         SizedBox(width: 4),
-                                        Text('Yetarli zaxira', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.muted)),
+                                        Text('Yetarli zaxira',
+                                            style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.muted)),
                                       ],
                                     ),
                                     const SizedBox(height: 3),
-                                    Text('${optimal.length} ta tovar', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.green)),
+                                    Text('${optimal.length} ta tovar',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 16,
+                                            color: AppColors.green)),
                                   ],
                                 ),
                               ),
@@ -2368,15 +2545,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           child: SizedBox(
                             height: 38,
                             child: TextField(
-                              onChanged: (val) => setDialogState(() => search = val),
-                              style: TextStyle(fontSize: 12.5, color: ctx.inkColor),
+                              onChanged: (val) =>
+                                  setDialogState(() => search = val),
+                              style: TextStyle(
+                                  fontSize: 12.5, color: ctx.inkColor),
                               decoration: InputDecoration(
                                 hintText: 'Tovar nomini qidirish...',
-                                hintStyle: TextStyle(fontSize: 12, color: ctx.mutedColor),
-                                prefixIcon: const Icon(Icons.search_rounded, size: 18),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                                hintStyle: TextStyle(
+                                    fontSize: 12, color: ctx.mutedColor),
+                                prefixIcon:
+                                    const Icon(Icons.search_rounded, size: 18),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 0),
                                 filled: true,
-                                fillColor: ctx.isDark ? const Color(0xFF1A222C) : const Color(0xFFF1F5F9),
+                                fillColor: ctx.isDark
+                                    ? const Color(0xFF1A222C)
+                                    : const Color(0xFFF1F5F9),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                   borderSide: BorderSide.none,
@@ -2390,21 +2574,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           spacing: 6,
                           children: [
                             ChoiceChip(
-                              label: Text('Barchasi (${items.length})', style: const TextStyle(fontSize: 11.5)),
+                              label: Text('Barchasi (${items.length})',
+                                  style: const TextStyle(fontSize: 11.5)),
                               selected: filter == 'all',
-                              onSelected: (_) => setDialogState(() => filter = 'all'),
+                              onSelected: (_) =>
+                                  setDialogState(() => filter = 'all'),
                               visualDensity: VisualDensity.compact,
                             ),
                             ChoiceChip(
-                              label: Text('Kritik (${critical.length})', style: const TextStyle(fontSize: 11.5)),
+                              label: Text('Kritik (${critical.length})',
+                                  style: const TextStyle(fontSize: 11.5)),
                               selected: filter == 'critical',
-                              onSelected: (_) => setDialogState(() => filter = 'critical'),
+                              onSelected: (_) =>
+                                  setDialogState(() => filter = 'critical'),
                               visualDensity: VisualDensity.compact,
                             ),
                             ChoiceChip(
-                              label: Text('Kam (${warning.length})', style: const TextStyle(fontSize: 11.5)),
+                              label: Text('Kam (${warning.length})',
+                                  style: const TextStyle(fontSize: 11.5)),
                               selected: filter == 'warning',
-                              onSelected: (_) => setDialogState(() => filter = 'warning'),
+                              onSelected: (_) =>
+                                  setDialogState(() => filter = 'warning'),
                               visualDensity: VisualDensity.compact,
                             ),
                           ],
@@ -2419,12 +2609,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ? Center(
                               child: Text(
                                 "Tanlangan parametr bo'yicha tovarlar topilmadi.",
-                                style: TextStyle(color: ctx.mutedColor, fontSize: 13),
+                                style: TextStyle(
+                                    color: ctx.mutedColor, fontSize: 13),
                               ),
                             )
                           : ListView.separated(
                               itemCount: filteredItems.length,
-                              separatorBuilder: (_, __) => const SizedBox(height: 8),
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 8),
                               itemBuilder: (_, i) {
                                 final item = filteredItems[i];
                                 final isCrit = item.urgency == 'critical';
@@ -2432,17 +2624,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 final isOut = item.currentStock <= 0;
 
                                 Color statusColor = AppColors.green;
-                                String statusText = 'Yetarli (~${item.daysRemaining} kun)';
+                                String statusText =
+                                    'Yetarli (~${item.daysRemaining} kun)';
                                 if (isCrit) {
                                   statusColor = AppColors.danger;
-                                  statusText = isOut ? 'Tugagan (0 ${item.product.unit})' : 'Kritik (~${item.daysRemaining} kun)';
+                                  statusText = isOut
+                                      ? 'Tugagan (0 ${item.product.unit})'
+                                      : 'Kritik (~${item.daysRemaining} kun)';
                                 } else if (isWarn) {
                                   statusColor = const Color(0xFFD97706);
-                                  statusText = 'Kam (~${item.daysRemaining} kun)';
+                                  statusText =
+                                      'Kam (~${item.daysRemaining} kun)';
                                 }
 
-                                final totalTarget = item.currentStock + item.recommendedQty;
-                                final progress = totalTarget > 0 ? (item.currentStock / totalTarget).clamp(0.0, 1.0) : 1.0;
+                                final totalTarget =
+                                    item.currentStock + item.recommendedQty;
+                                final progress = totalTarget > 0
+                                    ? (item.currentStock / totalTarget)
+                                        .clamp(0.0, 1.0)
+                                    : 1.0;
 
                                 return Container(
                                   padding: const EdgeInsets.all(12),
@@ -2451,17 +2651,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(
                                       color: isCrit
-                                          ? AppColors.danger.withValues(alpha: 0.35)
+                                          ? AppColors.danger
+                                              .withValues(alpha: 0.35)
                                           : (isWarn
-                                              ? const Color(0xFFD97706).withValues(alpha: 0.3)
+                                              ? const Color(0xFFD97706)
+                                                  .withValues(alpha: 0.3)
                                               : ctx.borderColor),
                                     ),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           ProductThumbnail(
                                             imageUrl: item.product.imageUrl,
@@ -2472,7 +2676,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           const SizedBox(width: 12),
                                           Expanded(
                                             child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
                                                 Row(
                                                   children: [
@@ -2480,28 +2685,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                                       child: Text(
                                                         item.product.name,
                                                         style: TextStyle(
-                                                          fontWeight: FontWeight.w800,
+                                                          fontWeight:
+                                                              FontWeight.w800,
                                                           fontSize: 14.5,
                                                           color: ctx.inkColor,
                                                         ),
                                                         maxLines: 1,
-                                                        overflow: TextOverflow.ellipsis,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
                                                       ),
                                                     ),
                                                     Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 3),
                                                       decoration: BoxDecoration(
-                                                        color: statusColor.withValues(alpha: 0.12),
-                                                        borderRadius: BorderRadius.circular(8),
+                                                        color: statusColor
+                                                            .withValues(
+                                                                alpha: 0.12),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8),
                                                         border: Border.all(
-                                                          color: statusColor.withValues(alpha: 0.3),
+                                                          color: statusColor
+                                                              .withValues(
+                                                                  alpha: 0.3),
                                                         ),
                                                       ),
                                                       child: Text(
                                                         statusText,
                                                         style: TextStyle(
                                                           fontSize: 11,
-                                                          fontWeight: FontWeight.w800,
+                                                          fontWeight:
+                                                              FontWeight.w800,
                                                           color: statusColor,
                                                         ),
                                                       ),
@@ -2511,7 +2728,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                                 const SizedBox(height: 4),
                                                 Text(
                                                   item.reason,
-                                                  style: TextStyle(fontSize: 11.5, color: ctx.mutedColor),
+                                                  style: TextStyle(
+                                                      fontSize: 11.5,
+                                                      color: ctx.mutedColor),
                                                 ),
                                               ],
                                             ),
@@ -2526,8 +2745,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         child: LinearProgressIndicator(
                                           value: progress,
                                           minHeight: 5,
-                                          backgroundColor: ctx.isDark ? const Color(0xFF28323E) : const Color(0xFFE2E8F0),
-                                          valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                                          backgroundColor: ctx.isDark
+                                              ? const Color(0xFF28323E)
+                                              : const Color(0xFFE2E8F0),
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                  statusColor),
                                         ),
                                       ),
                                       const SizedBox(height: 10),
@@ -2536,42 +2759,64 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       Row(
                                         children: [
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 4),
                                             decoration: BoxDecoration(
-                                              color: ctx.isDark ? const Color(0xFF1E2833) : const Color(0xFFF1F5F9),
-                                              borderRadius: BorderRadius.circular(8),
+                                              color: ctx.isDark
+                                                  ? const Color(0xFF1E2833)
+                                                  : const Color(0xFFF1F5F9),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
                                             child: Text(
                                               'Qoldiq: ${qty(item.currentStock)} ${item.product.unit}',
-                                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ctx.inkColor),
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: ctx.inkColor),
                                             ),
                                           ),
                                           const SizedBox(width: 6),
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 4),
                                             decoration: BoxDecoration(
-                                              color: ctx.isDark ? const Color(0xFF1E2833) : const Color(0xFFF1F5F9),
-                                              borderRadius: BorderRadius.circular(8),
+                                              color: ctx.isDark
+                                                  ? const Color(0xFF1E2833)
+                                                  : const Color(0xFFF1F5F9),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
                                             child: Text(
                                               'Kunlik: ~${item.dailyBurn.toStringAsFixed(1)} ${item.product.unit}',
-                                              style: TextStyle(fontSize: 11, color: ctx.mutedColor),
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: ctx.mutedColor),
                                             ),
                                           ),
                                           const Spacer(),
                                           if (item.recommendedQty > 0) ...[
                                             Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 4),
                                               decoration: BoxDecoration(
-                                                color: ctx.isDark ? AppColors.neonLime.withValues(alpha: 0.18) : AppColors.greenSoft,
-                                                borderRadius: BorderRadius.circular(8),
+                                                color: ctx.isDark
+                                                    ? AppColors.neonLime
+                                                        .withValues(alpha: 0.18)
+                                                    : AppColors.greenSoft,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
                                               ),
                                               child: Text(
                                                 'AI: +${qty(item.recommendedQty)} ${item.product.unit}',
                                                 style: TextStyle(
                                                   fontSize: 11,
                                                   fontWeight: FontWeight.w900,
-                                                  color: ctx.isDark ? AppColors.neonLime : const Color(0xFF065F46),
+                                                  color: ctx.isDark
+                                                      ? AppColors.neonLime
+                                                      : const Color(0xFF065F46),
                                                 ),
                                               ),
                                             ),
@@ -2584,15 +2829,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                               style: FilledButton.styleFrom(
                                                 backgroundColor: isCrit
                                                     ? AppColors.danger
-                                                    : (ctx.isDark ? AppColors.neonLime : AppColors.darkCard),
+                                                    : (ctx.isDark
+                                                        ? AppColors.neonLime
+                                                        : AppColors.darkCard),
                                                 foregroundColor: isCrit
                                                     ? Colors.white
-                                                    : (ctx.isDark ? AppColors.ink : Colors.white),
-                                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                                visualDensity: VisualDensity.compact,
-                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                                    : (ctx.isDark
+                                                        ? AppColors.ink
+                                                        : Colors.white),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 14,
+                                                        vertical: 8),
+                                                visualDensity:
+                                                    VisualDensity.compact,
+                                                shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            10)),
                                               ),
-                                              child: const Text('Kirim', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
+                                              child: const Text('Kirim',
+                                                  style: TextStyle(
+                                                      fontSize: 11.5,
+                                                      fontWeight:
+                                                          FontWeight.w800)),
                                             ),
                                           ],
                                         ],
@@ -2614,13 +2874,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Navigator.pop(ctx);
                               _openQuickProduction();
                             },
-                            icon: const Icon(Icons.precision_manufacturing_rounded, size: 16),
-                            label: const Text('Sexga topshiriq ochish', style: TextStyle(fontWeight: FontWeight.w700)),
+                            icon: const Icon(
+                                Icons.precision_manufacturing_rounded,
+                                size: 16),
+                            label: const Text('Sexga topshiriq ochish',
+                                style: TextStyle(fontWeight: FontWeight.w700)),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: ctx.inkColor,
                               side: BorderSide(color: ctx.borderColor),
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14)),
                             ),
                           ),
                         ),
@@ -2631,13 +2895,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Navigator.pop(ctx);
                               _openQuickPurchase();
                             },
-                            icon: const Icon(Icons.shopping_bag_rounded, size: 16),
-                            label: const Text('+ Xarid Kirim Qilish', style: TextStyle(fontWeight: FontWeight.w800)),
+                            icon: const Icon(Icons.shopping_bag_rounded,
+                                size: 16),
+                            label: const Text('+ Xarid Kirim Qilish',
+                                style: TextStyle(fontWeight: FontWeight.w800)),
                             style: FilledButton.styleFrom(
                               backgroundColor: AppColors.neonLime,
                               foregroundColor: AppColors.ink,
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14)),
                             ),
                           ),
                         ),
@@ -2653,7 +2920,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildRestockAiCard(List<Product> products, List<SaleResult> sales, {double? height}) {
+  Widget _buildRestockAiCard(List<Product> products, List<SaleResult> sales,
+      {double? height}) {
     final items = _calculateAiRecommendations(products, sales);
     final critical = items.where((x) => x.urgency == 'critical').toList();
     final warning = items.where((x) => x.urgency == 'warning').toList();
@@ -2668,7 +2936,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         border: Border.all(
           color: critical.isNotEmpty
               ? AppColors.danger.withValues(alpha: 0.35)
-              : (warning.isNotEmpty ? const Color(0xFFD97706).withValues(alpha: 0.3) : context.borderColor),
+              : (warning.isNotEmpty
+                  ? const Color(0xFFD97706).withValues(alpha: 0.3)
+                  : context.borderColor),
           width: critical.isNotEmpty ? 1.5 : 1,
         ),
         boxShadow: [
@@ -2733,7 +3003,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1.5),
                           decoration: BoxDecoration(
                             color: AppColors.neonLime.withValues(alpha: 0.18),
                             borderRadius: BorderRadius.circular(6),
@@ -2764,10 +3035,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
                   color: critical.isNotEmpty
-                      ? (context.isDark ? const Color(0xFF3B1818) : const Color(0xFFFEE2E2))
+                      ? (context.isDark
+                          ? const Color(0xFF3B1818)
+                          : const Color(0xFFFEE2E2))
                       : (warning.isNotEmpty
-                          ? (context.isDark ? const Color(0xFF38250A) : const Color(0xFFFEF3C7))
-                          : (context.isDark ? const Color(0xFF10281E) : AppColors.greenSoft)),
+                          ? (context.isDark
+                              ? const Color(0xFF38250A)
+                              : const Color(0xFFFEF3C7))
+                          : (context.isDark
+                              ? const Color(0xFF10281E)
+                              : AppColors.greenSoft)),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: critical.isNotEmpty
@@ -2783,23 +3060,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Icon(
                       critical.isNotEmpty
                           ? Icons.error_rounded
-                          : (warning.isNotEmpty ? Icons.warning_amber_rounded : Icons.check_circle_rounded),
+                          : (warning.isNotEmpty
+                              ? Icons.warning_amber_rounded
+                              : Icons.check_circle_rounded),
                       size: 13,
                       color: critical.isNotEmpty
                           ? AppColors.danger
-                          : (warning.isNotEmpty ? const Color(0xFFD97706) : AppColors.green),
+                          : (warning.isNotEmpty
+                              ? const Color(0xFFD97706)
+                              : AppColors.green),
                     ),
                     const SizedBox(width: 4),
                     Text(
                       critical.isNotEmpty
                           ? '${critical.length} ta kritik'
-                          : (warning.isNotEmpty ? '${warning.length} ta kam' : 'Optimal'),
+                          : (warning.isNotEmpty
+                              ? '${warning.length} ta kam'
+                              : 'Optimal'),
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                         color: critical.isNotEmpty
                             ? AppColors.danger
-                            : (warning.isNotEmpty ? const Color(0xFFD97706) : AppColors.green),
+                            : (warning.isNotEmpty
+                                ? const Color(0xFFD97706)
+                                : AppColors.green),
                       ),
                     ),
                   ],
@@ -2850,11 +3135,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ? [
                               const TextSpan(
                                 text: 'Diqqat: ',
-                                style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.danger),
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.danger),
                               ),
                               TextSpan(
                                 text: '${critical.first.product.name} ',
-                                style: const TextStyle(fontWeight: FontWeight.w700),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700),
                               ),
                               TextSpan(
                                 text: critical.length > 1
@@ -2867,21 +3155,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ? [
                                   const TextSpan(
                                     text: 'Ogohlantirish: ',
-                                    style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFFD97706)),
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFFD97706)),
                                   ),
                                   TextSpan(
-                                    text: '${warning.length} ta tovar xavfsiz zaxira chegarasidan past. Oldindan buyurtma bering.',
-                                    style: TextStyle(color: context.subtextColor),
+                                    text:
+                                        '${warning.length} ta tovar xavfsiz zaxira chegarasidan past. Oldindan buyurtma bering.',
+                                    style:
+                                        TextStyle(color: context.subtextColor),
                                   ),
                                 ]
                               : [
                                   const TextSpan(
                                     text: 'Holat barqaror: ',
-                                    style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.green),
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.green),
                                   ),
                                   TextSpan(
-                                    text: "Barcha asosiy tovarlar yetarli. Keyingi 14 kunlik zaxira ta'minlangan.",
-                                    style: TextStyle(color: context.subtextColor),
+                                    text:
+                                        "Barcha asosiy tovarlar yetarli. Keyingi 14 kunlik zaxira ta'minlangan.",
+                                    style:
+                                        TextStyle(color: context.subtextColor),
                                   ),
                                 ],
                     ),
@@ -2908,9 +3204,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         final isOut = it.currentStock <= 0;
 
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 7),
                           decoration: BoxDecoration(
-                            color: context.isDark ? const Color(0xFF1A222C) : const Color(0xFFF9FAFB),
+                            color: context.isDark
+                                ? const Color(0xFF1A222C)
+                                : const Color(0xFFF9FAFB),
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(
                               color: isCrit
@@ -2946,17 +3245,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     Wrap(
                                       spacing: 4,
                                       runSpacing: 2,
-                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
                                       children: [
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 5, vertical: 1.5),
                                           decoration: BoxDecoration(
                                             color: isOut
-                                                ? AppColors.danger.withValues(alpha: 0.15)
+                                                ? AppColors.danger
+                                                    .withValues(alpha: 0.15)
                                                 : (isCrit
-                                                    ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
-                                                    : context.borderColor.withValues(alpha: 0.3)),
-                                            borderRadius: BorderRadius.circular(6),
+                                                    ? const Color(0xFFF59E0B)
+                                                        .withValues(alpha: 0.15)
+                                                    : context.borderColor
+                                                        .withValues(
+                                                            alpha: 0.3)),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
                                           ),
                                           child: Text(
                                             isOut
@@ -2969,13 +3275,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                               fontWeight: FontWeight.w700,
                                               color: isOut
                                                   ? AppColors.danger
-                                                  : (isCrit ? const Color(0xFFD97706) : context.mutedColor),
+                                                  : (isCrit
+                                                      ? const Color(0xFFD97706)
+                                                      : context.mutedColor),
                                             ),
                                           ),
                                         ),
                                         Text(
                                           '~${it.dailyBurn.toStringAsFixed(1)} ${it.product.unit}/k',
-                                          style: TextStyle(fontSize: 9.5, color: context.mutedColor),
+                                          style: TextStyle(
+                                              fontSize: 9.5,
+                                              color: context.mutedColor),
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ],
@@ -2989,20 +3299,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2.5),
                                     decoration: BoxDecoration(
                                       color: isCrit
-                                          ? AppColors.danger.withValues(alpha: 0.12)
+                                          ? AppColors.danger
+                                              .withValues(alpha: 0.12)
                                           : (context.isDark
-                                              ? AppColors.neonLime.withValues(alpha: 0.18)
+                                              ? AppColors.neonLime
+                                                  .withValues(alpha: 0.18)
                                               : AppColors.greenSoft),
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
                                         color: isCrit
-                                            ? AppColors.danger.withValues(alpha: 0.4)
+                                            ? AppColors.danger
+                                                .withValues(alpha: 0.4)
                                             : (context.isDark
-                                                ? AppColors.neonLime.withValues(alpha: 0.5)
-                                                : AppColors.green.withValues(alpha: 0.3)),
+                                                ? AppColors.neonLime
+                                                    .withValues(alpha: 0.5)
+                                                : AppColors.green
+                                                    .withValues(alpha: 0.3)),
                                       ),
                                     ),
                                     child: Text(
@@ -3012,14 +3328,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         fontWeight: FontWeight.w900,
                                         color: isCrit
                                             ? AppColors.danger
-                                            : (context.isDark ? AppColors.neonLime : const Color(0xFF065F46)),
+                                            : (context.isDark
+                                                ? AppColors.neonLime
+                                                : const Color(0xFF065F46)),
                                       ),
                                     ),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     'Tavsiya',
-                                    style: TextStyle(fontSize: 8.5, color: context.mutedColor),
+                                    style: TextStyle(
+                                        fontSize: 8.5,
+                                        color: context.mutedColor),
                                   ),
                                 ],
                               ),
@@ -3032,13 +3352,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: context.isDark ? const Color(0xFF142018) : const Color(0xFFF0FDF4),
+                          color: context.isDark
+                              ? const Color(0xFF142018)
+                              : const Color(0xFFF0FDF4),
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.verified_rounded, color: AppColors.green, size: 18),
+                            const Icon(Icons.verified_rounded,
+                                color: AppColors.green, size: 18),
                             const SizedBox(width: 6),
                             Flexible(
                               child: Text(
@@ -3055,7 +3378,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     );
 
-              return height != null ? Expanded(child: itemsListView) : itemsListView;
+              return height != null
+                  ? Expanded(child: itemsListView)
+                  : itemsListView;
             },
           ),
           const SizedBox(height: 10),
@@ -3069,13 +3394,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   icon: const Icon(Icons.analytics_outlined, size: 15),
                   label: Text(
                     'Batafsil (${items.length})',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700),
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: context.inkColor,
                     side: BorderSide(color: context.borderColor),
                     padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),
@@ -3092,7 +3419,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     backgroundColor: AppColors.neonLime,
                     foregroundColor: AppColors.ink,
                     padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),
@@ -3120,7 +3448,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: height != null ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
+        mainAxisAlignment: height != null
+            ? MainAxisAlignment.spaceBetween
+            : MainAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -3140,13 +3470,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: context.isDark ? const Color(0xFF2B3310) : AppColors.neonLimeSoft,
+                  color: context.isDark
+                      ? const Color(0xFF2B3310)
+                      : AppColors.neonLimeSoft,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   '${openTasks.length} ta faol',
                   style: TextStyle(
-                      color: context.isDark ? AppColors.neonLime : AppColors.neonLimeDark,
+                      color: context.isDark
+                          ? AppColors.neonLime
+                          : AppColors.neonLimeDark,
                       fontWeight: FontWeight.w700,
                       fontSize: 11),
                 ),
@@ -3169,13 +3503,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     CircleAvatar(
                       radius: 14,
-                      backgroundColor: context.isDark ? const Color(0xFF1E2838) : const Color(0xFFE0E7FF),
+                      backgroundColor: context.isDark
+                          ? const Color(0xFF1E2838)
+                          : const Color(0xFFE0E7FF),
                       child: Text(
                         t.workerName.isNotEmpty ? t.workerName[0] : 'W',
                         style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 11,
-                            color: context.isDark ? const Color(0xFF818CF8) : const Color(0xFF3730A3)),
+                            color: context.isDark
+                                ? const Color(0xFF818CF8)
+                                : const Color(0xFF3730A3)),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -3185,7 +3523,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         children: [
                           Text(t.productName,
                               style: TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 12, color: context.inkColor)),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  color: context.inkColor)),
                           Text('Ishchi: ${t.workerName}',
                               style: TextStyle(
                                   color: context.mutedColor, fontSize: 10)),
@@ -3201,7 +3541,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       child: Text('${qty(t.produced)}/${qty(t.planned)}',
                           style: TextStyle(
-                              fontSize: 10, fontWeight: FontWeight.w700, color: context.inkColor)),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: context.inkColor)),
                     ),
                   ],
                 ),
@@ -3222,7 +3564,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
     );
-}
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -3265,7 +3607,9 @@ class _TopDarkStatCard extends StatelessWidget {
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: height != null ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
+            mainAxisAlignment: height != null
+                ? MainAxisAlignment.spaceBetween
+                : MainAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -3383,7 +3727,9 @@ class _TopLightStatCard extends StatelessWidget {
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: height != null ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
+            mainAxisAlignment: height != null
+                ? MainAxisAlignment.spaceBetween
+                : MainAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -3392,7 +3738,9 @@ class _TopLightStatCard extends StatelessWidget {
                     width: 38,
                     height: 38,
                     decoration: BoxDecoration(
-                      color: context.isDark ? iconColor.withValues(alpha: 0.18) : iconBg,
+                      color: context.isDark
+                          ? iconColor.withValues(alpha: 0.18)
+                          : iconBg,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(icon, color: iconColor, size: 20),
@@ -3439,7 +3787,9 @@ class _TopLightStatCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: context.isDark ? const Color(0xFF1E3A2B) : AppColors.greenSoft,
+                  color: context.isDark
+                      ? const Color(0xFF1E3A2B)
+                      : AppColors.greenSoft,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -3447,7 +3797,9 @@ class _TopLightStatCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: context.isDark ? AppColors.greenBright : const Color(0xFF065F46),
+                    color: context.isDark
+                        ? AppColors.greenBright
+                        : const Color(0xFF065F46),
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -3499,7 +3851,9 @@ class _TopGaugeStatCard extends StatelessWidget {
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: height != null ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
+            mainAxisAlignment: height != null
+                ? MainAxisAlignment.spaceBetween
+                : MainAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -3508,10 +3862,15 @@ class _TopGaugeStatCard extends StatelessWidget {
                     width: 38,
                     height: 38,
                     decoration: BoxDecoration(
-                      color: context.isDark ? const Color(0xFF2B3310) : AppColors.neonLimeSoft,
+                      color: context.isDark
+                          ? const Color(0xFF2B3310)
+                          : AppColors.neonLimeSoft,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(icon, color: context.isDark ? AppColors.neonLime : AppColors.ink, size: 20),
+                    child: Icon(icon,
+                        color:
+                            context.isDark ? AppColors.neonLime : AppColors.ink,
+                        size: 20),
                   ),
                   Container(
                     width: 30,
@@ -3555,7 +3914,9 @@ class _TopGaugeStatCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: context.isDark ? const Color(0xFF332512) : const Color(0xFFFEF3C7),
+                  color: context.isDark
+                      ? const Color(0xFF332512)
+                      : const Color(0xFFFEF3C7),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -3615,7 +3976,9 @@ class _TopSpeedGaugeCard extends StatelessWidget {
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: height != null ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
+            mainAxisAlignment: height != null
+                ? MainAxisAlignment.spaceBetween
+                : MainAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -3625,8 +3988,12 @@ class _TopSpeedGaugeCard extends StatelessWidget {
                     height: 38,
                     decoration: BoxDecoration(
                       color: context.isDark
-                          ? (isPositive ? const Color(0xFF132A1E) : const Color(0xFF331515))
-                          : (isPositive ? AppColors.greenSoft : AppColors.dangerSoft),
+                          ? (isPositive
+                              ? const Color(0xFF132A1E)
+                              : const Color(0xFF331515))
+                          : (isPositive
+                              ? AppColors.greenSoft
+                              : AppColors.dangerSoft),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(icon,
@@ -3676,8 +4043,12 @@ class _TopSpeedGaugeCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: context.isDark
-                      ? (isPositive ? const Color(0xFF1E3A2B) : const Color(0xFF3B1E1E))
-                      : (isPositive ? AppColors.greenSoft : AppColors.dangerSoft),
+                      ? (isPositive
+                          ? const Color(0xFF1E3A2B)
+                          : const Color(0xFF3B1E1E))
+                      : (isPositive
+                          ? AppColors.greenSoft
+                          : AppColors.dangerSoft),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -3686,7 +4057,9 @@ class _TopSpeedGaugeCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: isPositive
-                        ? (context.isDark ? AppColors.greenBright : const Color(0xFF065F46))
+                        ? (context.isDark
+                            ? AppColors.greenBright
+                            : const Color(0xFF065F46))
                         : AppColors.danger,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -3770,7 +4143,8 @@ class _WaveSplineChartPainter extends CustomPainter {
     return v.toStringAsFixed(0);
   }
 
-  Path _buildSpline(List<Offset> points, double baselineY, {double tension = 0.35}) {
+  Path _buildSpline(List<Offset> points, double baselineY,
+      {double tension = 0.35}) {
     final path = Path();
     if (points.isEmpty) return path;
     path.moveTo(points.first.dx, points.first.dy);
@@ -3853,7 +4227,8 @@ class _WaveSplineChartPainter extends CustomPainter {
         text: 'Sotuv: ${_formatShortMoney(scaleSaleMax)}',
         style: TextStyle(
           fontSize: 9,
-          color: (isDark ? const Color(0xFF10B981) : AppColors.green).withValues(alpha: 0.95),
+          color: (isDark ? const Color(0xFF10B981) : AppColors.green)
+              .withValues(alpha: 0.95),
           fontWeight: FontWeight.w700,
         ),
       );
@@ -3920,8 +4295,10 @@ class _WaveSplineChartPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          (isDark ? const Color(0xFF10B981) : AppColors.green).withValues(alpha: isDark ? 0.18 : 0.12),
-          (isDark ? const Color(0xFF10B981) : AppColors.green).withValues(alpha: 0.0),
+          (isDark ? const Color(0xFF10B981) : AppColors.green)
+              .withValues(alpha: isDark ? 0.18 : 0.12),
+          (isDark ? const Color(0xFF10B981) : AppColors.green)
+              .withValues(alpha: 0.0),
         ],
       ).createShader(Rect.fromLTWH(0, topPad, w, drawH));
     canvas.drawPath(fillPathSale, fill2);
@@ -3949,7 +4326,8 @@ class _WaveSplineChartPainter extends CustomPainter {
       ..color = isDark ? const Color(0xFF161B22) : Colors.white
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
-    final saleDotPaint = Paint()..color = isDark ? const Color(0xFF10B981) : AppColors.green;
+    final saleDotPaint = Paint()
+      ..color = isDark ? const Color(0xFF10B981) : AppColors.green;
     final saleDotBorder = Paint()
       ..color = isDark ? const Color(0xFF161B22) : Colors.white
       ..style = PaintingStyle.stroke
@@ -3965,13 +4343,16 @@ class _WaveSplineChartPainter extends CustomPainter {
     }
 
     // Aktiv hover ko'rsatkichi - faqat hover qilinganda barqaror chiziladi
-    if (hoverIndex != null && hoverIndex! >= 0 && hoverIndex! < stockCoords.length) {
+    if (hoverIndex != null &&
+        hoverIndex! >= 0 &&
+        hoverIndex! < stockCoords.length) {
       final activeStockCoord = stockCoords[hoverIndex!];
       final activeSaleCoord = saleCoords[hoverIndex!];
 
       // Vertikal yo'naltiruvchi chiziq
       final guidePaint = Paint()
-        ..color = (isDark ? Colors.white : AppColors.ink).withValues(alpha: 0.18)
+        ..color =
+            (isDark ? Colors.white : AppColors.ink).withValues(alpha: 0.18)
         ..strokeWidth = 1.2;
       canvas.drawLine(
         Offset(activeStockCoord.dx, topPad),
@@ -4000,7 +4381,9 @@ class _WaveSplineChartPainter extends CustomPainter {
       canvas.drawCircle(
         activeSaleCoord,
         7.0,
-        Paint()..color = (isDark ? const Color(0xFF10B981) : AppColors.green).withValues(alpha: 0.35),
+        Paint()
+          ..color = (isDark ? const Color(0xFF10B981) : AppColors.green)
+              .withValues(alpha: 0.35),
       );
       canvas.drawCircle(
         activeSaleCoord,

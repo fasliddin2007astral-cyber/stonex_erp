@@ -659,7 +659,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                                 borderRadius: BorderRadius.circular(10),
                                               ),
                                               child: Text(
-                                                p.sort == 'oliy' ? 'Oliy sort' : '\-sort',
+                                                p.sort == 'oliy' ? 'Oliy sort' : '${p.sort}-sort',
                                                 style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD97706)),
                                               ),
                                             ),
@@ -673,6 +673,21 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                               ),
                                               child: const Text('1 • 1.5 • 2 sort',
                                                   style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.green)),
+                                            ),
+                                          ],
+                                          if (p.thickness != null) ...[
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: context.isDark ? const Color(0xFF21262D) : const Color(0xFFF1F5F9),
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(color: context.borderColor),
+                                              ),
+                                              child: Text(
+                                                '${p.thickness} sm',
+                                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: context.subtextColor),
+                                              ),
                                             ),
                                           ],
                                         ],
@@ -883,6 +898,10 @@ class _ProductDialogState extends State<ProductDialog> {
   late final _qr = TextEditingController(text: widget.product?.qrCode);
   late final _price = TextEditingController(text: widget.product == null ? '' : qty(widget.product!.price));
   late final _cost = TextEditingController(text: widget.product == null ? '' : qty(widget.product!.costPrice));
+  late final _thickness = TextEditingController(text: widget.product?.thickness != null ? qty(widget.product!.thickness!) : '');
+  late final _priceSort1 = TextEditingController(text: widget.product?.priceSort1 != null ? qty(widget.product!.priceSort1!) : '');
+  late final _priceSort1_5 = TextEditingController(text: widget.product?.priceSort1_5 != null ? qty(widget.product!.priceSort1_5!) : '');
+  late final _priceSort2 = TextEditingController(text: widget.product?.priceSort2 != null ? qty(widget.product!.priceSort2!) : '');
   late final _imageUrl = TextEditingController(text: widget.product?.imageUrl);
   final _stock = TextEditingController();
   late String _unit = widget.product?.unit ?? 'm2';
@@ -970,6 +989,10 @@ class _ProductDialogState extends State<ProductDialog> {
     _qr.dispose();
     _price.dispose();
     _cost.dispose();
+    _thickness.dispose();
+    _priceSort1.dispose();
+    _priceSort1_5.dispose();
+    _priceSort2.dispose();
     _imageUrl.dispose();
     _stock.dispose();
     super.dispose();
@@ -1088,7 +1111,15 @@ class _ProductDialogState extends State<ProductDialog> {
   }
 
   Future<void> _save() async {
-    final price = parseInput(_price.text);
+    final p1 = parseInput(_priceSort1.text);
+    final p1_5 = parseInput(_priceSort1_5.text);
+    final p2 = parseInput(_priceSort2.text);
+    final thick = parseInput(_thickness.text);
+
+    final effectivePriceText = _price.text.trim().isNotEmpty
+        ? _price.text
+        : (_hasSorts ? (_priceSort1_5.text.isNotEmpty ? _priceSort1_5.text : _priceSort1.text) : '');
+    final price = parseInput(effectivePriceText);
     final cost = _cost.text.trim().isEmpty ? 0.0 : parseInput(_cost.text);
     final stock = _stock.text.trim().isEmpty ? 0.0 : parseInput(_stock.text);
 
@@ -1118,8 +1149,12 @@ class _ProductDialogState extends State<ProductDialog> {
       qrCode: _qr.text.trim(),
       unit: _unit,
       donaM2: (_stone && _unit == 'm2') ? Units.stoneDonaM2 : null,
+      thickness: (_unit == 'm2' && thick != null && thick > 0) ? thick : null,
       sort: _sort,
       hasSorts: _hasSorts,
+      priceSort1: _hasSorts ? p1 : null,
+      priceSort1_5: _hasSorts ? p1_5 : null,
+      priceSort2: _hasSorts ? p2 : null,
       price: price,
       costPrice: cost,
       imageUrl: _imageUrl.text.trim().isNotEmpty ? _imageUrl.text.trim() : null,
@@ -1727,11 +1762,64 @@ class _ProductDialogState extends State<ProductDialog> {
                   ],
                 ),
               ),
+              if (_unit == 'm2') ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _thickness,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Kafel / tosh qalinligi (sm)',
+                    hintText: 'Masalan: 2.0 yoki 1.8',
+                    prefixIcon: Icon(Icons.layers_outlined, size: 20),
+                  ),
+                ),
+              ],
+              if (_hasSorts) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _priceSort1,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: '1-sort (so‘m)',
+                          hintText: '180 000',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _priceSort1_5,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: '1.5-sort (so‘m)',
+                          hintText: '165 000',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _priceSort2,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: '2-sort (so‘m)',
+                          hintText: '150 000',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 12),
               TextField(
                 controller: _price,
                 keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: 'Sotuv narxi (so‘m / $_unit)'),
+                decoration: InputDecoration(
+                  labelText: _hasSorts ? 'Bazaviy narx (so‘m / $_unit)' : 'Sotuv narxi (so‘m / $_unit)',
+                ),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 12),

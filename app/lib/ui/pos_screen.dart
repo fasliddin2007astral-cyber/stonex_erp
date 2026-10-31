@@ -530,6 +530,11 @@ class _ProductCardState extends State<_ProductCard> {
     final lifted = _hover && !out;
     final intro = Duration(milliseconds: 320 + widget.index.clamp(0, 10) * 45);
 
+    final cart = context.watch<CartController>();
+    final inCartLines = cart.lines.where((l) => l.product.id == p.id).toList();
+    final inCart = inCartLines.isNotEmpty;
+    final inCartCount = inCartLines.fold<double>(0, (sum, l) => sum + l.quantity);
+
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: intro,
@@ -707,17 +712,52 @@ class _ProductCardState extends State<_ProductCard> {
                                   const SizedBox(width: 6),
                                   AnimatedContainer(
                                     duration: const Duration(milliseconds: 180),
-                                    width: 34,
+                                    padding: EdgeInsets.symmetric(horizontal: inCart ? 8 : 0),
                                     height: 34,
+                                    constraints: const BoxConstraints(minWidth: 34),
                                     decoration: BoxDecoration(
-                                      color: lifted ? AppColors.neonLime : (context.isDark ? const Color(0xFF21262D) : AppColors.darkCard),
+                                      color: inCart
+                                          ? const Color(0xFFF59E0B) // Savatda bo'lsa sariq / amber
+                                          : (lifted
+                                              ? AppColors.neonLime
+                                              : (context.isDark ? const Color(0xFF21262D) : AppColors.darkCard)),
                                       borderRadius: BorderRadius.circular(10),
+                                      boxShadow: inCart
+                                          ? [
+                                              BoxShadow(
+                                                color: const Color(0xFFF59E0B).withValues(alpha: 0.45),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ]
+                                          : null,
                                     ),
-                                    child: Icon(
-                                      Icons.add_shopping_cart_rounded,
-                                      color: lifted ? AppColors.ink : Colors.white,
-                                      size: 16,
-                                    ),
+                                    child: inCart
+                                        ? Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              const Icon(
+                                                Icons.shopping_cart_rounded,
+                                                color: Color(0xFF161B22),
+                                                size: 15,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                qty(inCartCount),
+                                                style: const TextStyle(
+                                                  fontSize: 11.5,
+                                                  fontWeight: FontWeight.w900,
+                                                  color: Color(0xFF161B22),
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : Icon(
+                                            Icons.add_shopping_cart_rounded,
+                                            color: lifted ? AppColors.ink : Colors.white,
+                                            size: 16,
+                                          ),
                                   ),
                                 ],
                               ),
@@ -831,6 +871,8 @@ class _CartPanel extends StatelessWidget {
     final lengthCtrl = TextEditingController(text: l.cutLength != null ? l.cutLength.toString() : '1.0');
     final widthCtrl = TextEditingController(text: l.cutWidth != null ? l.cutWidth.toString() : '1.0');
     final countCtrl = TextEditingController(text: l.cutPieces != null ? l.cutPieces.toString() : '1');
+    final initialThickness = l.cutThickness ?? l.product.thickness ?? 2.0;
+    final thicknessCtrl = TextEditingController(text: initialThickness > 0 ? (initialThickness % 1 == 0 ? initialThickness.toInt().toString() : initialThickness.toString()) : '2.0');
     bool inCm = false;
 
     double calcArea() {
@@ -847,7 +889,7 @@ class _CartPanel extends StatelessWidget {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) {
           final area = calcArea();
-          final lineSum = area * l.product.price;
+          final lineSum = area * l.unitPrice;
 
           return AlertDialog(
             backgroundColor: context.cardColor,
@@ -868,7 +910,7 @@ class _CartPanel extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('Razmer / Kesish Kalkulyatori', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-                      Text(l.product.name, style: TextStyle(fontSize: 12, color: context.subtextColor)),
+                      Text(l.displayName, style: TextStyle(fontSize: 12, color: context.subtextColor)),
                     ],
                   ),
                 ),
@@ -951,15 +993,34 @@ class _CartPanel extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: countCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Soni (necha dona kesiladi)',
-                        hintText: '1',
-                        prefixIcon: Icon(Icons.pin_rounded),
-                      ),
-                      onChanged: (_) => setS(() {}),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: countCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Soni (dona)',
+                              hintText: '1',
+                              prefixIcon: Icon(Icons.pin_rounded, size: 18),
+                            ),
+                            onChanged: (_) => setS(() {}),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: thicknessCtrl,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: const InputDecoration(
+                              labelText: 'Qalinligi (sm)',
+                              hintText: '2.0',
+                              prefixIcon: Icon(Icons.layers_outlined, size: 18),
+                            ),
+                            onChanged: (_) => setS(() {}),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     Container(
@@ -1023,17 +1084,23 @@ class _CartPanel extends StatelessWidget {
       final len = parseInput(lengthCtrl.text) ?? 0;
       final wid = parseInput(widthCtrl.text) ?? 0;
       final cnt = (parseInput(countCtrl.text) ?? 1).toInt();
+      final thick = parseInput(thicknessCtrl.text) ?? initialThickness;
       final lenM = inCm ? len / 100 : len;
       final widM = inCm ? wid / 100 : wid;
       final area = lenM * widM * cnt;
       if (area > 0) {
+        final thickStr = thick > 0 ? '${thick % 1 == 0 ? thick.toInt() : thick} sm' : '';
+        final spec = thickStr.isNotEmpty
+            ? '$lenM×${widM}m ($thickStr, $cnt dona)'
+            : '$lenM×${widM}m ($cnt dona)';
         cart.update(
           l,
           quantity: double.parse(area.toStringAsFixed(3)),
           cutLength: lenM,
           cutWidth: widM,
+          cutThickness: thick,
           cutPieces: cnt,
-          cutSpec: '$lenM×${widM}m ($cnt dona)',
+          cutSpec: spec,
         );
       }
     }
@@ -1297,7 +1364,7 @@ class _CartLineTile extends StatelessWidget {
     final p = l.product;
     final unit = l.inDona ? 'dona' : _u(p.unit);
     final short = l.baseQty > p.stock;
-    final sub = '${money(p.price)} / ${_u(p.unit)}${l.inDona ? '  ·  ${qty(l.baseQty)} ${_u(p.unit)}' : ''}';
+    final sub = '${money(l.unitPrice)} / ${_u(p.unit)}${l.inDona ? '  ·  ${qty(l.baseQty)} ${_u(p.unit)}' : ''}';
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
@@ -1363,7 +1430,12 @@ class _CartLineTile extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(right: 5),
                     child: ChoiceChip(
-                      label: Text('$s-sort', style: const TextStyle(fontSize: 11)),
+                      label: Text(
+                        p.priceForSort(s) != p.price || p.priceSort1 != null
+                            ? '$s-sort (${money(p.priceForSort(s))})'
+                            : '$s-sort',
+                        style: const TextStyle(fontSize: 11),
+                      ),
                       selected: (l.sort ?? '1.5') == s,
                       onSelected: (sel) {
                         if (sel) cart.update(l, sort: s);
@@ -1429,7 +1501,7 @@ class _CartLineTile extends StatelessWidget {
                     icon: const Icon(Icons.close_rounded, size: 14),
                     visualDensity: VisualDensity.compact,
                     tooltip: 'Razmerni tozalash',
-                    onPressed: () => cart.update(l, cutSpec: '', cutLength: null, cutWidth: null, cutPieces: null),
+                    onPressed: () => cart.update(l, cutSpec: '', cutLength: null, cutWidth: null, cutThickness: null, cutPieces: null),
                   ),
               ],
             ),

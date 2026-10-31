@@ -19,6 +19,7 @@ class CartController extends ChangeNotifier {
     String? sort,
     double? cutLength,
     double? cutWidth,
+    double? cutThickness,
     int? cutPieces,
     String? cutSpec,
   }) {
@@ -36,6 +37,7 @@ class CartController extends ChangeNotifier {
         sort: effectiveSort,
         cutLength: cutLength,
         cutWidth: cutWidth,
+        cutThickness: cutThickness ?? p.thickness,
         cutPieces: cutPieces,
         cutSpec: cutSpec,
       ));
@@ -50,16 +52,20 @@ class CartController extends ChangeNotifier {
     String? sort,
     double? cutLength,
     double? cutWidth,
+    double? cutThickness,
     int? cutPieces,
     String? cutSpec,
+    double? unitPriceOverride,
   }) {
     if (quantity != null && quantity > 0) l.quantity = quantity;
     if (inDona != null) l.inDona = inDona && l.product.hasDona;
     if (sort != null) l.sort = sort;
     if (cutLength != null) l.cutLength = cutLength;
     if (cutWidth != null) l.cutWidth = cutWidth;
+    if (cutThickness != null) l.cutThickness = cutThickness;
     if (cutPieces != null) l.cutPieces = cutPieces;
     if (cutSpec != null) l.cutSpec = cutSpec;
+    if (unitPriceOverride != null) l.unitPriceOverride = unitPriceOverride;
     notifyListeners();
   }
 

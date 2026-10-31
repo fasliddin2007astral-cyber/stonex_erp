@@ -571,3 +571,4 @@ class _ReturnProductDialogState extends State<ReturnProductDialog> {
     );
   }
 }
+
