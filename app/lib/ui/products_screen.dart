@@ -1518,19 +1518,7 @@ class _ProductDialogState extends State<ProductDialog> {
                 ],
                 onChanged: (v) => setState(() => _category = v),
               ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final cat in standardProductCategories)
-                    ChoiceChip(
-                      label: Text(cat, style: const TextStyle(fontSize: 11)),
-                      selected: _category == cat,
-                      onSelected: (sel) => setState(() => _category = sel ? cat : null),
-                    ),
-                ],
-              ),
+
               const SizedBox(height: 12),
               LayoutBuilder(
                 builder: (context, box) {
