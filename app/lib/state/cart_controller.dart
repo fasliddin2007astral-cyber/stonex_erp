@@ -53,6 +53,7 @@ class CartController extends ChangeNotifier {
     CartLine l, {
     double? quantity,
     bool? inDona,
+    bool? inPachka,
     String? sort,
     String? color,
     double? cutLength,
@@ -63,7 +64,14 @@ class CartController extends ChangeNotifier {
     double? unitPriceOverride,
   }) {
     if (quantity != null && quantity > 0) l.quantity = quantity;
-    if (inDona != null) l.inDona = inDona && l.product.hasDona;
+    if (inPachka != null) {
+      l.inPachka = inPachka && l.product.hasPachka;
+      if (l.inPachka) l.inDona = false;
+    }
+    if (inDona != null) {
+      l.inDona = inDona && l.product.hasDona;
+      if (l.inDona) l.inPachka = false;
+    }
     if (sort != null) l.sort = sort;
     if (color != null) l.color = color;
     if (cutLength != null) l.cutLength = cutLength;

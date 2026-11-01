@@ -397,4 +397,54 @@ void main() {
     final fromJ = Product.fromJson(json);
     expect(fromJ.category, 'Kerama granit');
   });
+
+  test('Kafel va Kerama granit: bo‘yi, eni, dona m², pachkadagi donalar va pachka m² proporsional hisobi', () async {
+    final s = MockStore();
+    final prodRepo = MockProductRepository(s);
+    final salesRepo = MockSalesRepository(s);
+
+    // Kafel 60x60, 1 pachkada 4 dona
+    // 1 dona = 60 * 60 / 10000 = 0.36 m2
+    // 1 pachka = 0.36 * 4 = 1.44 m2
+    final kafel = await prodRepo.create(const Product(
+      id: 0,
+      name: 'Ispan Kafel 60x60',
+      category: 'Kafel',
+      unit: 'm2',
+      tileLength: 60,
+      tileWidth: 60,
+      donaM2: 0.36,
+      boxPieces: 4,
+      boxM2: 1.44,
+      price: 150000, // 1 m2 narxi
+      costPrice: 100000,
+    ), initialStock: 144);
+
+    expect(kafel.isTile, true);
+    expect(kafel.hasPachka, true);
+    expect(kafel.donaM2, 0.36);
+    expect(kafel.boxPieces, 4);
+    expect(kafel.effectiveBoxM2, 1.44);
+
+    final cart = CartController(salesRepo);
+    cart.add(kafel, quantity: 2); // default: 2 m2
+    expect(cart.lines.first.inPachka, false);
+    expect(cart.lines.first.quantity, 2);
+    expect(cart.lines.first.baseQty, 2);
+    expect(cart.lines.first.lineTotal, 300000); // 2 * 150 000
+
+    // Pachkada sotishga o'tkazilganda (masalan 2 pachka)
+    cart.update(cart.lines.first, inPachka: true, quantity: 2);
+    expect(cart.lines.first.inPachka, true);
+    expect(cart.lines.first.quantity, 2);
+    // 2 pachka * 1.44 m2 = 2.88 m2
+    expect(cart.lines.first.baseQty, 2.88);
+    // 2.88 m2 * 150 000 so'm = 432 000 so'm
+    expect(cart.lines.first.lineTotal, 432000);
+
+    // m2 ga o'tkazilganda 2.88 m2 aynan bir xil summani beradi
+    cart.update(cart.lines.first, inPachka: false, quantity: 2.88);
+    expect(cart.lines.first.baseQty, 2.88);
+    expect(cart.lines.first.lineTotal, 432000);
+  });
 }

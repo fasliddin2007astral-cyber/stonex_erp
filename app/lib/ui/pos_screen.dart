@@ -829,6 +829,7 @@ class _CartPanel extends StatelessWidget {
     final cart = context.read<CartController>();
     final ctrl = TextEditingController(text: qty(l.quantity));
     var inDona = l.inDona;
+    var inPachka = l.inPachka;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -843,12 +844,62 @@ class _CartPanel extends StatelessWidget {
               TextField(
                 controller: ctrl,
                 autofocus: true,
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
-                  labelText: 'Miqdor (${inDona ? "dona" : _u(l.product.unit)})',
+                  labelText: 'Miqdor (${inPachka ? "pachka" : (inDona ? "dona" : _u(l.product.unit))})',
                 ),
+                onChanged: (_) => setS(() {}),
               ),
-              if (l.product.hasDona) ...[
+              if (l.product.hasPachka) ...[
+                const SizedBox(height: 12),
+                SegmentedButton<String>(
+                  segments: [
+                    ButtonSegment(value: 'm2', label: Text(_u(l.product.unit))),
+                    ButtonSegment(
+                      value: 'pachka',
+                      label: Text('pachka (${qty(l.product.effectiveBoxM2 ?? 1)} m²)'),
+                    ),
+                  ],
+                  selected: {inPachka ? 'pachka' : 'm2'},
+                  onSelectionChanged: (s) {
+                    setS(() {
+                      final cur = parseInput(ctrl.text) ?? 0;
+                      final box = l.product.effectiveBoxM2 ?? 1.0;
+                      if (s.first == 'pachka' && !inPachka) {
+                        inPachka = true;
+                        inDona = false;
+                        ctrl.text = qty(double.parse((cur / box).toStringAsFixed(2)));
+                      } else if (s.first == 'm2' && inPachka) {
+                        inPachka = false;
+                        ctrl.text = qty(double.parse((cur * box).toStringAsFixed(2)));
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 8),
+                Builder(builder: (_) {
+                  final cur = parseInput(ctrl.text) ?? 0;
+                  final box = l.product.effectiveBoxM2 ?? 1.0;
+                  final propText = inPachka
+                      ? '${qty(cur)} pachka = ${qty(double.parse((cur * box).toStringAsFixed(3)))} m²'
+                      : '${qty(cur)} m² = ${qty(double.parse((cur / box).toStringAsFixed(2)))} pachka';
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (context.isDark ? AppColors.neonLime : const Color(0xFF0D9488)).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '🔄 Proporsional: $propText',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: context.isDark ? AppColors.neonLime : const Color(0xFF0F766E),
+                      ),
+                    ),
+                  );
+                }),
+              ] else if (l.product.hasDona) ...[
                 const SizedBox(height: 12),
                 SegmentedButton<bool>(
                   segments: [
@@ -881,7 +932,9 @@ class _CartPanel extends StatelessWidget {
     );
     final v = parseInput(ctrl.text);
     ctrl.dispose();
-    if (ok == true && v != null && v > 0) cart.update(l, quantity: v, inDona: inDona);
+    if (ok == true && v != null && v > 0) {
+      cart.update(l, quantity: v, inDona: inDona, inPachka: inPachka);
+    }
   }
 
   Future<void> _openCutCalculator(BuildContext context, CartLine l) async {
@@ -1399,9 +1452,11 @@ class _CartLineTile extends StatelessWidget {
     final cart = context.watch<CartController>();
     final l = line;
     final p = l.product;
-    final unit = l.inDona ? 'dona' : _u(p.unit);
+    final unit = l.inPachka ? 'pachka' : (l.inDona ? 'dona' : _u(p.unit));
     final short = l.baseQty > p.stock;
-    final sub = '${money(l.unitPrice)} / ${_u(p.unit)}${l.inDona ? '  ·  ${qty(l.baseQty)} ${_u(p.unit)}' : ''}';
+    final sub = l.inPachka
+        ? '${money(l.unitPrice)} / ${_u(p.unit)}  ·  ${qty(l.baseQty)} ${_u(p.unit)} (${qty(l.quantity)} pachka)'
+        : '${money(l.unitPrice)} / ${_u(p.unit)}${l.inDona ? '  ·  ${qty(l.baseQty)} ${_u(p.unit)}' : ''}';
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
@@ -1475,6 +1530,42 @@ class _CartLineTile extends StatelessWidget {
               onPressed: () => cart.remove(l),
             ),
           ]),
+
+          if (p.hasPachka) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Text('O‘lchov: ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.subtextColor)),
+                const SizedBox(width: 4),
+                ChoiceChip(
+                  label: const Text('m²', style: TextStyle(fontSize: 10.5)),
+                  selected: !l.inPachka,
+                  visualDensity: VisualDensity.compact,
+                  onSelected: (sel) {
+                    if (sel && l.inPachka) {
+                      cart.update(l, inPachka: false, quantity: double.parse(l.baseQty.toStringAsFixed(2)));
+                    }
+                  },
+                ),
+                const SizedBox(width: 4),
+                ChoiceChip(
+                  label: Text(
+                    'Pachka (${p.effectiveBoxM2 != null ? '${qty(p.effectiveBoxM2!)} m²' : ''})',
+                    style: const TextStyle(fontSize: 10.5),
+                  ),
+                  selected: l.inPachka,
+                  visualDensity: VisualDensity.compact,
+                  onSelected: (sel) {
+                    if (sel && !l.inPachka) {
+                      final box = p.effectiveBoxM2 ?? 1.0;
+                      final pQty = l.quantity / box;
+                      cart.update(l, inPachka: true, quantity: double.parse(pQty.toStringAsFixed(2)));
+                    }
+                  },
+                ),
+              ],
+            ),
+          ],
 
           // Rang tanlash (agar Angola kabi bir nechta rangi bo'lsa yoki bitta rang belgilangan bo'lsa)
           if (p.availableColors.length > 1) ...[

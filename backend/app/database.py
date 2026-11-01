@@ -59,6 +59,14 @@ def ensure_migrations():
                 conn.execute(text("ALTER TABLE products ADD COLUMN price_sort1_5 DECIMAL(14, 2) NULL"))
             if "price_sort2" not in columns:
                 conn.execute(text("ALTER TABLE products ADD COLUMN price_sort2 DECIMAL(14, 2) NULL"))
+            if "tile_length" not in columns:
+                conn.execute(text("ALTER TABLE products ADD COLUMN tile_length DECIMAL(14, 3) NULL"))
+            if "tile_width" not in columns:
+                conn.execute(text("ALTER TABLE products ADD COLUMN tile_width DECIMAL(14, 3) NULL"))
+            if "box_pieces" not in columns:
+                conn.execute(text("ALTER TABLE products ADD COLUMN box_pieces INTEGER NULL"))
+            if "box_m2" not in columns:
+                conn.execute(text("ALTER TABLE products ADD COLUMN box_m2 DECIMAL(14, 3) NULL"))
     if "customers" in table_names:
         c_columns = [c["name"] for c in inspector.get_columns("customers")]
         with engine.begin() as conn:

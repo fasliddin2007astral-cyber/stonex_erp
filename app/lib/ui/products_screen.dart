@@ -924,6 +924,9 @@ class _ProductDialogState extends State<ProductDialog> {
   late final _price = TextEditingController(text: widget.product == null ? '' : qty(widget.product!.price));
   late final _cost = TextEditingController(text: widget.product == null ? '' : qty(widget.product!.costPrice));
   late final _thickness = TextEditingController(text: widget.product?.thickness != null ? qty(widget.product!.thickness!) : '');
+  late final _tileLength = TextEditingController(text: widget.product?.tileLength != null ? qty(widget.product!.tileLength!) : '');
+  late final _tileWidth = TextEditingController(text: widget.product?.tileWidth != null ? qty(widget.product!.tileWidth!) : '');
+  late final _boxPieces = TextEditingController(text: widget.product?.boxPieces != null ? widget.product!.boxPieces.toString() : '');
   late final _imageUrl = TextEditingController(text: widget.product?.imageUrl);
   final _stock = TextEditingController();
   late String? _category = widget.product?.category;
@@ -934,6 +937,24 @@ class _ProductDialogState extends State<ProductDialog> {
 
   static const _units = ['m2', 'dona', 'kg', 'm', 'litr'];
 
+  double? _calcTileDonaM2() {
+    final l = parseInput(_tileLength.text);
+    final w = parseInput(_tileWidth.text);
+    if (l != null && l > 0 && w != null && w > 0) {
+      return (l * w) / 10000.0;
+    }
+    return null;
+  }
+
+  double? _calcTileBoxM2() {
+    final dona = _calcTileDonaM2();
+    final pcs = int.tryParse(_boxPieces.text.trim());
+    if (dona != null && pcs != null && pcs > 0) {
+      return dona * pcs;
+    }
+    return null;
+  }
+
   @override
   void dispose() {
     _name.dispose();
@@ -941,6 +962,9 @@ class _ProductDialogState extends State<ProductDialog> {
     _price.dispose();
     _cost.dispose();
     _thickness.dispose();
+    _tileLength.dispose();
+    _tileWidth.dispose();
+    _boxPieces.dispose();
     _imageUrl.dispose();
     _stock.dispose();
     super.dispose();
@@ -1127,6 +1151,21 @@ class _ProductDialogState extends State<ProductDialog> {
     }
 
     final barcode = _sku.text.trim();
+    final isTile = _category != null &&
+        (_category!.trim().toLowerCase() == 'kafel' ||
+            _category!.trim().toLowerCase() == 'kerama granit');
+    final tLen = isTile ? parseInput(_tileLength.text) : null;
+    final tWid = isTile ? parseInput(_tileWidth.text) : null;
+    final bPieces = isTile ? int.tryParse(_boxPieces.text.trim()) : null;
+    double? calculatedDonaM2;
+    double? calculatedBoxM2;
+    if (isTile && tLen != null && tLen > 0 && tWid != null && tWid > 0) {
+      calculatedDonaM2 = (tLen * tWid) / 10000.0;
+      if (bPieces != null && bPieces > 0) {
+        calculatedBoxM2 = calculatedDonaM2 * bPieces;
+      }
+    }
+
     final p = Product(
       id: widget.product?.id ?? 0,
       name: _name.text.trim(),
@@ -1134,8 +1173,16 @@ class _ProductDialogState extends State<ProductDialog> {
       sku: barcode,
       qrCode: barcode,
       unit: _unit,
-      donaM2: _unit == 'm2' ? (widget.product?.donaM2 ?? Units.stoneDonaM2) : null,
-      thickness: (_category?.trim().toLowerCase() == 'granit' && thick != null && thick > 0) ? thick : null,
+      donaM2: isTile
+          ? calculatedDonaM2
+          : (_unit == 'm2' ? (widget.product?.donaM2 ?? Units.stoneDonaM2) : null),
+      thickness: (_category?.trim().toLowerCase() == 'granit' && thick != null && thick > 0)
+          ? thick
+          : null,
+      tileLength: tLen,
+      tileWidth: tWid,
+      boxPieces: bPieces,
+      boxM2: calculatedBoxM2,
       sort: widget.product?.sort,
       hasSorts: false,
       color: widget.product?.color,
@@ -1668,6 +1715,131 @@ class _ProductDialogState extends State<ProductDialog> {
               ),
 
 
+              if (_category != null &&
+                  (_category!.trim().toLowerCase() == 'kafel' ||
+                      _category!.trim().toLowerCase() == 'kerama granit')) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: context.isDark ? const Color(0xFF1B2028) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: (context.isDark ? AppColors.neonLime : const Color(0xFF0D9488)).withValues(alpha: 0.35),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            _getCategoryIcon(_category!),
+                            size: 18,
+                            color: _getCategoryColor(_category!),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '$_category o‘lchamlari va Pachka hisobi',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: context.inkColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _tileLength,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: const InputDecoration(
+                                labelText: 'Bo‘yi (sm)',
+                                hintText: '60 yoki 120',
+                                prefixIcon: Icon(Icons.height_rounded, size: 18),
+                              ),
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _tileWidth,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: const InputDecoration(
+                                labelText: 'Eni (sm)',
+                                hintText: '60',
+                                prefixIcon: Icon(Icons.straighten_rounded, size: 18),
+                              ),
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _boxPieces,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'Pachkada (dona)',
+                                hintText: '4',
+                                prefixIcon: Icon(Icons.all_inbox_rounded, size: 18),
+                              ),
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Builder(
+                        builder: (context) {
+                          final donaM2 = _calcTileDonaM2();
+                          final boxM2 = _calcTileBoxM2();
+                          if (donaM2 == null) return const SizedBox.shrink();
+                          final donaFormatted = donaM2.toStringAsFixed(4).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+                          final boxFormatted = boxM2 != null ? boxM2.toStringAsFixed(4).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '') : null;
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: (context.isDark ? AppColors.neonLime : const Color(0xFF0D9488)).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: (context.isDark ? AppColors.neonLime : const Color(0xFF0D9488)).withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.calculate_rounded,
+                                    size: 18,
+                                    color: context.isDark ? AppColors.neonLime : const Color(0xFF0F766E),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      '1 dona = $donaFormatted m²'
+                                      '${boxFormatted != null ? '  •  1 pachka (${_boxPieces.text.trim()} dona) = $boxFormatted m²' : ''}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: context.isDark ? AppColors.neonLime : const Color(0xFF0F766E),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               if (_category != null && _category!.trim().toLowerCase() == 'granit') ...[
                 const SizedBox(height: 12),
                 TextField(

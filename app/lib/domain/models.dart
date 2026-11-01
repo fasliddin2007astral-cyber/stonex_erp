@@ -244,6 +244,10 @@ class Product {
   final String unit; // m2, dona, kg, m
   final double? donaM2; // faqat toshlar uchun (0.25)
   final double? thickness; // tosh qalinligi (sm, masalan: 2.0 sm)
+  final double? tileLength; // kafel/keramogranit bo'yi (sm, masalan: 60 yoki 120 sm)
+  final double? tileWidth; // kafel/keramogranit eni (sm, masalan: 60 sm)
+  final int? boxPieces; // 1 pachkadagi donalar soni (masalan: 4 dona)
+  final double? boxM2; // 1 pachka kvadrati (m2)
   final String? sort; // 1, 1.5, 2, 3, oliy
   final bool hasSorts; // 1, 1.5, 2 sortlari mavjudligi (kassada tanlanadi)
   final String? color; // rangi (masalan: Ko'k, Oq, Qora yoki vergul bilan ajratilgan)
@@ -264,6 +268,10 @@ class Product {
     required this.unit,
     this.donaM2,
     this.thickness,
+    this.tileLength,
+    this.tileWidth,
+    this.boxPieces,
+    this.boxM2,
     this.sort,
     this.hasSorts = false,
     this.color,
@@ -277,6 +285,18 @@ class Product {
   });
 
   bool get hasDona => donaM2 != null && donaM2! > 0;
+  bool get isTile =>
+      category != null &&
+      (category!.toLowerCase() == 'kafel' ||
+          category!.toLowerCase() == 'kerama granit');
+  bool get hasPachka =>
+      (boxM2 != null && boxM2! > 0) ||
+      (donaM2 != null && boxPieces != null && boxPieces! > 0);
+  double? get effectiveBoxM2 =>
+      boxM2 ??
+      ((donaM2 != null && boxPieces != null && boxPieces! > 0)
+          ? donaM2! * boxPieces!
+          : null);
 
   List<String> get availableColors {
     if (color == null || color!.trim().isEmpty) return const [];
@@ -320,6 +340,10 @@ class Product {
     String? unit,
     double? donaM2,
     double? thickness,
+    double? tileLength,
+    double? tileWidth,
+    int? boxPieces,
+    double? boxM2,
     String? sort,
     bool? hasSorts,
     String? color,
@@ -340,6 +364,10 @@ class Product {
         unit: unit ?? this.unit,
         donaM2: donaM2 ?? this.donaM2,
         thickness: thickness ?? this.thickness,
+        tileLength: tileLength ?? this.tileLength,
+        tileWidth: tileWidth ?? this.tileWidth,
+        boxPieces: boxPieces ?? this.boxPieces,
+        boxM2: boxM2 ?? this.boxM2,
         sort: sort ?? this.sort,
         hasSorts: hasSorts ?? this.hasSorts,
         color: color ?? this.color,
@@ -361,6 +389,10 @@ class Product {
         unit: (j['unit'] ?? 'm²').toString(),
         donaM2: j['dona_m2'] == null ? null : parseNum(j['dona_m2']),
         thickness: j['thickness'] == null ? null : parseNum(j['thickness']),
+        tileLength: j['tile_length'] == null ? null : parseNum(j['tile_length']),
+        tileWidth: j['tile_width'] == null ? null : parseNum(j['tile_width']),
+        boxPieces: (j['box_pieces'] as num?)?.toInt(),
+        boxM2: j['box_m2'] == null ? null : parseNum(j['box_m2']),
         sort: j['sort']?.toString(),
         hasSorts: j['has_sorts'] == true,
         color: j['color']?.toString(),
@@ -391,6 +423,10 @@ class Product {
         'unit': unit,
         'dona_m2': donaM2,
         'thickness': thickness,
+        'tile_length': tileLength,
+        'tile_width': tileWidth,
+        'box_pieces': boxPieces,
+        'box_m2': boxM2,
         'sort': sort,
         'has_sorts': hasSorts,
         'color': color,
@@ -408,6 +444,7 @@ class CartLine {
   final Product product;
   double quantity;
   bool inDona;
+  bool inPachka; // Pachkada sotish (Kafel / Kerama granit)
   String? sort; // '1', '1.5', '2'
   String? color; // rangi (masalan: Ko'k, Oq, Qora)
   double? cutLength; // metrda
@@ -421,6 +458,7 @@ class CartLine {
     this.product, {
     this.quantity = 1,
     this.inDona = false,
+    this.inPachka = false,
     this.sort,
     this.color,
     this.cutLength,
@@ -441,7 +479,15 @@ class CartLine {
   }
 
   double get unitPrice => unitPriceOverride ?? product.priceForSort(sort);
-  double get baseQty => (inDona && product.hasDona) ? quantity * product.donaM2! : quantity;
+  double get baseQty {
+    if (inPachka && product.effectiveBoxM2 != null) {
+      return quantity * product.effectiveBoxM2!;
+    }
+    if (inDona && product.hasDona) {
+      return quantity * product.donaM2!;
+    }
+    return quantity;
+  }
   double get lineTotal => baseQty * unitPrice;
 
   String get displayName {
@@ -457,6 +503,7 @@ class CartLine {
         product,
         quantity: quantity,
         inDona: inDona,
+        inPachka: inPachka,
         sort: sort,
         color: color,
         cutLength: cutLength,

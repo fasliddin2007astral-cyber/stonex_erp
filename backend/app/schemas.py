@@ -113,6 +113,10 @@ class ProductIn(BaseModel):
     unit: str = Field(min_length=1, max_length=16)
     dona_m2: Decimal | None = Field(default=None, gt=0)
     thickness: Decimal | None = Field(default=None, gt=0)
+    tile_length: Decimal | None = Field(default=None, gt=0)
+    tile_width: Decimal | None = Field(default=None, gt=0)
+    box_pieces: int | None = Field(default=None, gt=0)
+    box_m2: Decimal | None = Field(default=None, gt=0)
     price: Decimal = Field(ge=0)
     cost_price: Decimal = Field(default=Decimal(0), ge=0)
     sort: str | None = None
@@ -133,6 +137,10 @@ class ProductUpdate(BaseModel):
     unit: str | None = None
     dona_m2: Decimal | None = Field(default=None, gt=0)
     thickness: Decimal | None = Field(default=None, gt=0)
+    tile_length: Decimal | None = Field(default=None, gt=0)
+    tile_width: Decimal | None = Field(default=None, gt=0)
+    box_pieces: int | None = Field(default=None, gt=0)
+    box_m2: Decimal | None = Field(default=None, gt=0)
     price: Decimal | None = Field(default=None, ge=0)
     cost_price: Decimal | None = Field(default=None, ge=0)
     sort: str | None = None
@@ -153,6 +161,10 @@ class ProductOut(BaseModel):
     unit: str
     dona_m2: Decimal | None
     thickness: Decimal | None = None
+    tile_length: Decimal | None = None
+    tile_width: Decimal | None = None
+    box_pieces: int | None = None
+    box_m2: Decimal | None = None
     price: Decimal
     cost_price: Decimal
     sort: str | None = None

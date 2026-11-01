@@ -71,6 +71,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
     final noteCtrl = TextEditingController();
     String paymentMethod = 'cash';
     bool inDona = false;
+    bool inPachka = false;
     bool busy = false;
     String? errorText;
 
@@ -128,6 +129,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                           setS(() {
                             selected = p;
                             inDona = false;
+                            inPachka = false;
                             if (p.costPrice > 0) {
                               costCtrl.text = p.costPrice.round().toString();
                             }
@@ -146,18 +148,31 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                             controller: qtyCtrl,
                             keyboardType: TextInputType.number,
                             decoration: InputDecoration(
-                              labelText: 'Miqdor (${inDona ? 'dona' : selected.unit})',
+                              labelText: 'Miqdor (${inPachka ? 'pachka' : (inDona ? 'dona' : selected.unit)})',
                               hintText: 'Masalan: 50',
                             ),
                             onChanged: (_) => setS(() {}),
                           ),
                         ),
-                        if (selected.hasDona) ...[
+                        if (selected.hasPachka) ...[
+                          const SizedBox(width: 8),
+                          FilterChip(
+                            label: Text('pachka (${qty(selected.effectiveBoxM2 ?? 1)} m²)', style: const TextStyle(fontSize: 12)),
+                            selected: inPachka,
+                            onSelected: (v) => setS(() {
+                              inPachka = v;
+                              if (inPachka) inDona = false;
+                            }),
+                          ),
+                        ] else if (selected.hasDona) ...[
                           const SizedBox(width: 8),
                           FilterChip(
                             label: const Text('dona', style: TextStyle(fontSize: 12)),
                             selected: inDona,
-                            onSelected: (v) => setS(() => inDona = v),
+                            onSelected: (v) => setS(() {
+                              inDona = v;
+                              if (inDona) inPachka = false;
+                            }),
                           ),
                         ],
                       ],
@@ -261,7 +276,9 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                           errorText = null;
                         });
 
-                        final baseQty = (inDona && selected.hasDona) ? qVal * selected.donaM2! : qVal;
+                        final baseQty = (inPachka && selected.hasPachka)
+                            ? qVal * (selected.effectiveBoxM2 ?? 1.0)
+                            : ((inDona && selected.hasDona) ? qVal * selected.donaM2! : qVal);
                         final fullNoteParts = <String>[];
                         if (supplierCtrl.text.trim().isNotEmpty) {
                           fullNoteParts.add('Yetkazib beruvchi: ${supplierCtrl.text.trim()}');
