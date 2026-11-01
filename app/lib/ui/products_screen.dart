@@ -483,7 +483,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                                     child: const Text('1 dona = 0.25 m²',
                                                         style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
                                                   ),
-                                                if (p.sort != null && p.sort!.isNotEmpty)
+                                                if (p.sortLabel.isNotEmpty)
                                                   Container(
                                                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                                     decoration: BoxDecoration(
@@ -491,7 +491,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                                       borderRadius: BorderRadius.circular(6),
                                                     ),
                                                     child: Text(
-                                                      p.sort == 'oliy' ? 'Oliy sort' : '${p.sort}-sort',
+                                                      p.sortLabel,
                                                       style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFFD97706)),
                                                     ),
                                                   )
@@ -668,7 +668,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                                   style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
                                             ),
                                           ],
-                                          if (p.sort != null && p.sort!.isNotEmpty) ...[
+                                          if (p.sortLabel.isNotEmpty) ...[
                                             const SizedBox(width: 8),
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -677,7 +677,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                                 borderRadius: BorderRadius.circular(10),
                                               ),
                                               child: Text(
-                                                p.sort == 'oliy' ? 'Oliy sort' : '${p.sort}-sort',
+                                                p.sortLabel,
                                                 style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD97706)),
                                               ),
                                             ),
@@ -938,6 +938,7 @@ class _ProductDialogState extends State<ProductDialog> {
         : '15',
   );
   final _minStockPachka = TextEditingController();
+  late final _sort = TextEditingController(text: widget.product?.sort ?? widget.product?.color ?? "");
   late String? _category = widget.product?.category;
   late String _unit = widget.product?.unit ?? 'm2';
   String? _error;
@@ -998,6 +999,7 @@ class _ProductDialogState extends State<ProductDialog> {
     _stockPachka.dispose();
     _minStock.dispose();
     _minStockPachka.dispose();
+    _sort.dispose();
     super.dispose();
   }
 
@@ -1508,9 +1510,9 @@ class _ProductDialogState extends State<ProductDialog> {
       tileWidth: tWid,
       boxPieces: bPieces,
       boxM2: calculatedBoxM2,
-      sort: widget.product?.sort,
+      sort: _sort.text.trim().isNotEmpty ? _sort.text.trim() : null,
       hasSorts: false,
-      color: widget.product?.color,
+      color: _sort.text.trim().isNotEmpty ? _sort.text.trim() : null,
       price: price,
       costPrice: cost,
       minStock: effectiveMinStock,
@@ -2012,6 +2014,16 @@ class _ProductDialogState extends State<ProductDialog> {
                     ),
                 ],
                 onChanged: (v) => setState(() => _category = v),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _sort,
+                decoration: const InputDecoration(
+                  labelText: "Mahsulot turi (Sort, Rang yoki Xususiyat)",
+                  hintText: "Masalan: 1-sort, Oliy sort, Qora, Matoviy...",
+                  prefixIcon: Icon(Icons.style_outlined, size: 20),
+                ),
+                onChanged: (_) => setState(() {}),
               ),
 
               const SizedBox(height: 12),

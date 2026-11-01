@@ -695,7 +695,22 @@ class _ProductCardState extends State<_ProductCard> {
                                   color: context.inkColor,
                                 ),
                               ),
-                              if (p.color != null && p.color!.isNotEmpty)
+                              if (p.sortLabel.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: context.isDark ? const Color(0xFF332512) : const Color(0xFFFEF3C7),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      p.sortLabel,
+                                      style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFFD97706)),
+                                    ),
+                                  ),
+                                )
+                              else if (p.color != null && p.color!.isNotEmpty)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 2),
                                   child: StoneColorBadge(colorName: p.color!, fontSize: 9.5),

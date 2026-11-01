@@ -320,12 +320,18 @@ class Product {
 
   String get sortLabel {
     if (sort != null && sort!.isNotEmpty) {
-      return sort == 'oliy' ? 'Oliy sort' : '$sort-sort';
+      final s = sort!.trim();
+      if (s.toLowerCase() == 'oliy') return 'Oliy sort';
+      if (RegExp(r'^(1|1\.5|2|3)$').hasMatch(s)) return '$s-sort';
+      return s;
+    }
+    if (color != null && color!.isNotEmpty) {
+      return color!.trim();
     }
     final match = RegExp(r'\((1|1\.5|2|3|Oliy|oliy)[ -]sort\)', caseSensitive: false).firstMatch(name);
     if (match != null) {
       final s = match.group(1)!;
-      return s.toLowerCase() == 'oliy' ? 'Oliy sort' : '$s-sort';
+      return s.toLowerCase() == 'oliy' ? 'Oliy sort' : '\-sort';
     }
     if (hasSorts) {
       return '1 • 1.5 • 2 sort';
