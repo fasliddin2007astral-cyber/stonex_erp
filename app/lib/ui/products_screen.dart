@@ -948,6 +948,50 @@ class _ProductDialogState extends State<ProductDialog> {
     super.dispose();
   }
 
+  IconData _getCategoryIcon(String cat) {
+    switch (cat.toLowerCase()) {
+      case 'granit':
+        return Icons.terrain_rounded;
+      case 'kerama granit':
+        return Icons.grid_view_rounded;
+      case 'kafel':
+        return Icons.dashboard_customize_rounded;
+      case 'marmar':
+        return Icons.diamond_outlined;
+      case 'tayyor mahsulot':
+        return Icons.inventory_2_outlined;
+      case 'xomashyo':
+        return Icons.architecture_rounded;
+      case 'qo‘shimcha':
+      case 'qoshimcha':
+        return Icons.extension_outlined;
+      default:
+        return Icons.category_rounded;
+    }
+  }
+
+  Color _getCategoryColor(String cat) {
+    switch (cat.toLowerCase()) {
+      case 'granit':
+        return const Color(0xFFD97706);
+      case 'kerama granit':
+        return const Color(0xFF059669);
+      case 'kafel':
+        return const Color(0xFF0D9488);
+      case 'marmar':
+        return const Color(0xFF8B5CF6);
+      case 'tayyor mahsulot':
+        return const Color(0xFF2563EB);
+      case 'xomashyo':
+        return const Color(0xFFEA580C);
+      case 'qo‘shimcha':
+      case 'qoshimcha':
+        return const Color(0xFFE11D48);
+      default:
+        return AppColors.green;
+    }
+  }
+
   Future<void> _pickAndUploadImage() async {
     setState(() {
       _uploadingImage = true;
@@ -1501,6 +1545,15 @@ class _ProductDialogState extends State<ProductDialog> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: standardProductCategories.contains(_category) ? _category : null,
+                dropdownColor: context.isDark ? const Color(0xFF1E2631) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                elevation: 8,
+                icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                style: TextStyle(
+                  color: context.inkColor,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                ),
                 decoration: InputDecoration(
                   labelText: 'Mahsulot kategoriyasi',
                   prefixIcon: const Icon(Icons.category_rounded, size: 20),
@@ -1513,9 +1566,79 @@ class _ProductDialogState extends State<ProductDialog> {
                       : null,
                 ),
                 hint: const Text('Kategoriyani tanlang'),
+                selectedItemBuilder: (BuildContext context) {
+                  return standardProductCategories.map<Widget>((String cat) {
+                    final color = _getCategoryColor(cat);
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Icon(_getCategoryIcon(cat), size: 14, color: color),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            cat,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: context.inkColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList();
+                },
                 items: [
                   for (final cat in standardProductCategories)
-                    DropdownMenuItem(value: cat, child: Text(cat)),
+                    DropdownMenuItem(
+                      value: cat,
+                      child: Builder(
+                        builder: (context) {
+                          final isSel = _category == cat;
+                          final color = _getCategoryColor(cat);
+                          return Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: color.withValues(alpha: 0.14),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(_getCategoryIcon(cat), size: 16, color: color),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  cat,
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
+                                    color: isSel
+                                        ? (context.isDark ? AppColors.neonLime : color)
+                                        : context.inkColor,
+                                  ),
+                                ),
+                              ),
+                              if (isSel)
+                                Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 18,
+                                  color: context.isDark ? AppColors.neonLime : color,
+                                ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
                 ],
                 onChanged: (v) => setState(() => _category = v),
               ),
