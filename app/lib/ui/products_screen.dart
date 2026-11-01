@@ -929,7 +929,6 @@ class _ProductDialogState extends State<ProductDialog> {
   final _stock = TextEditingController();
   late String? _category = widget.product?.category;
   late String _unit = widget.product?.unit ?? 'm2';
-  late bool _stone = widget.product?.hasDona ?? false;
   String? _error;
   bool _busy = false;
   bool _uploadingImage = false;
@@ -1093,7 +1092,7 @@ class _ProductDialogState extends State<ProductDialog> {
       sku: barcode,
       qrCode: barcode,
       unit: _unit,
-      donaM2: (_stone && _unit == 'm2') ? Units.stoneDonaM2 : null,
+      donaM2: _unit == 'm2' ? (widget.product?.donaM2 ?? Units.stoneDonaM2) : null,
       thickness: (_unit == 'm2' && thick != null && thick > 0) ? thick : null,
       sort: widget.product?.sort,
       hasSorts: false,
@@ -1546,19 +1545,7 @@ class _ProductDialogState extends State<ProductDialog> {
                   });
                 },
               ),
-              if (_unit == 'm2') ...[
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Dona bilan sotiladi (1 dona = 0.25 m²)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  value: _stone,
-                  onChanged: (v) {
-                    setState(() {
-                      _stone = v;
-                    });
-                  },
-                ),
-              ],
+
 
               const SizedBox(height: 12),
               Container(
