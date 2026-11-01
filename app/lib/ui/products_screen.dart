@@ -154,13 +154,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
           } else if (_selectedFilter == 'Dona') {
             displayList = displayList.where((p) => p.hasDona || p.unit == 'dona').toList();
           } else if (_selectedFilter == 'Kam qolgan') {
-            displayList = displayList.where((p) => p.stock < 15).toList();
+            displayList = displayList.where((p) => p.stock <= p.minStock).toList();
           }
 
           // Umumiy statistika
           final totalCount = allProducts.length;
           final totalStockValue = allProducts.fold<double>(0, (sum, p) => sum + (p.stock * p.price));
-          final lowStockCount = allProducts.where((p) => p.stock < 15).length;
+          final lowStockCount = allProducts.where((p) => p.stock <= p.minStock).length;
 
           return RefreshIndicator(
             onRefresh: () async => _reload(),
@@ -406,7 +406,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         itemBuilder: (_, i) {
                           final p = displayList[i];
                           final isOutOfStock = p.stock <= 0;
-                          final isLowStock = p.stock > 0 && p.stock < 15;
+                          final isLowStock = p.stock > 0 && p.stock <= p.minStock;
 
                           Color stockColor = AppColors.green;
                           String stockLabel = '${qty(p.stock)} ${p.unit}';
@@ -929,6 +929,15 @@ class _ProductDialogState extends State<ProductDialog> {
   late final _boxPieces = TextEditingController(text: widget.product?.boxPieces != null ? widget.product!.boxPieces.toString() : '');
   late final _imageUrl = TextEditingController(text: widget.product?.imageUrl);
   final _stock = TextEditingController();
+  late final _minStock = TextEditingController(
+    text: widget.product?.minStock != null
+        ? (widget.product!.minStock == widget.product!.minStock.roundToDouble()
+            ? widget.product!.minStock.toInt().toString()
+            : widget.product!.minStock.toString())
+        : '15',
+  );
+  bool _stockInPachka = false;
+  bool _minStockInPachka = false;
   late String? _category = widget.product?.category;
   late String _unit = widget.product?.unit ?? 'm2';
   String? _error;
@@ -967,7 +976,240 @@ class _ProductDialogState extends State<ProductDialog> {
     _boxPieces.dispose();
     _imageUrl.dispose();
     _stock.dispose();
+    _minStock.dispose();
     super.dispose();
+  }
+
+  double? _effectiveBoxM2() {
+    return _calcTileBoxM2() ?? widget.product?.effectiveBoxM2;
+  }
+
+  void _toggleStockUnit(bool toPachka) {
+    if (_stockInPachka == toPachka) return;
+    final boxM2 = _effectiveBoxM2();
+    if (toPachka && (boxM2 == null || boxM2 <= 0)) return;
+
+    final currentVal = parseInput(_stock.text);
+    if (currentVal != null && boxM2 != null && boxM2 > 0) {
+      if (toPachka) {
+        final pVal = currentVal / boxM2;
+        _stock.text = pVal == pVal.roundToDouble()
+            ? pVal.toInt().toString()
+            : pVal.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+      } else {
+        final mVal = currentVal * boxM2;
+        _stock.text = mVal == mVal.roundToDouble()
+            ? mVal.toInt().toString()
+            : mVal.toStringAsFixed(3).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+      }
+    }
+    setState(() {
+      _stockInPachka = toPachka;
+    });
+  }
+
+  void _toggleMinStockUnit(bool toPachka) {
+    if (_minStockInPachka == toPachka) return;
+    final boxM2 = _effectiveBoxM2();
+    if (toPachka && (boxM2 == null || boxM2 <= 0)) return;
+
+    final currentVal = parseInput(_minStock.text);
+    if (currentVal != null && boxM2 != null && boxM2 > 0) {
+      if (toPachka) {
+        final pVal = currentVal / boxM2;
+        _minStock.text = pVal == pVal.roundToDouble()
+            ? pVal.toInt().toString()
+            : pVal.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+      } else {
+        final mVal = currentVal * boxM2;
+        _minStock.text = mVal == mVal.roundToDouble()
+            ? mVal.toInt().toString()
+            : mVal.toStringAsFixed(3).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+      }
+    }
+    setState(() {
+      _minStockInPachka = toPachka;
+    });
+  }
+
+  Widget _buildStockInputField({
+    required String title,
+    required String subtitle,
+    required TextEditingController controller,
+    required bool inPachka,
+    required ValueChanged<bool> onUnitChanged,
+    required IconData icon,
+  }) {
+    final boxM2 = _effectiveBoxM2();
+    final canUsePachka = boxM2 != null && boxM2 > 0;
+    final val = parseInput(controller.text) ?? 0.0;
+    final unitLabel = inPachka ? 'pachka' : _unit;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: context.isDark ? const Color(0xFF192028) : const Color(0xFFF7F9FA),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: context.isDark ? AppColors.neonLime : AppColors.ink),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                    ),
+                    if (subtitle.isNotEmpty)
+                      Text(
+                        subtitle,
+                        style: const TextStyle(color: AppColors.muted, fontSize: 10.5),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: context.isDark ? const Color(0xFF12161C) : const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.all(2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    InkWell(
+                      onTap: () => onUnitChanged(false),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: !inPachka
+                              ? (context.isDark ? AppColors.neonLime : Colors.white)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: !inPachka
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.08),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 1),
+                                  )
+                                ]
+                              : null,
+                        ),
+                        child: Text(
+                          _unit,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: !inPachka
+                                ? (context.isDark ? AppColors.ink : Colors.black87)
+                                : AppColors.muted,
+                          ),
+                        ),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: canUsePachka ? () => onUnitChanged(true) : null,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Opacity(
+                        opacity: canUsePachka ? 1.0 : 0.4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: inPachka
+                                ? (context.isDark ? AppColors.neonLime : Colors.white)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: inPachka
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.08),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    )
+                                  ]
+                                : null,
+                          ),
+                          child: Text(
+                            'Pachka',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: inPachka
+                                  ? (context.isDark ? AppColors.ink : Colors.black87)
+                                  : AppColors.muted,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              hintText: '0',
+              suffixText: unitLabel,
+              suffixStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              isDense: true,
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          if (canUsePachka && val > 0) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: (context.isDark ? AppColors.neonLime : const Color(0xFF0D9488)).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.sync_alt_rounded,
+                    size: 15,
+                    color: context.isDark ? AppColors.neonLime : const Color(0xFF0F766E),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      inPachka
+                          ? 'Proporsional:  pachka ×   =   hisoblanadi'
+                          : 'Proporsional:   ≈  pachka',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: context.isDark ? AppColors.neonLime : const Color(0xFF0F766E),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (!canUsePachka) ...[
+            const SizedBox(height: 6),
+            const Text(
+              '💡 Pachka hisobi uchun yuqoridagi Kafel/Kerama granit bo‘yi, eni va donasini kiriting',
+              style: TextStyle(fontSize: 10.5, color: AppColors.muted),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   IconData _getCategoryIcon(String cat) {
@@ -1129,7 +1371,8 @@ class _ProductDialogState extends State<ProductDialog> {
     final thick = parseInput(_thickness.text);
     final price = parseInput(_price.text);
     final cost = _cost.text.trim().isEmpty ? 0.0 : parseInput(_cost.text);
-    final stock = _stock.text.trim().isEmpty ? 0.0 : parseInput(_stock.text);
+    final rawStock = _stock.text.trim().isEmpty ? 0.0 : parseInput(_stock.text);
+    final rawMinStock = _minStock.text.trim().isEmpty ? 15.0 : parseInput(_minStock.text);
 
     if (_name.text.trim().isEmpty) {
       setState(() {
@@ -1143,7 +1386,7 @@ class _ProductDialogState extends State<ProductDialog> {
       });
       return;
     }
-    if (cost == null || cost < 0 || stock == null || stock < 0) {
+    if (cost == null || cost < 0 || rawStock == null || rawStock < 0 || rawMinStock == null || rawMinStock < 0) {
       setState(() {
         _error = 'Raqamlarni to‘g‘ri kiriting';
       });
@@ -1164,6 +1407,17 @@ class _ProductDialogState extends State<ProductDialog> {
       if (bPieces != null && bPieces > 0) {
         calculatedBoxM2 = calculatedDonaM2 * bPieces;
       }
+    }
+
+    final boxM2 = calculatedBoxM2 ?? widget.product?.effectiveBoxM2;
+    double effectiveStock = rawStock;
+    if (_stockInPachka && boxM2 != null && boxM2 > 0) {
+      effectiveStock = rawStock * boxM2;
+    }
+
+    double effectiveMinStock = rawMinStock;
+    if (_minStockInPachka && boxM2 != null && boxM2 > 0) {
+      effectiveMinStock = rawMinStock * boxM2;
     }
 
     final p = Product(
@@ -1188,6 +1442,7 @@ class _ProductDialogState extends State<ProductDialog> {
       color: widget.product?.color,
       price: price,
       costPrice: cost,
+      minStock: effectiveMinStock,
       imageUrl: _imageUrl.text.trim().isNotEmpty ? _imageUrl.text.trim() : null,
     );
 
@@ -1198,7 +1453,7 @@ class _ProductDialogState extends State<ProductDialog> {
 
     try {
       if (widget.product == null) {
-        final created = await widget.repo.create(p, initialStock: stock);
+        final created = await widget.repo.create(p, initialStock: effectiveStock);
         LocalImageStore.saveImage(created.id, p.imageUrl, created.name);
       } else {
         LocalImageStore.saveImage(p.id, p.imageUrl, p.name);
@@ -1869,12 +2124,24 @@ class _ProductDialogState extends State<ProductDialog> {
               ),
               if (isNew) ...[
                 const SizedBox(height: 12),
-                TextField(
+                _buildStockInputField(
+                  title: 'Boshlang‘ich ombor qoldig‘i',
+                  subtitle: 'Yangi mahsulot uchun ombordagi dastlabki miqdor',
                   controller: _stock,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(labelText: 'Boshlang‘ich ombor qoldig‘i ($_unit)'),
+                  inPachka: _stockInPachka,
+                  onUnitChanged: _toggleStockUnit,
+                  icon: Icons.inventory_2_outlined,
                 ),
               ],
+              const SizedBox(height: 12),
+              _buildStockInputField(
+                title: 'Minimal ombor qoldig‘i',
+                subtitle: 'Omborda kamida qancha bo‘lishi kerak (ogohlantirish chegarasi)',
+                controller: _minStock,
+                inPachka: _minStockInPachka,
+                onUnitChanged: _toggleMinStockUnit,
+                icon: Icons.warning_amber_rounded,
+              ),
 
               // Haqiqiy jonli QR-kod stiker ko'rinishi
               _buildLiveQrPreview(context),

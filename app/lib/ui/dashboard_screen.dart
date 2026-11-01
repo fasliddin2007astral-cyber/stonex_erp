@@ -1610,9 +1610,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildTagsAndStockTableCard(List<Product> products, {double? height}) {
     final lowStock =
-        products.where((p) => p.stock > 0 && p.stock < 15).toList();
+        products.where((p) => p.stock > 0 && p.stock <= p.minStock).toList();
     final outOfStock = products.where((p) => p.stock <= 0).toList();
-    final inStock = products.where((p) => p.stock >= 15).toList();
+    final inStock = products.where((p) => p.stock > p.minStock).toList();
     final sortProducts = products.where((p) => p.hasSorts).toList();
 
     final tags = ['Barchasi', 'Kam qolgan', 'Tugagan', 'Yetarli', 'Sortli'];

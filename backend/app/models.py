@@ -69,6 +69,7 @@ class Product(Base):
     tile_width: Mapped[Decimal | None] = mapped_column(QTY, nullable=True)  # kafel eni (sm)
     box_pieces: Mapped[int | None] = mapped_column(nullable=True)  # 1 pachkadagi donalar soni
     box_m2: Mapped[Decimal | None] = mapped_column(QTY, nullable=True)  # 1 pachka kvadrati (m2)
+    min_stock: Mapped[Decimal | None] = mapped_column(QTY, default=Decimal(15), nullable=True)  # minimal ombor qoldig'i (kam qolganlik chegarasi)
     price: Mapped[Decimal] = mapped_column(MONEY, default=0)  # bazaviy birlik uchun sotuv narxi
     cost_price: Mapped[Decimal] = mapped_column(MONEY, default=0)  # o'rtacha tannarx
     sort: Mapped[str | None] = mapped_column(String(16), nullable=True)  # 1, 1.5, 2, 3, oliy

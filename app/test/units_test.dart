@@ -447,4 +447,47 @@ void main() {
     expect(cart.lines.first.baseQty, 2.88);
     expect(cart.lines.first.lineTotal, 432000);
   });
+
+  test('Boshlang‘ich ombor qoldig‘i va minimal ombor qoldig‘i (minStock): m² yoki pachkada proporsional kiritilishi', () async {
+    final s = MockStore();
+    final prodRepo = MockProductRepository(s);
+
+    // 1. Kafel: 1 pachka = 1.44 m2
+    // Foydalanuvchi boshlang'ich qoldiqni 50 pachka va kamida 10 pachka bo'lishi kerak deb kiritdi
+    const boxM2 = 1.44;
+    final pachkaInitial = 50.0;
+    final pachkaMinStock = 10.0;
+
+    final effectiveStock = pachkaInitial * boxM2; // 72.0 m2
+    final effectiveMinStock = pachkaMinStock * boxM2; // 14.4 m2
+
+    final product = await prodRepo.create(
+      Product(
+        id: 0,
+        name: 'Keramogranit 60x60 Marazzi',
+        category: 'Kerama granit',
+        unit: 'm2',
+        tileLength: 60,
+        tileWidth: 60,
+        boxPieces: 4,
+        boxM2: boxM2,
+        price: 180000,
+        minStock: effectiveMinStock,
+      ),
+      initialStock: effectiveStock,
+    );
+
+    expect(product.stock, 72.0);
+    expect(product.minStock, closeTo(14.4, 0.001));
+    expect(product.stock <= product.minStock, false); // Hozir yetarli
+
+    // Mahsulot yangilanganda (masalan minStock m2 da 20 m2 ga o'zgartirildi)
+    final updated = await prodRepo.update(product.copyWith(minStock: 20.0));
+    expect(updated.minStock, 20.0);
+    expect(updated.stock, 72.0);
+
+    // Qoldiq 15 m2 ga tushganda: 15 <= 20 bo'lgani uchun "Kam qolgan" (low stock) belgisi chiqadi
+    final lowStockProd = updated.copyWith(stock: 15.0);
+    expect(lowStockProd.stock <= lowStockProd.minStock, true);
+  });
 }

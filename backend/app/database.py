@@ -67,6 +67,8 @@ def ensure_migrations():
                 conn.execute(text("ALTER TABLE products ADD COLUMN box_pieces INTEGER NULL"))
             if "box_m2" not in columns:
                 conn.execute(text("ALTER TABLE products ADD COLUMN box_m2 DECIMAL(14, 3) NULL"))
+            if "min_stock" not in columns:
+                conn.execute(text("ALTER TABLE products ADD COLUMN min_stock DECIMAL(14, 3) NULL DEFAULT 15"))
     if "customers" in table_names:
         c_columns = [c["name"] for c in inspector.get_columns("customers")]
         with engine.begin() as conn:

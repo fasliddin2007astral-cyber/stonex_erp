@@ -380,6 +380,7 @@ class MockProductRepository implements ProductRepository {
       color: p.color,
       priceSort1: p.priceSort1, priceSort1_5: p.priceSort1_5, priceSort2: p.priceSort2,
       price: p.price, costPrice: p.costPrice, stock: initialStock,
+      minStock: p.minStock,
       imageUrl: p.imageUrl,
     );
     _s.products.add(created);
@@ -405,6 +406,7 @@ class MockProductRepository implements ProductRepository {
       color: p.color,
       priceSort1: p.priceSort1, priceSort1_5: p.priceSort1_5, priceSort2: p.priceSort2,
       price: p.price, costPrice: p.costPrice, stock: old.stock, // qoldiq faqat harakatlar orqali o'zgaradi
+      minStock: p.minStock,
       imageUrl: p.imageUrl ?? old.imageUrl,
     );
     _s.products[i] = updated;

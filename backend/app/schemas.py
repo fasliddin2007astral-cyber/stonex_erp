@@ -117,6 +117,7 @@ class ProductIn(BaseModel):
     tile_width: Decimal | None = Field(default=None, gt=0)
     box_pieces: int | None = Field(default=None, gt=0)
     box_m2: Decimal | None = Field(default=None, gt=0)
+    min_stock: Decimal | None = Field(default=Decimal(15), ge=0)
     price: Decimal = Field(ge=0)
     cost_price: Decimal = Field(default=Decimal(0), ge=0)
     sort: str | None = None
@@ -141,6 +142,7 @@ class ProductUpdate(BaseModel):
     tile_width: Decimal | None = Field(default=None, gt=0)
     box_pieces: int | None = Field(default=None, gt=0)
     box_m2: Decimal | None = Field(default=None, gt=0)
+    min_stock: Decimal | None = Field(default=None, ge=0)
     price: Decimal | None = Field(default=None, ge=0)
     cost_price: Decimal | None = Field(default=None, ge=0)
     sort: str | None = None
@@ -165,6 +167,7 @@ class ProductOut(BaseModel):
     tile_width: Decimal | None = None
     box_pieces: int | None = None
     box_m2: Decimal | None = None
+    min_stock: Decimal | None = Decimal(15)
     price: Decimal
     cost_price: Decimal
     sort: str | None = None

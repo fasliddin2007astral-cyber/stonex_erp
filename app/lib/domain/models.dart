@@ -257,6 +257,7 @@ class Product {
   final double price; // bazaviy birlik narxi
   final double costPrice;
   final double stock;
+  final double minStock; // kamida qancha bo'lishi kerak (ogohlantirish chegarasi)
   final String? imageUrl;
 
   const Product({
@@ -281,6 +282,7 @@ class Product {
     required this.price,
     this.costPrice = 0,
     this.stock = 0,
+    this.minStock = 15,
     this.imageUrl,
   });
 
@@ -353,6 +355,7 @@ class Product {
     double? price,
     double? costPrice,
     double? stock,
+    double? minStock,
     String? imageUrl,
   }) =>
       Product(
@@ -377,6 +380,7 @@ class Product {
         price: price ?? this.price,
         costPrice: costPrice ?? this.costPrice,
         stock: stock ?? this.stock,
+        minStock: minStock ?? this.minStock,
         imageUrl: imageUrl ?? this.imageUrl,
       );
 
@@ -402,6 +406,7 @@ class Product {
         price: parseNum(j['price']),
         costPrice: parseNum(j['cost_price']),
         stock: parseNum(j['stock']),
+        minStock: j['min_stock'] == null ? 15.0 : parseNum(j['min_stock']),
         imageUrl: (j['image_url'] != null && j['image_url'].toString().isNotEmpty)
             ? j['image_url'].toString()
             : null,
@@ -435,6 +440,8 @@ class Product {
         'price_sort2': priceSort2,
         'price': price,
         'cost_price': costPrice,
+        'stock': stock,
+        'min_stock': minStock,
         'initial_stock': initialStock,
         'image_url': imageUrl,
       };

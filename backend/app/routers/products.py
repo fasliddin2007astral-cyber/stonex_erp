@@ -1,3 +1,4 @@
+from decimal import Decimal
 import os
 import shutil
 import uuid
@@ -35,6 +36,7 @@ def to_out(p: m.Product, stock) -> ProductOut:
         tile_width=getattr(p, 'tile_width', None),
         box_pieces=getattr(p, 'box_pieces', None),
         box_m2=getattr(p, 'box_m2', None),
+        min_stock=getattr(p, 'min_stock', Decimal(15)) if getattr(p, 'min_stock', None) is not None else Decimal(15),
         price=p.price,
         cost_price=p.cost_price,
         sort=getattr(p, 'sort', None),
@@ -118,6 +120,7 @@ def create_product(data: ProductIn, db: Session = Depends(get_db),
         tile_width=data.tile_width,
         box_pieces=data.box_pieces,
         box_m2=data.box_m2,
+        min_stock=data.min_stock if data.min_stock is not None else Decimal(15),
         price=data.price,
         cost_price=data.cost_price,
         sort=data.sort,
