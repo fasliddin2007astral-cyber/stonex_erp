@@ -1,6 +1,25 @@
 /// 1234567.5 -> "1 234 568 so'm". Faqat ko'rsatish uchun.
 String money(double v) => '${_group(v.round())} so‘m';
 
+/// USD dollar ko'rsatish: 120 -> "$120", 120.5 -> "$120.50"
+String moneyUsd(double v) {
+  if (v.abs() < 0.001) return '\$0';
+  if ((v - v.roundToDouble()).abs() < 0.001) {
+    return '\$${_group(v.round())}';
+  }
+  final s = v.toStringAsFixed(2);
+  final parts = s.split('.');
+  final whole = int.tryParse(parts[0]) ?? 0;
+  return '\$${_group(whole)}.${parts[1]}';
+}
+
+/// So'm va Dollar ikkalasini ko'rsatish: "1 200 000 so'm ($100)"
+String moneyDual(double som, double rate) {
+  if (rate <= 0) return money(som);
+  final usd = som / rate;
+  return '${money(som)} (${moneyUsd(usd)})';
+}
+
 String qty(double v) {
   final s = v.toStringAsFixed(3);
   return s.contains('.') ? s.replaceFirst(RegExp(r'\.?0+$'), '') : s;

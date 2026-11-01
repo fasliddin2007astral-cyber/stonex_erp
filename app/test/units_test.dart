@@ -4,6 +4,7 @@ import 'package:stonex_erp/core/units.dart';
 import 'package:stonex_erp/data/mock_repositories.dart';
 import 'package:stonex_erp/domain/models.dart';
 import 'package:stonex_erp/state/cart_controller.dart';
+import 'package:stonex_erp/state/currency_controller.dart';
 
 void main() {
   test('1 dona = 0.25 m2 faqat tosh uchun', () {
@@ -321,5 +322,43 @@ void main() {
     final sale = await cart.checkout(paid: cart.total);
     expect(sale.items.length, 2);
     expect(sale.items.first.productName, contains('(Oq)'));
+  });
+
+  test('Valyuta kursi, So‘m va Dollar ikkalasida savdo va to‘lov', () async {
+    // 1. Format tekshirish
+    expect(moneyUsd(100), '\$100');
+    expect(moneyUsd(100.5), '\$100.50');
+    expect(moneyDual(1200000, 12000), '1 200 000 so‘m (\$100)');
+
+    // 2. CurrencyController
+    final curr = CurrencyController();
+    expect(curr.usdRate, greaterThan(10000));
+    final rate = 12000.0;
+    curr.setCustomRate(rate);
+    expect(curr.isCustom, true);
+    expect(curr.usdRate, rate);
+    expect(curr.toUsd(120000), 10.0);
+    expect(curr.toUzs(10.0), 120000.0);
+
+    // 3. Savdoda so'm va dollar aralash to'lov
+    final s = MockStore();
+    final salesRepo = MockSalesRepository(s);
+    final cart = CartController(salesRepo);
+    final p = s.products.first; // 180 000 so'm
+    cart.add(p, quantity: 2); // 360 000 so'm ($30 at 12 000 rate)
+
+    // Mijoz $20 dollar naqd berdi ($20 * 12 000 = 240 000 so'm) + 120 000 so'm kesh
+    final sale = await cart.checkout(
+      paid: 360000,
+      currencyRate: rate,
+      paidUzs: 120000,
+      paidUsd: 20,
+    );
+    expect(sale.total, 360000);
+    expect(sale.paid, 360000);
+    expect(sale.currencyRate, 12000);
+    expect(sale.paidUzs, 120000);
+    expect(sale.paidUsd, 20);
+    expect(sale.debt, 0);
   });
 }

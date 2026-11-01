@@ -4,6 +4,12 @@ double parseNum(dynamic v) {
   return double.tryParse(v.toString()) ?? 0; // backend Decimal'ni satr sifatida yuboradi
 }
 
+double? parseNumOrNull(dynamic v) {
+  if (v == null) return null;
+  if (v is num) return v.toDouble();
+  return double.tryParse(v.toString());
+}
+
 enum Role {
   admin('admin', 'Admin'),
   kassir('kassir', 'Kassir'),
@@ -566,6 +572,9 @@ class SaleResult {
   final double total;
   final double paid;
   final double debt;
+  final double? currencyRate;
+  final double? paidUzs;
+  final double? paidUsd;
   final String status; // 'completed' | 'order' | 'cancelled'
   final String? note;
   final int? customerId;
@@ -586,6 +595,9 @@ class SaleResult {
     required this.total,
     required this.paid,
     required this.debt,
+    this.currencyRate,
+    this.paidUzs,
+    this.paidUsd,
     this.status = 'completed',
     this.note,
     this.customerId,
@@ -605,6 +617,9 @@ class SaleResult {
     double? total,
     double? paid,
     double? debt,
+    double? currencyRate,
+    double? paidUzs,
+    double? paidUsd,
     String? status,
     String? note,
     int? customerId,
@@ -623,6 +638,9 @@ class SaleResult {
         total: total ?? this.total,
         paid: paid ?? this.paid,
         debt: debt ?? this.debt,
+        currencyRate: currencyRate ?? this.currencyRate,
+        paidUzs: paidUzs ?? this.paidUzs,
+        paidUsd: paidUsd ?? this.paidUsd,
         status: status ?? this.status,
         note: note ?? this.note,
         customerId: customerId ?? this.customerId,
@@ -645,6 +663,9 @@ class SaleResult {
       total: parseNum(j['total']),
       paid: parseNum(j['paid']),
       debt: parseNum(j['debt']),
+      currencyRate: parseNumOrNull(j['currency_rate']),
+      paidUzs: parseNumOrNull(j['paid_uzs']),
+      paidUsd: parseNumOrNull(j['paid_usd']),
       status: (j['status'] as String?) ?? 'completed',
       note: j['note'] as String?,
       customerId: cust != null ? (cust['id'] as num?)?.toInt() : (j['customer_id'] as num?)?.toInt(),

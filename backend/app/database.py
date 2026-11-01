@@ -71,6 +71,12 @@ def ensure_migrations():
                 conn.execute(text("ALTER TABLE sales ADD COLUMN status VARCHAR(20) DEFAULT 'completed'"))
             if "note" not in s_columns:
                 conn.execute(text("ALTER TABLE sales ADD COLUMN note VARCHAR(255) NULL"))
+            if "currency_rate" not in s_columns:
+                conn.execute(text("ALTER TABLE sales ADD COLUMN currency_rate DECIMAL(14, 2) NULL"))
+            if "paid_uzs" not in s_columns:
+                conn.execute(text("ALTER TABLE sales ADD COLUMN paid_uzs DECIMAL(14, 2) NULL"))
+            if "paid_usd" not in s_columns:
+                conn.execute(text("ALTER TABLE sales ADD COLUMN paid_usd DECIMAL(14, 2) NULL"))
     if "users" in table_names:
         u_columns = [c["name"] for c in inspector.get_columns("users")]
         with engine.begin() as conn:

@@ -7,6 +7,7 @@ import 'package:stonex_erp/domain/models.dart';
 import 'package:stonex_erp/main.dart';
 import 'package:stonex_erp/state/auth_controller.dart';
 import 'package:stonex_erp/state/cart_controller.dart';
+import 'package:stonex_erp/state/currency_controller.dart';
 import 'package:stonex_erp/ui/home_shell.dart';
 import 'package:stonex_erp/ui/production_screen.dart';
 import 'package:stonex_erp/ui/dashboard_screen.dart';
@@ -69,6 +70,7 @@ void main() {
           Provider<AppRepositories>.value(value: repos),
           ChangeNotifierProvider.value(value: authCtrl),
           ChangeNotifierProvider(create: (_) => CartController(repos.sales)),
+          ChangeNotifierProvider(create: (_) => CurrencyController()),
         ],
         child: const MaterialApp(
           home: HomeShell(user: adminUser),
@@ -113,6 +115,7 @@ void main() {
           Provider<AppRepositories>.value(value: repos),
           ChangeNotifierProvider.value(value: authCtrl),
           ChangeNotifierProvider(create: (_) => CartController(repos.sales)),
+          ChangeNotifierProvider(create: (_) => CurrencyController()),
         ],
         child: const MaterialApp(
           home: Scaffold(body: ProductionScreen()),
@@ -153,6 +156,7 @@ void main() {
           Provider<AppRepositories>.value(value: repos),
           ChangeNotifierProvider.value(value: authCtrl),
           ChangeNotifierProvider(create: (_) => CartController(repos.sales)),
+          ChangeNotifierProvider(create: (_) => CurrencyController()),
         ],
         child: const MaterialApp(
           home: Scaffold(body: ProductionScreen()),
@@ -196,6 +200,7 @@ void main() {
           Provider<AppRepositories>.value(value: repos),
           ChangeNotifierProvider.value(value: authCtrl),
           ChangeNotifierProvider(create: (_) => CartController(repos.sales)),
+          ChangeNotifierProvider(create: (_) => CurrencyController()),
         ],
         child: const MaterialApp(
           home: Scaffold(body: ProductsScreen()),
@@ -241,6 +246,7 @@ void main() {
           Provider<AppRepositories>.value(value: repos),
           ChangeNotifierProvider.value(value: authCtrl),
           ChangeNotifierProvider(create: (_) => CartController(repos.sales)),
+          ChangeNotifierProvider(create: (_) => CurrencyController()),
         ],
         child: const MaterialApp(
           home: Scaffold(body: DashboardScreen()),
@@ -276,6 +282,7 @@ void main() {
           Provider<AppRepositories>.value(value: repos),
           ChangeNotifierProvider.value(value: authCtrl),
           ChangeNotifierProvider(create: (_) => CartController(repos.sales)),
+          ChangeNotifierProvider(create: (_) => CurrencyController()),
         ],
         child: const MaterialApp(
           home: Scaffold(body: DashboardScreen()),
@@ -305,6 +312,7 @@ void main() {
         providers: [
           Provider<AppRepositories>.value(value: repos),
           ChangeNotifierProvider<CartController>.value(value: cartController),
+          ChangeNotifierProvider(create: (_) => CurrencyController()),
         ],
         child: const MaterialApp(
           home: Scaffold(body: PosScreen()),
@@ -379,6 +387,7 @@ void main() {
           Provider<AppRepositories>.value(value: repos),
           ChangeNotifierProvider.value(value: authCtrl),
           ChangeNotifierProvider(create: (_) => CartController(repos.sales)),
+          ChangeNotifierProvider(create: (_) => CurrencyController()),
           ChangeNotifierProvider(create: (_) => ThemeController()),
         ],
         child: const MaterialApp(
@@ -538,6 +547,7 @@ void main() {
         providers: [
           Provider<AppRepositories>.value(value: repos),
           ChangeNotifierProvider.value(value: cartCtrl),
+          ChangeNotifierProvider(create: (_) => CurrencyController()),
         ],
         child: const MaterialApp(
           home: Scaffold(body: PosScreen()),

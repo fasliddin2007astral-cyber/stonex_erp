@@ -89,8 +89,18 @@ def create_sale(db: Session, cashier: m.User, data: SaleIn) -> m.Sale:
         raise HTTPException(400, "Buyurtma yoki nasiya uchun mijoz ko'rsatilishi shart")
 
     sale_status = "order" if is_order else "completed"
-    sale = m.Sale(customer_id=customer_id, cashier_id=cashier.id, total=total,
-                  total_cost=total_cost, paid=paid, status=sale_status, note=data.note)
+    sale = m.Sale(
+        customer_id=customer_id,
+        cashier_id=cashier.id,
+        total=total,
+        total_cost=total_cost,
+        paid=paid,
+        currency_rate=q2(data.currency_rate) if data.currency_rate is not None else None,
+        paid_uzs=q2(data.paid_uzs) if data.paid_uzs is not None else paid,
+        paid_usd=q2(data.paid_usd) if data.paid_usd is not None else Decimal(0),
+        status=sale_status,
+        note=data.note,
+    )
     db.add(sale)
     db.flush()
 

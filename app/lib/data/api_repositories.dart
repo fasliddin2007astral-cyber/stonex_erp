@@ -132,6 +132,9 @@ class ApiSalesRepository implements SalesRepository {
   Future<SaleResult> createSale({
     required List<CartLine> lines,
     required double paidAmount,
+    double? currencyRate,
+    double? paidUzs,
+    double? paidUsd,
     int? customerId,
     String? customerName,
     String? customerPhone,
@@ -154,6 +157,9 @@ class ApiSalesRepository implements SalesRepository {
           }
       ],
       'paid_amount': paidAmount,
+      if (currencyRate != null) 'currency_rate': currencyRate,
+      if (paidUzs != null) 'paid_uzs': paidUzs,
+      if (paidUsd != null) 'paid_usd': paidUsd,
       'status': status,
       if (note != null && note.isNotEmpty) 'note': note,
       if (customerId != null) 'customer_id': customerId,

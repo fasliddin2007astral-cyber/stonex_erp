@@ -53,3 +53,41 @@ def add_expense(data: ExpenseIn, db: Session = Depends(get_db), admin: m.User = 
 @router.get("/expenses", response_model=list[ExpenseOut])
 def list_expenses(limit: int = 200, db: Session = Depends(get_db), _: m.User = Depends(_admin)):
     return db.scalars(select(m.Expense).order_by(m.Expense.id.desc()).limit(min(limit, 1000))).all()
+
+
+import json
+import time
+import urllib.request
+
+_cbu_cache = {
+    "rate": 12023.0,
+    "diff": "0.00",
+    "date": "",
+    "updated_at": 0.0,
+}
+
+@router.get("/finance/currency-rate")
+def get_currency_rate():
+    """Markaziy bank (CBU) rasmiy AQSH dollari kursini olish (10 daqiqa keshlash bilan)"""
+    now = time.time()
+    if now - _cbu_cache["updated_at"] < 600 and _cbu_cache["rate"] > 0:
+        return _cbu_cache
+
+    try:
+        req = urllib.request.Request(
+            "https://cbu.uz/uz/arkhiv-kursov-valyut/json/",
+            headers={"User-Agent": "StonexERP/1.0"}
+        )
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            for row in data:
+                if row.get("Ccy") == "USD":
+                    _cbu_cache["rate"] = float(row.get("Rate", 12023.0))
+                    _cbu_cache["diff"] = str(row.get("Diff", "0.00"))
+                    _cbu_cache["date"] = str(row.get("Date", ""))
+                    _cbu_cache["updated_at"] = now
+                    break
+    except Exception:
+        pass
+
+    return _cbu_cache

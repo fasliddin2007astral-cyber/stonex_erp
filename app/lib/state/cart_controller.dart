@@ -133,6 +133,9 @@ class CartController extends ChangeNotifier {
   /// Muvaffaqiyatli bo'lsa savatni tozalaydi; xato bo'lsa savat saqlanadi va xato yuqoriga uzatiladi.
   Future<SaleResult> checkout({
     required double paid,
+    double? currencyRate,
+    double? paidUzs,
+    double? paidUsd,
     String status = 'completed',
     String? note,
     int? customerId,
@@ -147,6 +150,9 @@ class CartController extends ChangeNotifier {
       final res = await _sales.createSale(
         lines: List.of(lines),
         paidAmount: paid,
+        currencyRate: currencyRate,
+        paidUzs: paidUzs,
+        paidUsd: paidUsd,
         status: status,
         note: note,
         customerId: customerId,

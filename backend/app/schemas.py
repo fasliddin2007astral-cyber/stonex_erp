@@ -225,6 +225,9 @@ class SaleItemIn(BaseModel):
 class SaleIn(BaseModel):
     items: list[SaleItemIn] = Field(min_length=1)
     paid_amount: Decimal = Field(ge=0)
+    currency_rate: Decimal | None = None
+    paid_uzs: Decimal | None = None
+    paid_usd: Decimal | None = None
     customer_id: int | None = None
     customer_name: str | None = None
     customer_phone: str | None = None
@@ -260,6 +263,9 @@ class SaleOut(BaseModel):
     total: Decimal
     paid: Decimal
     debt: Decimal
+    currency_rate: Decimal | None = None
+    paid_uzs: Decimal | None = None
+    paid_usd: Decimal | None = None
     status: str = "completed"
     note: str | None = None
     created_at: datetime

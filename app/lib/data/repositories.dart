@@ -21,6 +21,9 @@ abstract class SalesRepository {
   Future<SaleResult> createSale({
     required List<CartLine> lines,
     required double paidAmount,
+    double? currencyRate,
+    double? paidUzs,
+    double? paidUsd,
     int? customerId,
     String? customerName,
     String? customerPhone,

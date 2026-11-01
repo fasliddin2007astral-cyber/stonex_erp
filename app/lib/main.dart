@@ -6,6 +6,7 @@ import 'data/repositories.dart';
 import 'data/repository_factory.dart';
 import 'state/auth_controller.dart';
 import 'state/cart_controller.dart';
+import 'state/currency_controller.dart';
 import 'state/theme_controller.dart';
 import 'ui/home_shell.dart';
 import 'ui/login_screen.dart';
@@ -27,6 +28,7 @@ class StonexApp extends StatelessWidget {
         Provider<AppRepositories>.value(value: repos),
         ChangeNotifierProvider(create: (_) => AuthController(repos.auth)),
         ChangeNotifierProvider(create: (_) => CartController(repos.sales)),
+        ChangeNotifierProvider(create: (_) => CurrencyController()),
         ChangeNotifierProvider(create: (_) => ThemeController()),
       ],
       child: Consumer<ThemeController>(

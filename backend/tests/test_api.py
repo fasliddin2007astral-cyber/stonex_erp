@@ -199,6 +199,35 @@ class ApiTest(unittest.TestCase):
         p_obj = next(x for x in prod_check.json() if x["id"] == pid2)
         self.assertEqual(float(p_obj["stock"]), 93.0)
 
+    def test_currency_rate_and_dual_currency_sale(self):
+        # 1. CBU Kursini olish
+        res = self.c.get("/finance/currency-rate")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertIn("rate", data)
+        self.assertGreater(data["rate"], 10000)
+
+        # 2. Mahsulot yaratish
+        pr = self.c.post("/products", headers=self.h, json={
+            "name": "Marmar Plita Dollar Test", "unit": "m2", "price": 120000, "cost_price": 80000, "initial_stock": 50
+        })
+        pid = pr.json()["id"]
+
+        # 3. So'm va dollarda aralash to'lov (masalan $5 + 60 000 so'm, kurs 12 000 bo'lsa)
+        rate = 12000.0
+        sale_res = self.c.post("/sales", headers=self.h, json={
+            "items": [{"product_id": pid, "quantity": 1, "unit": "base"}],
+            "paid_amount": 120000,
+            "currency_rate": rate,
+            "paid_uzs": 60000,
+            "paid_usd": 5.0,
+        })
+        self.assertEqual(sale_res.status_code, 201)
+        s_data = sale_res.json()
+        self.assertEqual(float(s_data["currency_rate"]), rate)
+        self.assertEqual(float(s_data["paid_uzs"]), 60000.0)
+        self.assertEqual(float(s_data["paid_usd"]), 5.0)
+
 
 if __name__ == "__main__":
     unittest.main()

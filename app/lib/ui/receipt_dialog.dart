@@ -88,9 +88,20 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
       sb.writeln('$name $qStr $total');
     }
     sb.writeln('================================');
-    sb.writeln('JAMI SUMMA:     ${money(sale.total)}');
+    if (sale.currencyRate != null && sale.currencyRate! > 0) {
+      final rate = sale.currencyRate!;
+      final totalUsd = sale.total / rate;
+      sb.writeln('JAMI (So‘m):    ${money(sale.total)}');
+      sb.writeln('JAMI (\$ USD):   ${moneyUsd(totalUsd)}');
+      sb.writeln('Kurs:           \$1 = ${money(rate)}');
+    } else {
+      sb.writeln('JAMI SUMMA:     ${money(sale.total)}');
+    }
     sb.writeln(
         'To‘landi:       ${money(sale.paid)} (${sale.paymentMethod == 'karta' ? 'Karta' : 'Naqd'})');
+    if (sale.paidUsd != null && sale.paidUsd! > 0) {
+      sb.writeln('To‘lov:         ${money(sale.paidUzs ?? 0)} + ${moneyUsd(sale.paidUsd!)}');
+    }
     if (sale.debt > 0.005) {
       sb.writeln('Qoldiq nasiya:  ${money(sale.debt)}');
     }
@@ -324,6 +335,28 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                           style: pw.TextStyle(font: fontBold, fontSize: 11)),
                     ],
                   ),
+                  if (sale.currencyRate != null && sale.currencyRate! > 0) ...[
+                    pw.SizedBox(height: 1),
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text('USD (\$):',
+                            style: pw.TextStyle(font: fontBold, fontSize: 9)),
+                        pw.Text(moneyUsd(sale.total / sale.currencyRate!),
+                            style: pw.TextStyle(font: fontBold, fontSize: 9)),
+                      ],
+                    ),
+                    pw.SizedBox(height: 1),
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text('Kurs (\$1 =):',
+                            style: pw.TextStyle(font: font, fontSize: 7.5)),
+                        pw.Text(money(sale.currencyRate!),
+                            style: pw.TextStyle(font: font, fontSize: 7.5)),
+                      ],
+                    ),
+                  ],
                   pw.SizedBox(height: 2),
                   pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -723,6 +756,23 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                               fontSize: 15,
                               valueColor: const Color(0xFF111827),
                             ),
+                            if (sale.currencyRate != null && sale.currencyRate! > 0) ...[
+                              const SizedBox(height: 3),
+                              _receiptRow(
+                                'AQSH DOLLARI:',
+                                moneyUsd(sale.total / sale.currencyRate!),
+                                isBold: true,
+                                fontSize: 13,
+                                valueColor: const Color(0xFF047857),
+                              ),
+                              const SizedBox(height: 2),
+                              _receiptRow(
+                                'Kurs (\$1 =):',
+                                money(sale.currencyRate!),
+                                fontSize: 11,
+                                valueColor: const Color(0xFF6B7280),
+                              ),
+                            ],
                             const SizedBox(height: 5),
                             _receiptRow(
                               'To‘landi (${sale.paymentMethod == 'karta' ? 'Karta' : 'Naqd'}):',
@@ -730,6 +780,15 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                               fontSize: 13,
                               valueColor: const Color(0xFF059669),
                             ),
+                            if (sale.paidUsd != null && sale.paidUsd! > 0) ...[
+                              const SizedBox(height: 2),
+                              _receiptRow(
+                                'To‘lov tafsili:',
+                                '${money(sale.paidUzs ?? 0)} + ${moneyUsd(sale.paidUsd!)}',
+                                fontSize: 11,
+                                valueColor: const Color(0xFF4B5563),
+                              ),
+                            ],
                             if (sale.debt > 0.005) ...[
                               const SizedBox(height: 5),
                               _receiptRow(

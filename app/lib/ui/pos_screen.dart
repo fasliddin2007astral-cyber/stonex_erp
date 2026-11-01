@@ -13,6 +13,7 @@ import '../data/local_image_store.dart';
 import '../data/repositories.dart';
 import '../domain/models.dart';
 import '../state/cart_controller.dart';
+import '../state/currency_controller.dart';
 import 'camera_capture_dialog.dart';
 import 'common.dart';
 import 'qr_scanner_screen.dart';
@@ -707,9 +708,10 @@ class _ProductCardState extends State<_ProductCard> {
                                           ),
                                         ),
                                         Text(
-                                          '/ ${_u(p.unit)}',
+                                          '${moneyUsd(context.watch<CurrencyController>().toUsd(p.price))} / ${_u(p.unit)}',
                                           maxLines: 1,
-                                          style: TextStyle(fontSize: 11, color: context.mutedColor),
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: context.mutedColor),
                                         ),
                                       ],
                                     ),
@@ -1118,6 +1120,9 @@ class _CartPanel extends StatelessWidget {
     try {
       final res = await cart.checkout(
         paid: result.paid,
+        currencyRate: result.currencyRate,
+        paidUzs: result.paidUzs,
+        paidUsd: result.paidUsd,
         status: result.status,
         note: result.note,
         customerId: result.customerId,
@@ -1324,11 +1329,27 @@ class _CartPanel extends StatelessWidget {
               tween: Tween<double>(end: cart.total),
               duration: const Duration(milliseconds: 450),
               curve: Curves.easeOutCubic,
-              builder: (context, v, _) => FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(money(v), style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800)),
-              ),
+              builder: (context, v, _) {
+                final rate = context.watch<CurrencyController>().usdRate;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(money(v), style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800)),
+                    ),
+                    if (v > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          '≈ ${moneyUsd(v / (rate > 0 ? rate : 1))}',
+                          style: const TextStyle(color: AppColors.neonLime, fontSize: 13.5, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 14),
             SizedBox(
@@ -1611,6 +1632,9 @@ class _StepBtn extends StatelessWidget {
 
 class _CheckoutInput {
   final double paid;
+  final double? currencyRate;
+  final double? paidUzs;
+  final double? paidUsd;
   final String status;
   final String? note;
   final int? customerId;
@@ -1621,6 +1645,9 @@ class _CheckoutInput {
 
   _CheckoutInput({
     required this.paid,
+    this.currencyRate,
+    this.paidUzs,
+    this.paidUsd,
     this.status = 'completed',
     this.note,
     this.customerId,
@@ -1639,7 +1666,8 @@ class _CheckoutDialog extends StatefulWidget {
 }
 
 class _CheckoutDialogState extends State<_CheckoutDialog> {
-  late final _paid = TextEditingController(text: widget.total.round().toString());
+  late final _paidUzs = TextEditingController(text: widget.total.round().toString());
+  final _paidUsd = TextEditingController(text: '0');
   final _name = TextEditingController();
   final _phone = TextEditingController();
   final _passport = TextEditingController();
@@ -1670,7 +1698,8 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
 
   @override
   void dispose() {
-    _paid.dispose();
+    _paidUzs.dispose();
+    _paidUsd.dispose();
     _name.dispose();
     _phone.dispose();
     _passport.dispose();
@@ -1678,9 +1707,26 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
     super.dispose();
   }
 
-  void _setPaid(double v) {
+  void _setPaidUzs(double v) {
     setState(() {
-      _paid.text = v.round().toString();
+      _paidUzs.text = v.round().toString();
+      _paidUsd.text = '0';
+      _error = null;
+    });
+  }
+
+  void _setPaidUsd(double v) {
+    setState(() {
+      _paidUsd.text = v.toStringAsFixed(2);
+      _paidUzs.text = '0';
+      _error = null;
+    });
+  }
+
+  void _setSplit(double uzs, double usd) {
+    setState(() {
+      _paidUzs.text = uzs.round().toString();
+      _paidUsd.text = usd.toStringAsFixed(2);
       _error = null;
     });
   }
@@ -1754,14 +1800,17 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
   }
 
   void _ok() {
-    final paid = parseInput(_paid.text);
-    if (paid == null || paid < 0 || paid > widget.total + 0.5) {
+    final rate = context.read<CurrencyController>().usdRate;
+    final paidUzsVal = parseInput(_paidUzs.text) ?? 0.0;
+    final paidUsdVal = parseInput(_paidUsd.text) ?? 0.0;
+    if (paidUzsVal < 0 || paidUsdVal < 0) {
       setState(() {
-        _error = 'To‘lov 0 dan jami summagacha bo‘lishi kerak';
+        _error = 'To‘lov manfiy bo‘lishi mumkin emas';
       });
       return;
     }
-    final debt = widget.total - paid;
+    final totalEquivalent = paidUzsVal + (paidUsdVal * rate);
+    final debt = (widget.total - totalEquivalent).clamp(0, double.infinity).toDouble();
     if (_isOrder) {
       if (_name.text.trim().isEmpty) {
         setState(() {
@@ -1777,10 +1826,14 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
         return;
       }
     }
+    final effectivePaid = totalEquivalent > widget.total ? widget.total : totalEquivalent;
     Navigator.pop(
       context,
       _CheckoutInput(
-        paid: paid > widget.total ? widget.total : paid,
+        paid: effectivePaid,
+        currencyRate: rate,
+        paidUzs: paidUzsVal,
+        paidUsd: paidUsdVal,
         status: _isOrder ? 'order' : 'completed',
         note: _note.text.trim().isNotEmpty ? _note.text.trim() : null,
         customerId: _selectedCustomerId,
@@ -1794,9 +1847,16 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final paid = parseInput(_paid.text) ?? 0;
-    final debt = (widget.total - paid).clamp(0, double.infinity).toDouble();
-    final hasDebt = debt > 0.5;
+    final rate = context.watch<CurrencyController>().usdRate;
+    final totalUsd = rate > 0 ? widget.total / rate : 0.0;
+    final paidUzsVal = parseInput(_paidUzs.text) ?? 0.0;
+    final paidUsdVal = parseInput(_paidUsd.text) ?? 0.0;
+    final totalPaidEquivalent = paidUzsVal + (paidUsdVal * rate);
+    final diff = totalPaidEquivalent - widget.total;
+    final isOverpaid = diff > 0.5;
+    final hasDebt = diff < -0.5;
+    final debt = hasDebt ? -diff : 0.0;
+    final change = isOverpaid ? diff : 0.0;
 
     return AlertDialog(
       backgroundColor: context.cardColor,
@@ -1808,10 +1868,25 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
           style: const TextStyle(fontSize: 14, color: AppColors.muted, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 2),
-        Text(money(widget.total), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.green)),
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 10,
+          children: [
+            Text(money(widget.total), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.green)),
+            Text('≈ ${moneyUsd(totalUsd)}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF10B981))),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text('\$1 = ${money(rate)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF10B981))),
+            ),
+          ],
+        ),
       ]),
       content: SizedBox(
-        width: 440,
+        width: 460,
         child: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             // Savdo yoki Buyurtma tanlash
@@ -1829,8 +1904,8 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                       onTap: () => setState(() {
                         _isOrder = false;
                         _error = null;
-                        if (_paid.text.isEmpty || _paid.text == '0') {
-                          _paid.text = widget.total.round().toString();
+                        if (_paidUzs.text.isEmpty && _paidUsd.text.isEmpty) {
+                          _paidUzs.text = widget.total.round().toString();
                         }
                       }),
                       child: Container(
@@ -1902,39 +1977,64 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
             ),
             const SizedBox(height: 14),
 
-            // To'lov / Avans summasi
-            TextField(
-              controller: _paid,
-              autofocus: true,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: _isOrder ? 'Avans summasi (ixtiyoriy)' : 'Hozir to‘langan summa',
-                prefixIcon: const Icon(Icons.payments_outlined),
-              ),
-              onChanged: (_) {
-                setState(() {
-                  _error = null;
-                });
-              },
+            // To'lov kiritish (So'm va Dollar ikkalasi ham mavjud)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: TextField(
+                    controller: _paidUzs,
+                    autofocus: true,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: _isOrder ? 'Avans (So‘m)' : 'To‘lov (So‘m)',
+                      prefixIcon: const Icon(Icons.payments_outlined, size: 20),
+                    ),
+                    onChanged: (_) => setState(() => _error = null),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: _paidUsd,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: _isOrder ? 'Avans (\$ USD)' : 'To‘lov (\$ USD)',
+                      prefixIcon: const Icon(Icons.attach_money_rounded, size: 20, color: Color(0xFF10B981)),
+                    ),
+                    onChanged: (_) => setState(() => _error = null),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 10),
-            Wrap(spacing: 8, children: [
+
+            // Tezkor to'lov tugmalari
+            Wrap(spacing: 8, runSpacing: 6, children: [
               ActionChip(
-                label: Text(_isOrder ? 'To‘liq avans' : 'To‘liq to‘lov'),
-                onPressed: () => _setPaid(widget.total),
+                avatar: const Icon(Icons.payments_rounded, size: 14),
+                label: Text(_isOrder ? 'To‘liq avans (So‘m)' : 'To‘liq so‘mda'),
+                onPressed: () => _setPaidUzs(widget.total),
               ),
               ActionChip(
-                label: Text(_isOrder ? '50% avans' : 'Yarmi naqd'),
-                onPressed: () => _setPaid(widget.total / 2),
+                avatar: const Icon(Icons.attach_money_rounded, size: 14, color: Color(0xFF10B981)),
+                label: Text(_isOrder ? 'To‘liq (\$ USD)' : 'To‘liq dollarda (${moneyUsd(totalUsd)})'),
+                onPressed: () => _setPaidUsd(totalUsd),
+              ),
+              ActionChip(
+                label: const Text('50% / 50% aralash'),
+                onPressed: () => _setSplit(widget.total / 2, (widget.total / 2) / rate),
               ),
               ActionChip(
                 label: Text(_isOrder ? 'Avanssiz (0)' : 'Hammasi nasiya'),
-                onPressed: () => _setPaid(0),
+                onPressed: () => _setSplit(0, 0),
               ),
             ]),
             const SizedBox(height: 12),
 
-            // Holat banneri
+            // Holat va hisob-kitob ko'rsatkichi
             if (_isOrder)
               Container(
                 padding: const EdgeInsets.all(12),
@@ -1958,7 +2058,7 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Mahsulotlar ombordan hozir yechilmaydi (topshirilganda yechiladi). Kiritilgan ${money(paid)} summa avans sifatida qayd etiladi. Qolgan summa: ${money(debt)}.',
+                            'Mahsulotlar ombordan topshirilganda yechiladi. Qabul qilingan avans: ${money(totalPaidEquivalent)} (≈ ${moneyUsd(totalPaidEquivalent / rate)}). Qoldiq: ${money(debt)}.',
                             style: TextStyle(fontSize: 11.5, color: context.inkColor, height: 1.3),
                           ),
                         ],
@@ -1972,16 +2072,51 @@ class _CheckoutDialogState extends State<_CheckoutDialog> {
                 duration: const Duration(milliseconds: 250),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: hasDebt ? const Color(0xFFFFF1DC) : AppColors.greenSoft,
+                  color: isOverpaid
+                      ? const Color(0xFFE8F5E9)
+                      : (hasDebt ? const Color(0xFFFFF1DC) : AppColors.greenSoft),
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isOverpaid
+                        ? const Color(0xFF4CAF50).withOpacity(0.3)
+                        : (hasDebt ? const Color(0xFFFFA000).withOpacity(0.3) : Colors.transparent),
+                  ),
                 ),
                 child: Row(children: [
-                  Icon(hasDebt ? Icons.schedule_rounded : Icons.check_circle_rounded,
-                      size: 20, color: hasDebt ? const Color(0xFFC77700) : AppColors.green),
+                  Icon(
+                    isOverpaid
+                        ? Icons.price_check_rounded
+                        : (hasDebt ? Icons.schedule_rounded : Icons.check_circle_rounded),
+                    size: 20,
+                    color: isOverpaid
+                        ? const Color(0xFF2E7D32)
+                        : (hasDebt ? const Color(0xFFC77700) : AppColors.green),
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(hasDebt ? 'Nasiya (qarz): ${money(debt)}' : 'To‘liq to‘lanadi',
-                        style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.ink)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isOverpaid
+                              ? 'Qaytim berilishi kerak: ${money(change)} (≈ ${moneyUsd(change / rate)})'
+                              : (hasDebt
+                                  ? 'Nasiya (qarz): ${money(debt)} (≈ ${moneyUsd(debt / rate)})'
+                                  : 'To‘liq to‘landi (0 qoldiq)'),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: isOverpaid
+                                ? const Color(0xFF1B5E20)
+                                : (hasDebt ? const Color(0xFFB45309) : AppColors.ink),
+                          ),
+                        ),
+                        if (paidUsdVal > 0)
+                          Text(
+                            'To‘landi: ${money(paidUzsVal)} + ${moneyUsd(paidUsdVal)} (Jami: ${money(totalPaidEquivalent)})',
+                            style: TextStyle(fontSize: 11, color: context.mutedColor),
+                          ),
+                      ],
+                    ),
                   ),
                 ]),
               ),

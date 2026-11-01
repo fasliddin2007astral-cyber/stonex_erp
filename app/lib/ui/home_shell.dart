@@ -11,6 +11,7 @@ import '../domain/models.dart';
 import '../state/auth_controller.dart';
 import '../state/theme_controller.dart';
 import 'common.dart';
+import 'currency_badge.dart';
 import 'customers_screen.dart';
 import 'dashboard_screen.dart';
 import 'debts_screen.dart';
@@ -857,61 +858,63 @@ class _HomeShellState extends State<HomeShell> {
                 style:
                     const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
               ),
-        actions: isDashboard
-            ? [
+        actions: [
+          const Center(child: CurrencyBadge(isCompact: true)),
+          const SizedBox(width: 4),
+          if (isDashboard) ...[
+            IconButton(
+              tooltip: 'Tizim bo‘yicha qidiruv',
+              icon: const Icon(Icons.search_rounded, size: 22),
+              onPressed: _openGlobalSearch,
+            ),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
                 IconButton(
-                  tooltip: 'Tizim bo‘yicha qidiruv',
-                  icon: const Icon(Icons.search_rounded, size: 22),
-                  onPressed: _openGlobalSearch,
+                  tooltip: 'Bildirishnomalar',
+                  icon: const Icon(Icons.notifications_none_rounded,
+                      size: 22),
+                  onPressed: _showNotifications,
                 ),
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    IconButton(
-                      tooltip: 'Bildirishnomalar',
-                      icon: const Icon(Icons.notifications_none_rounded,
-                          size: 22),
-                      onPressed: _showNotifications,
-                    ),
-                    if (unreadCount > 0)
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFEF4444),
-                            shape: BoxShape.circle,
-                          ),
-                          constraints:
-                              const BoxConstraints(minWidth: 16, minHeight: 16),
-                          child: Text(
-                            unreadCount > 9 ? '9+' : '$unreadCount',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w900,
-                              height: 1,
-                            ),
-                          ),
+                if (unreadCount > 0)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEF4444),
+                        shape: BoxShape.circle,
+                      ),
+                      constraints:
+                          const BoxConstraints(minWidth: 16, minHeight: 16),
+                      child: Text(
+                        unreadCount > 9 ? '9+' : '$unreadCount',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          height: 1,
                         ),
                       ),
-                  ],
-                ),
-                IconButton(
-                  tooltip: 'Sozlamalar',
-                  icon: const Icon(Icons.settings_outlined, size: 21),
-                  onPressed: _openSettingsBottomSheet,
-                ),
-                IconButton(
-                  tooltip: 'Chiqish',
-                  icon: const Icon(Icons.logout_rounded, size: 20),
-                  onPressed: logout,
-                ),
-                const SizedBox(width: 4),
-              ]
-            : null,
+                    ),
+                  ),
+              ],
+            ),
+            IconButton(
+              tooltip: 'Sozlamalar',
+              icon: const Icon(Icons.settings_outlined, size: 21),
+              onPressed: _openSettingsBottomSheet,
+            ),
+            IconButton(
+              tooltip: 'Chiqish',
+              icon: const Icon(Icons.logout_rounded, size: 20),
+              onPressed: logout,
+            ),
+            const SizedBox(width: 4),
+          ],
+        ],
       ),
       drawer: Drawer(
         backgroundColor: AppColors.sidebar,
@@ -998,51 +1001,63 @@ class _VaultHeader extends StatelessWidget {
       child: Row(
         children: [
           // Sahifa nomi
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-              color: isDark ? Colors.white : AppColors.ink,
-              letterSpacing: -0.6,
+          Flexible(
+            child: Text(
+              title,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                color: isDark ? Colors.white : AppColors.ink,
+                letterSpacing: -0.6,
+              ),
             ),
           ),
 
-          const Spacer(),
+          const SizedBox(width: 12),
+
+          // Valyuta kursi vidjeti (AQSH dollari va so'm)
+          const CurrencyBadge(),
+          const SizedBox(width: 10),
 
           if (isDashboard) ...[
             // Qidiruv paneli (Vault oval shape - faqat Dashboardda tizim bo‘yicha qidiruv)
-            InkWell(
-              onTap: onSearchPressed,
-              borderRadius: BorderRadius.circular(30),
-              child: Container(
-                width: 280,
-                height: 42,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
+            Flexible(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 220, minWidth: 120),
+                child: InkWell(
+                  onTap: onSearchPressed,
                   borderRadius: BorderRadius.circular(30),
-                  border: Border.all(
-                      color:
-                          isDark ? const Color(0xFF282D34) : AppColors.border),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.search_rounded,
-                        size: 20, color: AppColors.muted),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Tizim bo‘yicha qidirish...',
-                        style: TextStyle(fontSize: 13, color: AppColors.muted),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                  child: Container(
+                    height: 42,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                          color:
+                              isDark ? const Color(0xFF282D34) : AppColors.border),
                     ),
-                    _SearchKeyBadge(),
-                  ],
+                    child: const Row(
+                      children: [
+                        Icon(Icons.search_rounded,
+                            size: 18, color: AppColors.muted),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Qidirish...',
+                            style: TextStyle(fontSize: 12.5, color: AppColors.muted),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        _SearchKeyBadge(),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
+            const SizedBox(width: 8),
 
             const SizedBox(width: 10),
 
