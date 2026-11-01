@@ -603,48 +603,24 @@ class _ProductCardState extends State<_ProductCard> {
                               height: 104,
                               borderRadiusGeometry: const BorderRadius.vertical(top: Radius.circular(19)),
                             ),
-                            if ((p.category != null && p.category!.isNotEmpty) || p.hasSorts)
+                            if (p.category != null && p.category!.isNotEmpty)
                               Positioned(
                                 bottom: 6,
                                 left: 6,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (p.category != null && p.category!.isNotEmpty)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withValues(alpha: 0.65),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          p.category!,
-                                          style: const TextStyle(
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                    if (p.hasSorts) ...[
-                                      if (p.category != null && p.category!.isNotEmpty) const SizedBox(width: 4),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withValues(alpha: 0.75),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: const Text(
-                                          '1 · 1.5 · 2 sort',
-                                          style: TextStyle(
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.w800,
-                                            color: AppColors.neonLime,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.65),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    p.category!,
+                                    style: const TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                                 ),
                               ),
                             // Qoldiq belgisi (Stock badge)
@@ -1469,7 +1445,27 @@ class _CartLineTile extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: context.inkColor),
                 ),
                 const SizedBox(height: 2),
-                Text(sub, style: TextStyle(fontSize: 12, color: context.subtextColor)),
+                Row(
+                  children: [
+                    Text(sub, style: TextStyle(fontSize: 12, color: context.subtextColor)),
+                    if (p.sortLabel.isNotEmpty || (l.sort != null && l.sort!.isNotEmpty)) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: context.isDark ? const Color(0xFF332512) : const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          l.sort != null && l.sort!.isNotEmpty
+                              ? (l.sort == 'oliy' ? 'Oliy sort' : '${l.sort}-sort')
+                              : p.sortLabel,
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD97706)),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ]),
             ),
             IconButton(
@@ -1519,33 +1515,7 @@ class _CartLineTile extends StatelessWidget {
             ),
           ],
 
-          // Sort tanlash (1, 1.5, 2)
-          if (p.hasSorts) ...[
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Text('Sort:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.subtextColor)),
-                const SizedBox(width: 6),
-                for (final s in ['1', '1.5', '2'])
-                  Padding(
-                    padding: const EdgeInsets.only(right: 5),
-                    child: ChoiceChip(
-                      label: Text(
-                        p.priceForSort(s) != p.price || p.priceSort1 != null
-                            ? '$s-sort (${money(p.priceForSort(s))})'
-                            : '$s-sort',
-                        style: const TextStyle(fontSize: 11),
-                      ),
-                      selected: (l.sort ?? '1.5') == s,
-                      onSelected: (sel) {
-                        if (sel) cart.update(l, sort: s);
-                      },
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ),
-              ],
-            ),
-          ],
+
 
           // Razmer bo'yicha kesish (Eni va Bo'yi)
           if (p.unit == 'm2') ...[

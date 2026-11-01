@@ -22,9 +22,9 @@ class MockStore {
   int nextAttendanceId = 100;
 
   final List<Product> products = [
-    const Product(id: 1, name: 'Angola', category: 'Granit', qrCode: 'STX-ANGOLA', unit: 'm2', donaM2: 0.25, hasSorts: true, price: 180000, costPrice: 120000, stock: 200, imageUrl: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=400&auto=format&fit=crop&q=80'),
-    const Product(id: 2, name: 'Miramir', category: 'Marmar', qrCode: 'STX-MIRAMIR', unit: 'm2', donaM2: 0.25, hasSorts: true, price: 170000, costPrice: 110000, stock: 150, imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&auto=format&fit=crop&q=80'),
-    const Product(id: 3, name: 'Tan Brown', category: 'Granit', qrCode: 'STX-TANBROWN', unit: 'm2', donaM2: 0.25, hasSorts: true, price: 190000, costPrice: 130000, stock: 120, imageUrl: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=400&auto=format&fit=crop&q=80'),
+    const Product(id: 1, name: 'Angola', category: 'Granit', qrCode: 'STX-ANGOLA', unit: 'm2', donaM2: 0.25, price: 180000, costPrice: 120000, stock: 200, imageUrl: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=400&auto=format&fit=crop&q=80'),
+    const Product(id: 2, name: 'Miramir', category: 'Marmar', qrCode: 'STX-MIRAMIR', unit: 'm2', donaM2: 0.25, price: 170000, costPrice: 110000, stock: 150, imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&auto=format&fit=crop&q=80'),
+    const Product(id: 3, name: 'Tan Brown', category: 'Granit', qrCode: 'STX-TANBROWN', unit: 'm2', donaM2: 0.25, price: 190000, costPrice: 130000, stock: 120, imageUrl: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=400&auto=format&fit=crop&q=80'),
     const Product(id: 4, name: 'Metalogranit', category: 'Kerama granit', qrCode: 'STX-METALOGRANIT', unit: 'm2', price: 150000, costPrice: 95000, stock: 80, imageUrl: 'https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=400&auto=format&fit=crop&q=80'),
     const Product(id: 5, name: 'Kley Akfix', category: 'Qo‘shimcha', qrCode: 'STX-KLEY', unit: 'dona', price: 45000, costPrice: 30000, stock: 100, imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=400&auto=format&fit=crop&q=80'),
     const Product(id: 6, name: 'Sim', category: 'Xomashyo', qrCode: 'STX-SIM', unit: 'm', price: 12000, costPrice: 7000, stock: 500),

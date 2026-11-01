@@ -922,89 +922,16 @@ class _ProductDialogState extends State<ProductDialog> {
   late final _cost = TextEditingController(text: widget.product == null ? '' : qty(widget.product!.costPrice));
   late final _thickness = TextEditingController(text: widget.product?.thickness != null ? qty(widget.product!.thickness!) : '');
   late final _color = TextEditingController(text: widget.product?.color ?? '');
-  late final _priceSort1 = TextEditingController(text: widget.product?.priceSort1 != null ? qty(widget.product!.priceSort1!) : '');
-  late final _priceSort1_5 = TextEditingController(text: widget.product?.priceSort1_5 != null ? qty(widget.product!.priceSort1_5!) : '');
-  late final _priceSort2 = TextEditingController(text: widget.product?.priceSort2 != null ? qty(widget.product!.priceSort2!) : '');
   late final _imageUrl = TextEditingController(text: widget.product?.imageUrl);
   final _stock = TextEditingController();
   late String? _category = widget.product?.category;
   late String _unit = widget.product?.unit ?? 'm2';
   late bool _stone = widget.product?.hasDona ?? false;
-  late bool _hasSorts = widget.product?.hasSorts ?? false;
-  late String? _sort = widget.product?.sort;
   String? _error;
   bool _busy = false;
   bool _uploadingImage = false;
 
   static const _units = ['m2', 'dona', 'kg', 'm', 'litr'];
-
-  void _autoAppendSortToName(String sortText) {
-    String current = _name.text.trim();
-    if (current.isEmpty) return;
-    final sortRegex = RegExp(r'\s*\((1|1\.5|2|3|Oliy|oliy)[ -]sort\)', caseSensitive: false);
-    if (sortRegex.hasMatch(current)) {
-      current = current.replaceAll(sortRegex, '').trim();
-    }
-    if (sortText.isNotEmpty) {
-      _name.text = '$current ($sortText)';
-    } else {
-      _name.text = current;
-    }
-  }
-
-  Widget _buildSortChip({
-    required String label,
-    required bool selected,
-    required VoidCallback onTap,
-    IconData? badgeIcon,
-  }) {
-    final isDark = context.isDark;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-        decoration: BoxDecoration(
-          color: selected
-              ? (isDark ? AppColors.neonLime : AppColors.darkCard)
-              : (isDark ? const Color(0xFF1B232A) : const Color(0xFFE2E8F0)),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected
-                ? (isDark ? AppColors.neonLime : AppColors.darkCard)
-                : Colors.transparent,
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (badgeIcon != null) ...[
-              Icon(
-                badgeIcon,
-                size: 13,
-                color: selected
-                    ? (isDark ? AppColors.ink : AppColors.neonLime)
-                    : context.mutedColor,
-              ),
-              const SizedBox(width: 5),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                color: selected
-                    ? (isDark ? AppColors.ink : Colors.white)
-                    : context.inkColor,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   @override
   void dispose() {
@@ -1015,9 +942,6 @@ class _ProductDialogState extends State<ProductDialog> {
     _cost.dispose();
     _thickness.dispose();
     _color.dispose();
-    _priceSort1.dispose();
-    _priceSort1_5.dispose();
-    _priceSort2.dispose();
     _imageUrl.dispose();
     _stock.dispose();
     super.dispose();
@@ -1136,15 +1060,8 @@ class _ProductDialogState extends State<ProductDialog> {
   }
 
   Future<void> _save() async {
-    final p1 = parseInput(_priceSort1.text);
-    final p1_5 = parseInput(_priceSort1_5.text);
-    final p2 = parseInput(_priceSort2.text);
     final thick = parseInput(_thickness.text);
-
-    final effectivePriceText = _price.text.trim().isNotEmpty
-        ? _price.text
-        : (_hasSorts ? (_priceSort1_5.text.isNotEmpty ? _priceSort1_5.text : _priceSort1.text) : '');
-    final price = parseInput(effectivePriceText);
+    final price = parseInput(_price.text);
     final cost = _cost.text.trim().isEmpty ? 0.0 : parseInput(_cost.text);
     final stock = _stock.text.trim().isEmpty ? 0.0 : parseInput(_stock.text);
 
@@ -1176,12 +1093,9 @@ class _ProductDialogState extends State<ProductDialog> {
       unit: _unit,
       donaM2: (_stone && _unit == 'm2') ? Units.stoneDonaM2 : null,
       thickness: (_unit == 'm2' && thick != null && thick > 0) ? thick : null,
-      sort: _sort,
-      hasSorts: _hasSorts,
+      sort: widget.product?.sort,
+      hasSorts: false,
       color: _color.text.trim().isNotEmpty ? _color.text.trim() : null,
-      priceSort1: _hasSorts ? p1 : null,
-      priceSort1_5: _hasSorts ? p1_5 : null,
-      priceSort2: _hasSorts ? p2 : null,
       price: price,
       costPrice: cost,
       imageUrl: _imageUrl.text.trim().isNotEmpty ? _imageUrl.text.trim() : null,
@@ -1680,149 +1594,7 @@ class _ProductDialogState extends State<ProductDialog> {
                   },
                 ),
               ],
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: context.isDark ? AppColors.darkCard : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: context.borderColor),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.layers_outlined, size: 18, color: context.isDark ? AppColors.neonLime : AppColors.ink),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Mahsulot sorti (qalinligi / navi)',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: context.inkColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Ushbu mahsulot qaysi sortga tegishli yoki kassada tanlanadimi?',
-                      style: TextStyle(fontSize: 11, color: context.mutedColor),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _buildSortChip(
-                          label: 'Sortsiz (Oddiy)',
-                          selected: !_hasSorts && (_sort == null || _sort!.isEmpty),
-                          onTap: () {
-                            setState(() {
-                              _hasSorts = false;
-                              _sort = null;
-                              _autoAppendSortToName('');
-                            });
-                          },
-                        ),
-                        _buildSortChip(
-                          label: '1-sort',
-                          selected: !_hasSorts && _sort == '1',
-                          onTap: () {
-                            setState(() {
-                              _hasSorts = false;
-                              _sort = '1';
-                              _autoAppendSortToName('1-sort');
-                            });
-                          },
-                        ),
-                        _buildSortChip(
-                          label: '1.5-sort',
-                          selected: !_hasSorts && _sort == '1.5',
-                          onTap: () {
-                            setState(() {
-                              _hasSorts = false;
-                              _sort = '1.5';
-                              _autoAppendSortToName('1.5-sort');
-                            });
-                          },
-                        ),
-                        _buildSortChip(
-                          label: '2-sort',
-                          selected: !_hasSorts && _sort == '2',
-                          onTap: () {
-                            setState(() {
-                              _hasSorts = false;
-                              _sort = '2';
-                              _autoAppendSortToName('2-sort');
-                            });
-                          },
-                        ),
-                        _buildSortChip(
-                          label: '3-sort',
-                          selected: !_hasSorts && _sort == '3',
-                          onTap: () {
-                            setState(() {
-                              _hasSorts = false;
-                              _sort = '3';
-                              _autoAppendSortToName('3-sort');
-                            });
-                          },
-                        ),
-                        _buildSortChip(
-                          label: 'Oliy sort',
-                          selected: !_hasSorts && _sort == 'oliy',
-                          onTap: () {
-                            setState(() {
-                              _hasSorts = false;
-                              _sort = 'oliy';
-                              _autoAppendSortToName('Oliy sort');
-                            });
-                          },
-                        ),
-                        _buildSortChip(
-                          label: '3 xil sorti bor (1 / 1.5 / 2)',
-                          selected: _hasSorts,
-                          badgeIcon: Icons.auto_awesome,
-                          onTap: () {
-                            setState(() {
-                              _hasSorts = true;
-                              _sort = null;
-                              _autoAppendSortToName('');
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                    if (_hasSorts) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: context.isDark ? const Color(0xFF1B2E1D) : const Color(0xFFECFDF5),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: context.isDark ? const Color(0xFF22542B) : const Color(0xFFA7F3D0),
-                          ),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.info_outline_rounded, size: 14, color: AppColors.green),
-                            SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                'Kassada (POS) sotuvchi har bir sotuvda 1, 1.5 yoki 2-sortni tanlay oladi.',
-                                style: TextStyle(fontSize: 11, color: AppColors.green, fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -1940,51 +1712,12 @@ class _ProductDialogState extends State<ProductDialog> {
                   ),
                 ),
               ],
-              if (_hasSorts) ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _priceSort1,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: '1-sort (so‘m)',
-                          hintText: '180 000',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: _priceSort1_5,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: '1.5-sort (so‘m)',
-                          hintText: '165 000',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: _priceSort2,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: '2-sort (so‘m)',
-                          hintText: '150 000',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
               const SizedBox(height: 12),
               TextField(
                 controller: _price,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: _hasSorts ? 'Bazaviy narx (so‘m / $_unit)' : 'Sotuv narxi (so‘m / $_unit)',
+                  labelText: 'Sotuv narxi (so‘m / $_unit)',
                 ),
                 onChanged: (_) => setState(() {}),
               ),

@@ -300,6 +300,11 @@ class Product {
     if (sort != null && sort!.isNotEmpty) {
       return sort == 'oliy' ? 'Oliy sort' : '$sort-sort';
     }
+    final match = RegExp(r'\((1|1\.5|2|3|Oliy|oliy)[ -]sort\)', caseSensitive: false).firstMatch(name);
+    if (match != null) {
+      final s = match.group(1)!;
+      return s.toLowerCase() == 'oliy' ? 'Oliy sort' : '$s-sort';
+    }
     if (hasSorts) {
       return '1 • 1.5 • 2 sort';
     }
