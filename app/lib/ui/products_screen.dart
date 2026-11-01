@@ -929,6 +929,7 @@ class _ProductDialogState extends State<ProductDialog> {
   late final _boxPieces = TextEditingController(text: widget.product?.boxPieces != null ? widget.product!.boxPieces.toString() : '');
   late final _imageUrl = TextEditingController(text: widget.product?.imageUrl);
   final _stock = TextEditingController();
+  final _stockPachka = TextEditingController();
   late final _minStock = TextEditingController(
     text: widget.product?.minStock != null
         ? (widget.product!.minStock == widget.product!.minStock.roundToDouble()
@@ -936,8 +937,7 @@ class _ProductDialogState extends State<ProductDialog> {
             : widget.product!.minStock.toString())
         : '15',
   );
-  bool _stockInPachka = false;
-  bool _minStockInPachka = false;
+  final _minStockPachka = TextEditingController();
   late String? _category = widget.product?.category;
   late String _unit = widget.product?.unit ?? 'm2';
   String? _error;
@@ -964,6 +964,25 @@ class _ProductDialogState extends State<ProductDialog> {
     return null;
   }
 
+  static String _formatNum(double v) {
+    if (v == v.roundToDouble()) {
+      return v.toInt().toString();
+    }
+    return v.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final boxM2 = widget.product?.effectiveBoxM2;
+    if (boxM2 != null && boxM2 > 0) {
+      final minM2 = parseInput(_minStock.text);
+      if (minM2 != null) {
+        _minStockPachka.text = _formatNum(minM2 / boxM2);
+      }
+    }
+  }
+
   @override
   void dispose() {
     _name.dispose();
@@ -976,7 +995,9 @@ class _ProductDialogState extends State<ProductDialog> {
     _boxPieces.dispose();
     _imageUrl.dispose();
     _stock.dispose();
+    _stockPachka.dispose();
     _minStock.dispose();
+    _minStockPachka.dispose();
     super.dispose();
   }
 
@@ -984,69 +1005,127 @@ class _ProductDialogState extends State<ProductDialog> {
     return _calcTileBoxM2() ?? widget.product?.effectiveBoxM2;
   }
 
-  void _toggleStockUnit(bool toPachka) {
-    if (_stockInPachka == toPachka) return;
+  void _onStockPachkaChanged(String val) {
     final boxM2 = _effectiveBoxM2();
-    if (toPachka && (boxM2 == null || boxM2 <= 0)) return;
-
-    final currentVal = parseInput(_stock.text);
-    if (currentVal != null && boxM2 != null && boxM2 > 0) {
-      if (toPachka) {
-        final pVal = currentVal / boxM2;
-        _stock.text = pVal == pVal.roundToDouble()
-            ? pVal.toInt().toString()
-            : pVal.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
-      } else {
-        final mVal = currentVal * boxM2;
-        _stock.text = mVal == mVal.roundToDouble()
-            ? mVal.toInt().toString()
-            : mVal.toStringAsFixed(3).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+    if (boxM2 == null || boxM2 <= 0) return;
+    final p = parseInput(val);
+    if (p != null) {
+      final m2 = p * boxM2;
+      final formatted = _formatNum(m2);
+      if (_stock.text != formatted) {
+        _stock.value = TextEditingValue(
+          text: formatted,
+          selection: TextSelection.collapsed(offset: formatted.length),
+        );
+      }
+    } else if (val.trim().isEmpty) {
+      if (_stock.text.isNotEmpty) {
+        _stock.value = const TextEditingValue(text: "");
       }
     }
-    setState(() {
-      _stockInPachka = toPachka;
-    });
+    setState(() {});
   }
 
-  void _toggleMinStockUnit(bool toPachka) {
-    if (_minStockInPachka == toPachka) return;
+  void _onStockM2Changed(String val) {
     final boxM2 = _effectiveBoxM2();
-    if (toPachka && (boxM2 == null || boxM2 <= 0)) return;
-
-    final currentVal = parseInput(_minStock.text);
-    if (currentVal != null && boxM2 != null && boxM2 > 0) {
-      if (toPachka) {
-        final pVal = currentVal / boxM2;
-        _minStock.text = pVal == pVal.roundToDouble()
-            ? pVal.toInt().toString()
-            : pVal.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
-      } else {
-        final mVal = currentVal * boxM2;
-        _minStock.text = mVal == mVal.roundToDouble()
-            ? mVal.toInt().toString()
-            : mVal.toStringAsFixed(3).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+    if (boxM2 == null || boxM2 <= 0) {
+      setState(() {});
+      return;
+    }
+    final m = parseInput(val);
+    if (m != null) {
+      final p = m / boxM2;
+      final formatted = _formatNum(p);
+      if (_stockPachka.text != formatted) {
+        _stockPachka.value = TextEditingValue(
+          text: formatted,
+          selection: TextSelection.collapsed(offset: formatted.length),
+        );
+      }
+    } else if (val.trim().isEmpty) {
+      if (_stockPachka.text.isNotEmpty) {
+        _stockPachka.value = const TextEditingValue(text: "");
       }
     }
-    setState(() {
-      _minStockInPachka = toPachka;
-    });
+    setState(() {});
   }
 
-  Widget _buildStockInputField({
+  void _onMinStockPachkaChanged(String val) {
+    final boxM2 = _effectiveBoxM2();
+    if (boxM2 == null || boxM2 <= 0) return;
+    final p = parseInput(val);
+    if (p != null) {
+      final m2 = p * boxM2;
+      final formatted = _formatNum(m2);
+      if (_minStock.text != formatted) {
+        _minStock.value = TextEditingValue(
+          text: formatted,
+          selection: TextSelection.collapsed(offset: formatted.length),
+        );
+      }
+    } else if (val.trim().isEmpty) {
+      if (_minStock.text.isNotEmpty) {
+        _minStock.value = const TextEditingValue(text: "");
+      }
+    }
+    setState(() {});
+  }
+
+  void _onMinStockM2Changed(String val) {
+    final boxM2 = _effectiveBoxM2();
+    if (boxM2 == null || boxM2 <= 0) {
+      setState(() {});
+      return;
+    }
+    final m = parseInput(val);
+    if (m != null) {
+      final p = m / boxM2;
+      final formatted = _formatNum(p);
+      if (_minStockPachka.text != formatted) {
+        _minStockPachka.value = TextEditingValue(
+          text: formatted,
+          selection: TextSelection.collapsed(offset: formatted.length),
+        );
+      }
+    } else if (val.trim().isEmpty) {
+      if (_minStockPachka.text.isNotEmpty) {
+        _minStockPachka.value = const TextEditingValue(text: "");
+      }
+    }
+    setState(() {});
+  }
+
+  void _recalculatePachkasWhenDimensionsChange() {
+    final boxM2 = _effectiveBoxM2();
+    if (boxM2 != null && boxM2 > 0) {
+      final sVal = parseInput(_stock.text);
+      if (sVal != null) {
+        final p = _formatNum(sVal / boxM2);
+        if (_stockPachka.text != p) _stockPachka.text = p;
+      }
+      final mVal = parseInput(_minStock.text);
+      if (mVal != null) {
+        final p = _formatNum(mVal / boxM2);
+        if (_minStockPachka.text != p) _minStockPachka.text = p;
+      }
+    }
+  }
+
+  Widget _buildDualStockCard({
     required String title,
     required String subtitle,
-    required TextEditingController controller,
-    required bool inPachka,
-    required ValueChanged<bool> onUnitChanged,
+    required TextEditingController m2Controller,
+    required TextEditingController pachkaController,
+    required ValueChanged<String> onM2Changed,
+    required ValueChanged<String> onPachkaChanged,
     required IconData icon,
+    required Color iconColor,
   }) {
     final boxM2 = _effectiveBoxM2();
-    final canUsePachka = boxM2 != null && boxM2 > 0;
-    final val = parseInput(controller.text) ?? 0.0;
-    final unitLabel = inPachka ? 'pachka' : _unit;
+    final hasPachka = boxM2 != null && boxM2 > 0;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
         color: context.isDark ? const Color(0xFF192028) : const Color(0xFFF7F9FA),
         borderRadius: BorderRadius.circular(16),
@@ -1057,8 +1136,15 @@ class _ProductDialogState extends State<ProductDialog> {
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: context.isDark ? AppColors.neonLime : AppColors.ink),
-              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 16, color: iconColor),
+              ),
+              const SizedBox(width: 9),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1075,137 +1161,122 @@ class _ProductDialogState extends State<ProductDialog> {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: context.isDark ? const Color(0xFF12161C) : const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                padding: const EdgeInsets.all(2),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    InkWell(
-                      onTap: () => onUnitChanged(false),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: !inPachka
-                              ? (context.isDark ? AppColors.neonLime : Colors.white)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: !inPachka
-                              ? [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.08),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 1),
-                                  )
-                                ]
-                              : null,
-                        ),
-                        child: Text(
-                          _unit,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: !inPachka
-                                ? (context.isDark ? AppColors.ink : Colors.black87)
-                                : AppColors.muted,
-                          ),
-                        ),
-                      ),
-                    ),
-                    InkWell(
-                      onTap: canUsePachka ? () => onUnitChanged(true) : null,
-                      borderRadius: BorderRadius.circular(8),
-                      child: Opacity(
-                        opacity: canUsePachka ? 1.0 : 0.4,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: inPachka
-                                ? (context.isDark ? AppColors.neonLime : Colors.white)
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: inPachka
-                                ? [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.08),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 1),
-                                    )
-                                  ]
-                                : null,
-                          ),
-                          child: Text(
-                            'Pachka',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: inPachka
-                                  ? (context.isDark ? AppColors.ink : Colors.black87)
-                                  : AppColors.muted,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: controller,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              hintText: '0',
-              suffixText: unitLabel,
-              suffixStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-              isDense: true,
-            ),
-            onChanged: (_) => setState(() {}),
-          ),
-          if (canUsePachka && val > 0) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: (context.isDark ? AppColors.neonLime : const Color(0xFF0D9488)).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.sync_alt_rounded,
-                    size: 15,
-                    color: context.isDark ? AppColors.neonLime : const Color(0xFF0F766E),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      inPachka
-                          ? 'Proporsional:  pachka ×   =   hisoblanadi'
-                          : 'Proporsional:   ≈  pachka',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        color: context.isDark ? AppColors.neonLime : const Color(0xFF0F766E),
+          const SizedBox(height: 11),
+          if (hasPachka) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Pachkada",
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.muted),
                       ),
+                      const SizedBox(height: 4),
+                      TextField(
+                        controller: pachkaController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          hintText: "Masalan: 10",
+                          suffixText: "pachka",
+                          suffixStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5),
+                          isDense: true,
+                          filled: true,
+                          fillColor: context.cardColor,
+                        ),
+                        onChanged: onPachkaChanged,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Padding(
+                  padding: const EdgeInsets.only(top: 18),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: context.isDark ? const Color(0xFF222B36) : const Color(0xFFE2E8F0),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.sync_alt_rounded,
+                      size: 16,
+                      color: AppColors.green,
                     ),
                   ),
-                ],
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Kvadratda ($_unit)",
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.muted),
+                      ),
+                      const SizedBox(height: 4),
+                      TextField(
+                        controller: m2Controller,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          hintText: "Masalan: 14.4",
+                          suffixText: _unit,
+                          suffixStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5),
+                          isDense: true,
+                          filled: true,
+                          fillColor: context.cardColor,
+                        ),
+                        onChanged: onM2Changed,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.info_outline_rounded, size: 13, color: context.isDark ? AppColors.neonLime : const Color(0xFF0F766E)),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    "1 pachka = ${_formatNum(boxM2)} $_unit  •  Ikkisidan biriga yozsangiz, ikkinchisi avtomatik hisoblanadi",
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      color: context.isDark ? AppColors.neonLime : const Color(0xFF0F766E),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            TextField(
+              controller: m2Controller,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                hintText: "0",
+                suffixText: _unit,
+                suffixStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                isDense: true,
+                filled: true,
+                fillColor: context.cardColor,
               ),
+              onChanged: onM2Changed,
             ),
-          ] else if (!canUsePachka) ...[
-            const SizedBox(height: 6),
-            const Text(
-              '💡 Pachka hisobi uchun yuqoridagi Kafel/Kerama granit bo‘yi, eni va donasini kiriting',
-              style: TextStyle(fontSize: 10.5, color: AppColors.muted),
-            ),
+            if (_category != null &&
+                (_category!.trim().toLowerCase() == "kafel" ||
+                    _category!.trim().toLowerCase() == "kerama granit")) ...[
+              const SizedBox(height: 6),
+              const Text(
+                "💡 Pachka va kvadratni bir vaqtda ko‘rish uchun yuqoridagi o‘lchamlarni kiriting",
+                style: TextStyle(fontSize: 10.5, color: AppColors.muted),
+              ),
+            ],
           ],
         ],
       ),
@@ -1411,13 +1482,13 @@ class _ProductDialogState extends State<ProductDialog> {
 
     final boxM2 = calculatedBoxM2 ?? widget.product?.effectiveBoxM2;
     double effectiveStock = rawStock;
-    if (_stockInPachka && boxM2 != null && boxM2 > 0) {
-      effectiveStock = rawStock * boxM2;
+    if (effectiveStock == 0 && _stockPachka.text.trim().isNotEmpty && boxM2 != null && boxM2 > 0) {
+      effectiveStock = (parseInput(_stockPachka.text) ?? 0.0) * boxM2;
     }
 
     double effectiveMinStock = rawMinStock;
-    if (_minStockInPachka && boxM2 != null && boxM2 > 0) {
-      effectiveMinStock = rawMinStock * boxM2;
+    if (effectiveMinStock == 0 && _minStockPachka.text.trim().isNotEmpty && boxM2 != null && boxM2 > 0) {
+      effectiveMinStock = (parseInput(_minStockPachka.text) ?? 0.0) * boxM2;
     }
 
     final p = Product(
@@ -2017,7 +2088,10 @@ class _ProductDialogState extends State<ProductDialog> {
                                 hintText: '60 yoki 120',
                                 prefixIcon: Icon(Icons.height_rounded, size: 18),
                               ),
-                              onChanged: (_) => setState(() {}),
+                              onChanged: (_) {
+                                _recalculatePachkasWhenDimensionsChange();
+                                setState(() {});
+                              },
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -2030,7 +2104,10 @@ class _ProductDialogState extends State<ProductDialog> {
                                 hintText: '60',
                                 prefixIcon: Icon(Icons.straighten_rounded, size: 18),
                               ),
-                              onChanged: (_) => setState(() {}),
+                              onChanged: (_) {
+                                _recalculatePachkasWhenDimensionsChange();
+                                setState(() {});
+                              },
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -2043,7 +2120,10 @@ class _ProductDialogState extends State<ProductDialog> {
                                 hintText: '4',
                                 prefixIcon: Icon(Icons.all_inbox_rounded, size: 18),
                               ),
-                              onChanged: (_) => setState(() {}),
+                              onChanged: (_) {
+                                _recalculatePachkasWhenDimensionsChange();
+                                setState(() {});
+                              },
                             ),
                           ),
                         ],
@@ -2124,23 +2204,27 @@ class _ProductDialogState extends State<ProductDialog> {
               ),
               if (isNew) ...[
                 const SizedBox(height: 12),
-                _buildStockInputField(
+                _buildDualStockCard(
                   title: 'Boshlang‘ich ombor qoldig‘i',
                   subtitle: 'Yangi mahsulot uchun ombordagi dastlabki miqdor',
-                  controller: _stock,
-                  inPachka: _stockInPachka,
-                  onUnitChanged: _toggleStockUnit,
+                  m2Controller: _stock,
+                  pachkaController: _stockPachka,
+                  onM2Changed: _onStockM2Changed,
+                  onPachkaChanged: _onStockPachkaChanged,
                   icon: Icons.inventory_2_outlined,
+                  iconColor: context.isDark ? AppColors.neonLime : AppColors.green,
                 ),
               ],
               const SizedBox(height: 12),
-              _buildStockInputField(
+              _buildDualStockCard(
                 title: 'Minimal ombor qoldig‘i',
                 subtitle: 'Omborda kamida qancha bo‘lishi kerak (ogohlantirish chegarasi)',
-                controller: _minStock,
-                inPachka: _minStockInPachka,
-                onUnitChanged: _toggleMinStockUnit,
+                m2Controller: _minStock,
+                pachkaController: _minStockPachka,
+                onM2Changed: _onMinStockM2Changed,
+                onPachkaChanged: _onMinStockPachkaChanged,
                 icon: Icons.warning_amber_rounded,
+                iconColor: const Color(0xFFD97706),
               ),
 
               // Haqiqiy jonli QR-kod stiker ko'rinishi
