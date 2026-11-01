@@ -916,8 +916,11 @@ class ProductDialog extends StatefulWidget {
 
 class _ProductDialogState extends State<ProductDialog> {
   late final _name = TextEditingController(text: widget.product?.name);
-  late final _sku = TextEditingController(text: widget.product?.sku);
-  late final _qr = TextEditingController(text: widget.product?.qrCode);
+  late final _sku = TextEditingController(
+    text: widget.product?.sku.isNotEmpty == true
+        ? widget.product!.sku
+        : (widget.product?.qrCode ?? ''),
+  );
   late final _price = TextEditingController(text: widget.product == null ? '' : qty(widget.product!.price));
   late final _cost = TextEditingController(text: widget.product == null ? '' : qty(widget.product!.costPrice));
   late final _thickness = TextEditingController(text: widget.product?.thickness != null ? qty(widget.product!.thickness!) : '');
@@ -937,7 +940,6 @@ class _ProductDialogState extends State<ProductDialog> {
   void dispose() {
     _name.dispose();
     _sku.dispose();
-    _qr.dispose();
     _price.dispose();
     _cost.dispose();
     _thickness.dispose();
@@ -1027,7 +1029,7 @@ class _ProductDialogState extends State<ProductDialog> {
     }
   }
 
-  void _autoGenerateQr() {
+  void _autoGenerateBarcode() {
     final cleanName = _name.text
         .trim()
         .toUpperCase()
@@ -1036,22 +1038,21 @@ class _ProductDialogState extends State<ProductDialog> {
     final suffix = (DateTime.now().millisecondsSinceEpoch % 900) + 100;
     final code = cleanName.isNotEmpty ? 'STX-$cleanName' : 'STX-PROD-$suffix';
     setState(() {
-      _qr.text = code;
-      if (_sku.text.trim().isEmpty) {
-        _sku.text = cleanName.isNotEmpty ? cleanName : 'SKU-$suffix';
-      }
+      _sku.text = code;
     });
   }
 
+  void _autoGenerateQr() => _autoGenerateBarcode();
+
   void _previewQrLabel(BuildContext context) {
-    final qrData = _qr.text.trim();
+    final qrData = _sku.text.trim();
     if (qrData.isEmpty) return;
     showDialog<void>(
       context: context,
       builder: (_) => ProductQrLabelDialog(
         productName: _name.text.trim().isNotEmpty ? _name.text.trim() : 'Nomsiz Mahsulot',
         qrCode: qrData,
-        sku: _sku.text.trim(),
+        sku: qrData,
         price: parseInput(_price.text) ?? (widget.product?.price ?? 0),
         unit: _unit,
         product: widget.product,
@@ -1084,12 +1085,13 @@ class _ProductDialogState extends State<ProductDialog> {
       return;
     }
 
+    final barcode = _sku.text.trim();
     final p = Product(
       id: widget.product?.id ?? 0,
       name: _name.text.trim(),
       category: _category,
-      sku: _sku.text.trim(),
-      qrCode: _qr.text.trim(),
+      sku: barcode,
+      qrCode: barcode,
       unit: _unit,
       donaM2: (_stone && _unit == 'm2') ? Units.stoneDonaM2 : null,
       thickness: (_unit == 'm2' && thick != null && thick > 0) ? thick : null,
@@ -1302,7 +1304,7 @@ class _ProductDialogState extends State<ProductDialog> {
   }
 
   Widget _buildLiveQrPreview(BuildContext context) {
-    final qrData = _qr.text.trim();
+    final qrData = _sku.text.trim();
 
     return Container(
       margin: const EdgeInsets.only(top: 14),
@@ -1520,43 +1522,18 @@ class _ProductDialogState extends State<ProductDialog> {
               ),
 
               const SizedBox(height: 12),
-              LayoutBuilder(
-                builder: (context, box) {
-                  final isCompact = box.maxWidth < 420;
-                  final skuField = TextField(
-                    controller: _sku,
-                    decoration: const InputDecoration(labelText: 'SKU kodi (ixtiyoriy)'),
-                  );
-                  final qrField = TextField(
-                    controller: _qr,
-                    decoration: InputDecoration(
-                      labelText: 'QR / Shtrix kod',
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.auto_awesome_rounded, size: 18),
-                        tooltip: 'Avto-kod generatsiya qilish',
-                        onPressed: _autoGenerateQr,
-                      ),
-                    ),
-                    onChanged: (_) => setState(() {}),
-                  );
-
-                  if (isCompact) {
-                    return Column(
-                      children: [
-                        skuField,
-                        const SizedBox(height: 12),
-                        qrField,
-                      ],
-                    );
-                  }
-                  return Row(
-                    children: [
-                      Expanded(child: skuField),
-                      const SizedBox(width: 10),
-                      Expanded(child: qrField),
-                    ],
-                  );
-                },
+              TextField(
+                controller: _sku,
+                decoration: InputDecoration(
+                  labelText: 'Shtrix kod (Barcode)',
+                  prefixIcon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                    tooltip: 'Avto-kod generatsiya qilish',
+                    onPressed: _autoGenerateBarcode,
+                  ),
+                ),
+                onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
