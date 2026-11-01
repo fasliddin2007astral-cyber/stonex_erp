@@ -924,7 +924,6 @@ class _ProductDialogState extends State<ProductDialog> {
   late final _price = TextEditingController(text: widget.product == null ? '' : qty(widget.product!.price));
   late final _cost = TextEditingController(text: widget.product == null ? '' : qty(widget.product!.costPrice));
   late final _thickness = TextEditingController(text: widget.product?.thickness != null ? qty(widget.product!.thickness!) : '');
-  late final _color = TextEditingController(text: widget.product?.color ?? '');
   late final _imageUrl = TextEditingController(text: widget.product?.imageUrl);
   final _stock = TextEditingController();
   late String? _category = widget.product?.category;
@@ -942,7 +941,6 @@ class _ProductDialogState extends State<ProductDialog> {
     _price.dispose();
     _cost.dispose();
     _thickness.dispose();
-    _color.dispose();
     _imageUrl.dispose();
     _stock.dispose();
     super.dispose();
@@ -1137,10 +1135,10 @@ class _ProductDialogState extends State<ProductDialog> {
       qrCode: barcode,
       unit: _unit,
       donaM2: _unit == 'm2' ? (widget.product?.donaM2 ?? Units.stoneDonaM2) : null,
-      thickness: (_unit == 'm2' && thick != null && thick > 0) ? thick : null,
+      thickness: (_category?.trim().toLowerCase() == 'granit' && thick != null && thick > 0) ? thick : null,
       sort: widget.product?.sort,
       hasSorts: false,
-      color: _color.text.trim().isNotEmpty ? _color.text.trim() : null,
+      color: widget.product?.color,
       price: price,
       costPrice: cost,
       imageUrl: _imageUrl.text.trim().isNotEmpty ? _imageUrl.text.trim() : null,
@@ -1670,118 +1668,13 @@ class _ProductDialogState extends State<ProductDialog> {
               ),
 
 
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: context.isDark ? const Color(0xFF1B2028) : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: context.borderColor),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.palette_outlined, size: 16, color: AppColors.green),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Rangi (masalan: Ko‘k, Oq, Qora)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: context.inkColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        for (final c in ['Qora', 'Oq', 'Ko‘k', 'Kulrang', 'Bej', 'Yashil', 'Qizil', 'Jigarrang', 'Sariq'])
-                          InkWell(
-                            borderRadius: BorderRadius.circular(20),
-                            onTap: () {
-                              setState(() {
-                                final cur = _color.text.trim();
-                                if (cur.isEmpty) {
-                                  _color.text = c;
-                                } else if (cur.contains(c)) {
-                                  final parts = cur.split(RegExp(r'[,/•|]')).map((s) => s.trim()).where((s) => s.isNotEmpty && s != c).toList();
-                                  _color.text = parts.join(', ');
-                                } else {
-                                  _color.text = '$cur, $c';
-                                }
-                              });
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: _color.text.contains(c)
-                                    ? (context.isDark ? AppColors.neonLime.withValues(alpha: 0.25) : AppColors.greenSoft)
-                                    : (context.isDark ? const Color(0xFF242C38) : Colors.white),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: _color.text.contains(c) ? AppColors.green : context.borderColor,
-                                  width: _color.text.contains(c) ? 1.5 : 1,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: getStoneColor(c),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.black26),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    c,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: _color.text.contains(c) ? FontWeight.w800 : FontWeight.w600,
-                                      color: context.inkColor,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _color,
-                      decoration: InputDecoration(
-                        labelText: 'Rang (yoki bir nechta: Ko‘k, Oq, Qora)',
-                        hintText: 'Masalan: Ko‘k yoki Qora, Oq',
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        suffixIcon: _color.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear_rounded, size: 16),
-                                onPressed: () => setState(() => _color.clear()),
-                              )
-                            : null,
-                      ),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ],
-                ),
-              ),
-              if (_unit == 'm2') ...[
+              if (_category != null && _category!.trim().toLowerCase() == 'granit') ...[
                 const SizedBox(height: 12),
                 TextField(
                   controller: _thickness,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
-                    labelText: 'Kafel / tosh qalinligi (sm)',
+                    labelText: 'Granit qalinligi (sm)',
                     hintText: 'Masalan: 2.0 yoki 1.8',
                     prefixIcon: Icon(Icons.layers_outlined, size: 20),
                   ),
