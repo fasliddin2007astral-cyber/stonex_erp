@@ -638,6 +638,24 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
                                             ),
                                           ),
+                                          if (p.category != null && p.category!.isNotEmpty) ...[
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: (context.isDark ? AppColors.neonLime : const Color(0xFF0D9488)).withOpacity(0.14),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                p.category!,
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: context.isDark ? AppColors.neonLime : const Color(0xFF0F766E),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                           if (p.hasDona) ...[
                                             const SizedBox(width: 8),
                                             Container(
@@ -909,6 +927,7 @@ class _ProductDialogState extends State<ProductDialog> {
   late final _priceSort2 = TextEditingController(text: widget.product?.priceSort2 != null ? qty(widget.product!.priceSort2!) : '');
   late final _imageUrl = TextEditingController(text: widget.product?.imageUrl);
   final _stock = TextEditingController();
+  late String? _category = widget.product?.category;
   late String _unit = widget.product?.unit ?? 'm2';
   late bool _stone = widget.product?.hasDona ?? false;
   late bool _hasSorts = widget.product?.hasSorts ?? false;
@@ -1151,6 +1170,7 @@ class _ProductDialogState extends State<ProductDialog> {
     final p = Product(
       id: widget.product?.id ?? 0,
       name: _name.text.trim(),
+      category: _category,
       sku: _sku.text.trim(),
       qrCode: _qr.text.trim(),
       unit: _unit,
@@ -1562,6 +1582,40 @@ class _ProductDialogState extends State<ProductDialog> {
                 controller: _name,
                 decoration: const InputDecoration(labelText: 'Mahsulot nomi'),
                 onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: standardProductCategories.contains(_category) ? _category : null,
+                decoration: InputDecoration(
+                  labelText: 'Mahsulot kategoriyasi',
+                  prefixIcon: const Icon(Icons.category_rounded, size: 20),
+                  suffixIcon: _category != null
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded, size: 18),
+                          tooltip: 'Tozalash',
+                          onPressed: () => setState(() => _category = null),
+                        )
+                      : null,
+                ),
+                hint: const Text('Kategoriyani tanlang'),
+                items: [
+                  for (final cat in standardProductCategories)
+                    DropdownMenuItem(value: cat, child: Text(cat)),
+                ],
+                onChanged: (v) => setState(() => _category = v),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final cat in standardProductCategories)
+                    ChoiceChip(
+                      label: Text(cat, style: const TextStyle(fontSize: 11)),
+                      selected: _category == cat,
+                      onSelected: (sel) => setState(() => _category = sel ? cat : null),
+                    ),
+                ],
               ),
               const SizedBox(height: 12),
               LayoutBuilder(

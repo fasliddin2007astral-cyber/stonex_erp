@@ -22,13 +22,15 @@ class MockStore {
   int nextAttendanceId = 100;
 
   final List<Product> products = [
-    const Product(id: 1, name: 'Angola', qrCode: 'STX-ANGOLA', unit: 'm2', donaM2: 0.25, hasSorts: true, price: 180000, costPrice: 120000, stock: 200, imageUrl: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=400&auto=format&fit=crop&q=80'),
-    const Product(id: 2, name: 'Miramir', qrCode: 'STX-MIRAMIR', unit: 'm2', donaM2: 0.25, hasSorts: true, price: 170000, costPrice: 110000, stock: 150, imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&auto=format&fit=crop&q=80'),
-    const Product(id: 3, name: 'Tan Brown', qrCode: 'STX-TANBROWN', unit: 'm2', donaM2: 0.25, hasSorts: true, price: 190000, costPrice: 130000, stock: 120, imageUrl: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=400&auto=format&fit=crop&q=80'),
-    const Product(id: 4, name: 'Metalogranit', qrCode: 'STX-METALOGRANIT', unit: 'm2', price: 150000, costPrice: 95000, stock: 80, imageUrl: 'https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=400&auto=format&fit=crop&q=80'),
-    const Product(id: 5, name: 'Kley', qrCode: 'STX-KLEY', unit: 'dona', price: 45000, costPrice: 30000, stock: 100, imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=400&auto=format&fit=crop&q=80'),
-    const Product(id: 6, name: 'Sim', qrCode: 'STX-SIM', unit: 'm', price: 12000, costPrice: 7000, stock: 500),
-    const Product(id: 7, name: 'Disk', qrCode: 'STX-DISK', unit: 'dona', price: 250000, costPrice: 170000, stock: 30),
+    const Product(id: 1, name: 'Angola', category: 'Granit', qrCode: 'STX-ANGOLA', unit: 'm2', donaM2: 0.25, hasSorts: true, price: 180000, costPrice: 120000, stock: 200, imageUrl: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=400&auto=format&fit=crop&q=80'),
+    const Product(id: 2, name: 'Miramir', category: 'Marmar', qrCode: 'STX-MIRAMIR', unit: 'm2', donaM2: 0.25, hasSorts: true, price: 170000, costPrice: 110000, stock: 150, imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&auto=format&fit=crop&q=80'),
+    const Product(id: 3, name: 'Tan Brown', category: 'Granit', qrCode: 'STX-TANBROWN', unit: 'm2', donaM2: 0.25, hasSorts: true, price: 190000, costPrice: 130000, stock: 120, imageUrl: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=400&auto=format&fit=crop&q=80'),
+    const Product(id: 4, name: 'Metalogranit', category: 'Kerama granit', qrCode: 'STX-METALOGRANIT', unit: 'm2', price: 150000, costPrice: 95000, stock: 80, imageUrl: 'https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=400&auto=format&fit=crop&q=80'),
+    const Product(id: 5, name: 'Kley Akfix', category: 'Qo‘shimcha', qrCode: 'STX-KLEY', unit: 'dona', price: 45000, costPrice: 30000, stock: 100, imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=400&auto=format&fit=crop&q=80'),
+    const Product(id: 6, name: 'Sim', category: 'Xomashyo', qrCode: 'STX-SIM', unit: 'm', price: 12000, costPrice: 7000, stock: 500),
+    const Product(id: 7, name: 'Disk Olmos', category: 'Qo‘shimcha', qrCode: 'STX-DISK', unit: 'dona', price: 250000, costPrice: 170000, stock: 30),
+    const Product(id: 8, name: 'Italiya Plita 60x60', category: 'Kafel', qrCode: 'STX-KAFEL', unit: 'm2', donaM2: 0.36, price: 135000, costPrice: 90000, stock: 95),
+    const Product(id: 9, name: 'Marmar Stol Ustligi', category: 'Tayyor mahsulot', qrCode: 'STX-TAYYOR-STOL', unit: 'dona', price: 1200000, costPrice: 750000, stock: 8),
   ];
 
   /// Faqat mock rejimi uchun test akkauntlari (haqiqiy backendda parollar xeshlangan).
@@ -371,7 +373,7 @@ class MockProductRepository implements ProductRepository {
       throw ApiException('SKU yoki QR-kod allaqachon mavjud', 409);
     }
     final created = Product(
-      id: _s.nextProductId++, name: p.name, sku: p.sku, qrCode: p.qrCode, unit: p.unit,
+      id: _s.nextProductId++, name: p.name, category: p.category, sku: p.sku, qrCode: p.qrCode, unit: p.unit,
       donaM2: p.donaM2, thickness: p.thickness, sort: p.sort, hasSorts: p.hasSorts,
       color: p.color,
       priceSort1: p.priceSort1, priceSort1_5: p.priceSort1_5, priceSort2: p.priceSort2,
@@ -394,7 +396,7 @@ class MockProductRepository implements ProductRepository {
     if (i < 0) throw ApiException('Mahsulot topilmadi', 404);
     final old = _s.products[i];
     final updated = Product(
-      id: p.id, name: p.name, sku: p.sku, qrCode: p.qrCode, unit: p.unit, donaM2: p.donaM2,
+      id: p.id, name: p.name, category: p.category ?? old.category, sku: p.sku, qrCode: p.qrCode, unit: p.unit, donaM2: p.donaM2,
       thickness: p.thickness, sort: p.sort, hasSorts: p.hasSorts,
       color: p.color,
       priceSort1: p.priceSort1, priceSort1_5: p.priceSort1_5, priceSort2: p.priceSort2,

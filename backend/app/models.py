@@ -59,6 +59,7 @@ class Product(Base):
     __tablename__ = "products"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(128), index=True)
+    category: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)  # Granit, Kerama granit, Kafel, Marmar ...
     sku: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
     qr_code: Mapped[str | None] = mapped_column(String(128), unique=True, nullable=True)
     unit: Mapped[str] = mapped_column(String(16))  # m2, dona, kg, m ...

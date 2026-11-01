@@ -361,4 +361,40 @@ void main() {
     expect(sale.paidUsd, 20);
     expect(sale.debt, 0);
   });
+
+  test('Mahsulot standart kategoriyalari to‘g‘ri saqlanadi va filtrlanadi', () async {
+    expect(standardProductCategories, containsAll([
+      'Granit',
+      'Kerama granit',
+      'Kafel',
+      'Marmar',
+      'Tayyor mahsulot',
+      'Xomashyo',
+      'Qo‘shimcha',
+    ]));
+
+    final s = MockStore();
+    final prodRepo = MockProductRepository(s);
+
+    final newP = await prodRepo.create(const Product(
+      id: 0,
+      name: 'Oq Marmar Plita',
+      category: 'Marmar',
+      unit: 'm2',
+      price: 220000,
+      costPrice: 150000,
+    ));
+
+    expect(newP.category, 'Marmar');
+
+    final updated = await prodRepo.update(newP.copyWith(category: 'Kerama granit'));
+    expect(updated.category, 'Kerama granit');
+
+    // JSON serialization
+    final json = updated.toJson();
+    expect(json['category'], 'Kerama granit');
+
+    final fromJ = Product.fromJson(json);
+    expect(fromJ.category, 'Kerama granit');
+  });
 }

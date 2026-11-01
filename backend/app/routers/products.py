@@ -22,17 +22,35 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def to_out(p: m.Product, stock) -> ProductOut:
-    return ProductOut(id=p.id, name=p.name, sku=p.sku, qr_code=p.qr_code, unit=p.unit,
-                      dona_m2=p.dona_m2, price=p.price, cost_price=p.cost_price,
-                      sort=getattr(p, 'sort', None),
-                      has_sorts=getattr(p, 'has_sorts', False) or False,
-                      image_url=p.image_url, is_active=p.is_active, stock=stock)
+    return ProductOut(
+        id=p.id,
+        name=p.name,
+        category=getattr(p, 'category', None),
+        sku=p.sku,
+        qr_code=p.qr_code,
+        unit=p.unit,
+        dona_m2=p.dona_m2,
+        thickness=getattr(p, 'thickness', None),
+        price=p.price,
+        cost_price=p.cost_price,
+        sort=getattr(p, 'sort', None),
+        has_sorts=getattr(p, 'has_sorts', False) or False,
+        color=getattr(p, 'color', None),
+        price_sort1=getattr(p, 'price_sort1', None),
+        price_sort1_5=getattr(p, 'price_sort1_5', None),
+        price_sort2=getattr(p, 'price_sort2', None),
+        image_url=p.image_url,
+        is_active=p.is_active,
+        stock=stock,
+    )
 
 
 @router.get("", response_model=list[ProductOut])
-def list_products(q: str | None = None, db: Session = Depends(get_db),
+def list_products(q: str | None = None, category: str | None = None, db: Session = Depends(get_db),
                   _: m.User = Depends(get_current_user)):
     stmt = select(m.Product).where(m.Product.is_active.is_(True)).order_by(m.Product.name)
+    if category:
+        stmt = stmt.where(m.Product.category == category)
     if q:
         like = f"%{q.strip()}%"
         stmt = stmt.where(or_(m.Product.name.like(like), m.Product.sku.like(like),
@@ -84,9 +102,24 @@ def upload_product_image(product_id: int, file: UploadFile = File(...),
 @router.post("", response_model=ProductOut, status_code=201)
 def create_product(data: ProductIn, db: Session = Depends(get_db),
                    admin: m.User = Depends(require_roles(roles.ADMIN))):
-    p = m.Product(name=data.name.strip(), sku=data.sku or None, qr_code=data.qr_code or None,
-                  unit=data.unit, dona_m2=data.dona_m2, price=data.price,
-                  cost_price=data.cost_price, sort=data.sort, has_sorts=data.has_sorts, image_url=data.image_url)
+    p = m.Product(
+        name=data.name.strip(),
+        category=data.category or None,
+        sku=data.sku or None,
+        qr_code=data.qr_code or None,
+        unit=data.unit,
+        dona_m2=data.dona_m2,
+        thickness=data.thickness,
+        price=data.price,
+        cost_price=data.cost_price,
+        sort=data.sort,
+        has_sorts=data.has_sorts,
+        color=data.color,
+        price_sort1=data.price_sort1,
+        price_sort1_5=data.price_sort1_5,
+        price_sort2=data.price_sort2,
+        image_url=data.image_url,
+    )
     db.add(p)
     try:
         db.flush()

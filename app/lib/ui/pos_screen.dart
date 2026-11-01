@@ -42,7 +42,16 @@ class _PosScreenState extends State<PosScreen> {
   int _mobileTab = 0; // 0: Katalog, 1: Savat
   bool _isScannerOpen = false;
 
-  static const _categories = ['Barchasi', 'Marmar', 'Granit', 'Travertin', 'Onyx', 'Boshqa'];
+  static const _categories = [
+    'Barchasi',
+    'Granit',
+    'Kerama granit',
+    'Kafel',
+    'Marmar',
+    'Tayyor mahsulot',
+    'Xomashyo',
+    'Qo‘shimcha',
+  ];
 
   ProductRepository get _repo => context.read<AppRepositories>().products;
 
@@ -275,11 +284,13 @@ class _PosScreenState extends State<PosScreen> {
 
             if (_selectedCategory != 'Barchasi') {
               items = items.where((p) {
+                // 1. Agar mahsulotda kategoriya kiritilgan bo'lsa, to'g'ridan-to'g'ri solishtiramiz
+                if (p.category != null && p.category!.trim().isNotEmpty) {
+                  return p.category!.toLowerCase() == _selectedCategory.toLowerCase();
+                }
+                // 2. Aks holda nomi bo'yicha intellektual qidiruv
                 final n = p.name.toLowerCase();
                 final cat = _selectedCategory.toLowerCase();
-                if (cat == 'boshqa') {
-                  return !n.contains('marmar') && !n.contains('granit') && !n.contains('travertin') && !n.contains('onyx');
-                }
                 return n.contains(cat);
               }).toList();
             }
@@ -592,24 +603,48 @@ class _ProductCardState extends State<_ProductCard> {
                               height: 104,
                               borderRadiusGeometry: const BorderRadius.vertical(top: Radius.circular(19)),
                             ),
-                            if (p.hasSorts)
+                            if ((p.category != null && p.category!.isNotEmpty) || p.hasSorts)
                               Positioned(
                                 bottom: 6,
                                 left: 6,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.75),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Text(
-                                    '1 · 1.5 · 2 sort',
-                                    style: TextStyle(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.neonLime,
-                                    ),
-                                  ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (p.category != null && p.category!.isNotEmpty)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(alpha: 0.65),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          p.category!,
+                                          style: const TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    if (p.hasSorts) ...[
+                                      if (p.category != null && p.category!.isNotEmpty) const SizedBox(width: 4),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(alpha: 0.75),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: const Text(
+                                          '1 · 1.5 · 2 sort',
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppColors.neonLime,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
                             // Qoldiq belgisi (Stock badge)
@@ -686,7 +721,7 @@ class _ProductCardState extends State<_ProductCard> {
                               ),
                               if (p.color != null && p.color!.isNotEmpty)
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 2),
+                                  padding: const EdgeInsets.only(top: 2),
                                   child: StoneColorBadge(colorName: p.color!, fontSize: 9.5),
                                 ),
                               Row(

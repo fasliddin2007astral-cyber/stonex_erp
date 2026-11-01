@@ -225,9 +225,20 @@ class SalaryReportItem {
       };
 }
 
+const List<String> standardProductCategories = [
+  'Granit',
+  'Kerama granit',
+  'Kafel',
+  'Marmar',
+  'Tayyor mahsulot',
+  'Xomashyo',
+  'Qo‘shimcha',
+];
+
 class Product {
   final int id;
   final String name;
+  final String? category; // Standart kategoriyalar: Granit, Kerama granit, Kafel, Marmar, Tayyor mahsulot, Xomashyo, Qo‘shimcha
   final String sku;
   final String qrCode;
   final String unit; // m2, dona, kg, m
@@ -247,6 +258,7 @@ class Product {
   const Product({
     required this.id,
     required this.name,
+    this.category,
     this.sku = '',
     this.qrCode = '',
     required this.unit,
@@ -297,6 +309,7 @@ class Product {
   Product copyWith({
     int? id,
     String? name,
+    String? category,
     String? sku,
     String? qrCode,
     String? unit,
@@ -316,6 +329,7 @@ class Product {
       Product(
         id: id ?? this.id,
         name: name ?? this.name,
+        category: category ?? this.category,
         sku: sku ?? this.sku,
         qrCode: qrCode ?? this.qrCode,
         unit: unit ?? this.unit,
@@ -336,6 +350,7 @@ class Product {
   factory Product.fromJson(Map<String, dynamic> j) => Product(
         id: (j['id'] as num?)?.toInt() ?? 0,
         name: (j['name'] ?? '').toString(),
+        category: j['category']?.toString(),
         sku: (j['sku'] ?? '').toString(),
         qrCode: (j['qr_code'] ?? '').toString(),
         unit: (j['unit'] ?? 'm²').toString(),
@@ -365,6 +380,7 @@ class Product {
 
   Map<String, dynamic> toJson({double initialStock = 0}) => {
         'name': name,
+        'category': category,
         'sku': sku.isEmpty ? null : sku,
         'qr_code': qrCode.isEmpty ? null : qrCode,
         'unit': unit,

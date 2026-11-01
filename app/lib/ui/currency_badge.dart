@@ -410,3 +410,4 @@ class _CurrencySettingsDialogState extends State<_CurrencySettingsDialog> {
     );
   }
 }
+

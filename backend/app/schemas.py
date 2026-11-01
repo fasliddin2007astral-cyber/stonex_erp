@@ -107,6 +107,7 @@ class SalaryReportItem(BaseModel):
 # ---------- products ----------
 class ProductIn(BaseModel):
     name: str = Field(min_length=1, max_length=128)
+    category: str | None = None
     sku: str | None = None
     qr_code: str | None = None
     unit: str = Field(min_length=1, max_length=16)
@@ -126,6 +127,7 @@ class ProductIn(BaseModel):
 
 class ProductUpdate(BaseModel):
     name: str | None = None
+    category: str | None = None
     sku: str | None = None
     qr_code: str | None = None
     unit: str | None = None
@@ -145,6 +147,7 @@ class ProductUpdate(BaseModel):
 class ProductOut(BaseModel):
     id: int
     name: str
+    category: str | None = None
     sku: str | None
     qr_code: str | None
     unit: str

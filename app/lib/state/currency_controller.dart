@@ -116,3 +116,4 @@ class CurrencyController extends ChangeNotifier {
     notifyListeners();
   }
 }
+
