@@ -33,7 +33,8 @@ class MockStore {
     const Product(id: 9, name: 'Marmar Stol Ustligi', category: 'Tayyor mahsulot', qrCode: 'STX-TAYYOR-STOL', unit: 'dona', price: 1200000, costPrice: 750000, stock: 8, imageUrl: 'https://images.unsplash.com/photo-1615529182904-14819c35db37?w=600&auto=format&fit=crop&q=80'),
     const Product(id: 19, name: 'Razmer kesish', category: 'Xizmat', qrCode: 'SRV-CUT', unit: 'metr', price: 15000, costPrice: 0, stock: 999999, imageUrl: 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=600&auto=format&fit=crop&q=80'),
     const Product(id: 20, name: 'Faska ochish', category: 'Xizmat', qrCode: 'SRV-FASKA', unit: 'metr', price: 20000, costPrice: 0, stock: 999999, imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop&q=80'),
-    const Product(id: 21, name: 'Silliqlash', category: 'Xizmat', qrCode: 'SRV-SILLIQ', unit: 'metr', price: 25000, costPrice: 0, stock: 999999, imageUrl: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=600&auto=format&fit=crop&q=80'),
+    const Product(id: 21, name: 'Silliqlash (Granit)', category: 'Xizmat', qrCode: 'SRV-SILLIQ-GRANIT', unit: 'metr', price: 30000, costPrice: 0, stock: 999999, imageUrl: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=600&auto=format&fit=crop&q=80'),
+    const Product(id: 23, name: 'Silliqlash (Keramogranit)', category: 'Xizmat', qrCode: 'SRV-SILLIQ-KER', unit: 'metr', price: 20000, costPrice: 0, stock: 999999, imageUrl: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=600&auto=format&fit=crop&q=80'),
     const Product(id: 22, name: 'Chizish', category: 'Xizmat', qrCode: 'SRV-CHIZISH', unit: 'metr', price: 10000, costPrice: 0, stock: 999999, imageUrl: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=600&auto=format&fit=crop&q=80'),
   ];
 

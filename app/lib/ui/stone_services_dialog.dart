@@ -34,7 +34,7 @@ const List<StoneServiceDef> kStoneServices = [
     key: 'cut',
     name: 'Razmer kesish',
     unit: 'metr',
-    description: 'Plita va toshlarni buyurtma bo‘yicha aniq o‘lchamda kesish',
+    description: 'Eni va bo‘yi bo‘yicha plita va toshlarni aniq o‘lchamda kesish',
     icon: Icons.content_cut_rounded,
     defaultPrice: 15000,
     defaultProductId: 19,
@@ -43,7 +43,7 @@ const List<StoneServiceDef> kStoneServices = [
     key: 'chamfer',
     name: 'Faska ochish',
     unit: 'metr',
-    description: 'Zinapoya, podokonnik yoki plita chetlariga faska berish',
+    description: 'Zinapoya, podokonnik yoki plita chetlariga faska (qirra) berish',
     icon: Icons.architecture_rounded,
     defaultPrice: 20000,
     defaultProductId: 20,
@@ -52,7 +52,7 @@ const List<StoneServiceDef> kStoneServices = [
     key: 'polish',
     name: 'Silliqlash',
     unit: 'metr',
-    description: 'Tosh yuzasini yoki qirralarini tekislash va jilolash',
+    description: 'Granit va Keramogranit toshlari yuzasi yoki qirrasini jilolash',
     icon: Icons.auto_awesome_rounded,
     defaultPrice: 25000,
     defaultProductId: 21,
@@ -73,11 +73,17 @@ class StoneServicesStore {
   static final Map<String, double> _prices = {
     'cut': 15000,
     'chamfer': 20000,
-    'polish': 25000,
+    'polish_granite': 30000,
+    'polish_ceramics': 20000,
     'groove': 10000,
   };
 
-  static double getPrice(String key) => _prices[key] ?? 10000;
+  static double getPrice(String key) {
+    if (key == 'polish') {
+      return _prices['polish_granite'] ?? 30000;
+    }
+    return _prices[key] ?? 10000;
+  }
 
   static void setPrice(String key, double price) {
     _prices[key] = price;
@@ -89,12 +95,18 @@ class StoneServicesStore {
   static Future<void> syncFromRepo(ProductRepository repo) async {
     try {
       final list = await repo.list();
-      for (final def in kStoneServices) {
-        final p = list.where((prod) =>
-            prod.id == def.defaultProductId ||
-            prod.name.trim().toLowerCase() == def.name.toLowerCase()).firstOrNull;
-        if (p != null && p.price > 0) {
-          _prices[def.key] = p.price;
+      for (final p in list) {
+        final name = p.name.trim().toLowerCase();
+        if (p.id == 19 || name.contains('kesish')) {
+          _prices['cut'] = p.price;
+        } else if (p.id == 20 || name.contains('faska')) {
+          _prices['chamfer'] = p.price;
+        } else if (p.id == 21 || (name.contains('silliq') && name.contains('granit'))) {
+          _prices['polish_granite'] = p.price;
+        } else if (p.id == 23 || (name.contains('silliq') && name.contains('keramo'))) {
+          _prices['polish_ceramics'] = p.price;
+        } else if (p.id == 22 || name.contains('chizish')) {
+          _prices['groove'] = p.price;
         }
       }
     } catch (_) {}
@@ -123,7 +135,20 @@ class StoneServicesDialog extends StatefulWidget {
 
 class _StoneServicesDialogState extends State<StoneServicesDialog> {
   int _selectedServiceIdx = 0;
-  final _qtyCtrl = TextEditingController(text: '1.0');
+
+  // Kesish va o'lchamlar uchun controllerlar
+  final _lengthCtrl = TextEditingController(text: '1.2');
+  final _widthCtrl = TextEditingController(text: '0.6');
+  final _piecesCtrl = TextEditingController(text: '1');
+  bool _useCm = false; // Metr yoki Santimetr
+
+  // Kesish rejimi: 'perimeter' (4 tomoni), 'length' (bo'yi), 'width' (eni), 'manual' (to'g'ridan-to'g'ri metr)
+  String _cutMode = 'perimeter';
+  final _manualMetersCtrl = TextEditingController(text: '1.0');
+
+  // Silliqlash uchun tosh turi: 'granite' (Granit) yoki 'ceramics' (Keramogranit)
+  String _polishStoneType = 'granite';
+
   final _noteCtrl = TextEditingController();
   bool _syncing = false;
 
@@ -142,55 +167,137 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
 
   @override
   void dispose() {
-    _qtyCtrl.dispose();
+    _lengthCtrl.dispose();
+    _widthCtrl.dispose();
+    _piecesCtrl.dispose();
+    _manualMetersCtrl.dispose();
     _noteCtrl.dispose();
     super.dispose();
   }
 
-  double get _currentQty {
-    final v = double.tryParse(_qtyCtrl.text.replaceAll(',', '.'));
-    return (v != null && v > 0) ? v : 1.0;
+  double _parseVal(TextEditingController ctrl) {
+    final v = parseInput(ctrl.text);
+    return (v != null && v > 0) ? v : 0.0;
   }
 
-  void _adjustQty(double delta) {
-    final next = (_currentQty + delta);
-    if (next < 0.1) return;
-    final formatted = next == next.roundToDouble()
-        ? next.toInt().toString()
-        : next.toStringAsFixed(1);
-    _qtyCtrl.text = formatted;
+  int _parsePieces() {
+    final v = int.tryParse(_piecesCtrl.text.trim());
+    return (v != null && v > 0) ? v : 1;
+  }
+
+  double get _effectiveLengthM {
+    final raw = _parseVal(_lengthCtrl);
+    return _useCm ? raw / 100 : raw;
+  }
+
+  double get _effectiveWidthM {
+    final raw = _parseVal(_widthCtrl);
+    return _useCm ? raw / 100 : raw;
+  }
+
+  /// Jami hisoblangan metr yoki miqdor
+  double get _calculatedTotalMeters {
+    final def = kStoneServices[_selectedServiceIdx];
+    final pieces = _parsePieces();
+
+    if (def.key == 'cut') {
+      if (_cutMode == 'manual') {
+        final m = _parseVal(_manualMetersCtrl);
+        return m > 0 ? m : 1.0;
+      }
+      final l = _effectiveLengthM;
+      final w = _effectiveWidthM;
+
+      if (_cutMode == 'perimeter') {
+        // 4 tomoni: 2 * (L + W) * dona
+        final perim = (l + w) * 2 * pieces;
+        return double.parse(perim.toStringAsFixed(2));
+      } else if (_cutMode == 'length') {
+        // Bo'yi bo'yicha: L * dona
+        return double.parse((l * pieces).toStringAsFixed(2));
+      } else if (_cutMode == 'width') {
+        // Eni bo'yicha: W * dona
+        return double.parse((w * pieces).toStringAsFixed(2));
+      }
+    }
+
+    // Faska, Silliqlash va Chizish uchun:
+    if (_cutMode == 'dimension' && (_effectiveLengthM > 0 || _effectiveWidthM > 0)) {
+      // O'lcham bo'yicha chetlarini hisoblash
+      final l = _effectiveLengthM;
+      return double.parse((l * pieces).toStringAsFixed(2));
+    }
+
+    final m = _parseVal(_manualMetersCtrl);
+    return m > 0 ? m : 1.0;
+  }
+
+  /// Joriy tanlangan xizmat narxi (so'm / metr)
+  double get _activeUnitPrice {
+    final def = kStoneServices[_selectedServiceIdx];
+    if (def.key == 'polish') {
+      return _polishStoneType == 'granite'
+          ? StoneServicesStore.getPrice('polish_granite')
+          : StoneServicesStore.getPrice('polish_ceramics');
+    }
+    return StoneServicesStore.getPrice(def.key);
+  }
+
+  double get _calculatedTotalPrice {
+    return _calculatedTotalMeters * _activeUnitPrice;
+  }
+
+  void _adjustPieces(int delta) {
+    final cur = _parsePieces();
+    final next = (cur + delta).clamp(1, 9999);
+    _piecesCtrl.text = next.toString();
     setState(() {});
   }
 
-  void _setQty(double val) {
-    if (val <= 0) return;
-    final formatted = val == val.roundToDouble()
-        ? val.toInt().toString()
-        : val.toStringAsFixed(1);
-    _qtyCtrl.text = formatted;
+  void _adjustManualMeters(double delta) {
+    final cur = _parseVal(_manualMetersCtrl);
+    final next = (cur + delta);
+    if (next < 0.1) return;
+    _manualMetersCtrl.text = next == next.roundToDouble() ? next.toInt().toString() : next.toStringAsFixed(1);
     setState(() {});
   }
 
   Future<void> _addToCart() async {
     final def = kStoneServices[_selectedServiceIdx];
-    final qty = _currentQty;
-    final price = StoneServicesStore.getPrice(def.key);
+    final qty = _calculatedTotalMeters;
+    final price = _activeUnitPrice;
     final note = _noteCtrl.text.trim();
+    final pieces = _parsePieces();
+    final l = _effectiveLengthM;
+    final w = _effectiveWidthM;
 
     final repos = context.read<AppRepositories>();
     final cart = context.read<CartController>();
+
+    int targetProductId = def.defaultProductId;
+    String serviceDisplayName = def.name;
+
+    if (def.key == 'polish') {
+      if (_polishStoneType == 'granite') {
+        targetProductId = 21;
+        serviceDisplayName = 'Silliqlash (Granit)';
+      } else {
+        targetProductId = 23;
+        serviceDisplayName = 'Silliqlash (Keramogranit)';
+      }
+    }
 
     Product? targetProduct;
     try {
       final prods = await repos.products.list();
       targetProduct = prods.where((p) =>
-          p.id == def.defaultProductId ||
-          p.name.trim().toLowerCase() == def.name.toLowerCase()).firstOrNull;
+          p.id == targetProductId ||
+          p.name.trim().toLowerCase() == serviceDisplayName.toLowerCase()).firstOrNull;
     } catch (_) {}
 
     targetProduct ??= Product(
-      id: def.defaultProductId,
-      name: def.name,
+      id: targetProductId,
+      name: serviceDisplayName,
       category: 'Xizmat',
       unit: def.unit,
       price: price,
@@ -199,11 +306,27 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
       minStock: 0,
     );
 
-    final specText = note.isNotEmpty ? '$note ($qty ${def.unit})' : '$qty ${def.unit}';
+    // O'lcham va spetsifikatsiya matni
+    String specText;
+    if (def.key == 'cut' && _cutMode != 'manual') {
+      final modeName = _cutMode == 'perimeter'
+          ? '4 tomoni'
+          : (_cutMode == 'length' ? 'bo‘yi' : 'eni');
+      specText = '${l.toStringAsFixed(2)} × ${w.toStringAsFixed(2)} m · $pieces dona ($modeName: $qty m)';
+    } else {
+      specText = '$qty ${def.unit}';
+    }
+
+    if (note.isNotEmpty) {
+      specText = '$specText — $note';
+    }
 
     cart.add(
       targetProduct,
       quantity: qty,
+      cutLength: l > 0 ? l : null,
+      cutWidth: w > 0 ? w : null,
+      cutPieces: pieces > 0 ? pieces : null,
       cutSpec: specText,
     );
 
@@ -216,7 +339,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
     }
 
     if (mounted) {
-      Navigator.pop(context, '${def.name} ($qty ${def.unit}) savatga qo‘shildi');
+      Navigator.pop(context, '$serviceDisplayName ($qty ${def.unit}) savatga qo‘shildi');
     }
   }
 
@@ -236,8 +359,8 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
     final isDark = context.isDark;
     final isAdmin = widget.user.role == Role.admin;
     final curDef = kStoneServices[_selectedServiceIdx];
-    final curPrice = StoneServicesStore.getPrice(curDef.key);
-    final total = _currentQty * curPrice;
+    final curPrice = _activeUnitPrice;
+    final total = _calculatedTotalPrice;
 
     final width = MediaQuery.sizeOf(context).width;
     final isCompact = width < 600;
@@ -246,8 +369,8 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
-        width: 660,
-        constraints: const BoxConstraints(maxHeight: 640),
+        width: 680,
+        constraints: const BoxConstraints(maxHeight: 680),
         decoration: BoxDecoration(
           color: context.dialogBg,
           borderRadius: BorderRadius.circular(24),
@@ -304,7 +427,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Kesish, faska, silliqlash va chizish xizmatlarini savatga qo‘shish',
+                          'Eni va bo‘yiga qarab kesish, granit va keramagranit silliqlash',
                           style: TextStyle(
                             fontSize: 12,
                             color: context.mutedColor,
@@ -387,7 +510,11 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                           itemBuilder: (ctx, i) {
                             final def = kStoneServices[i];
                             final sel = i == _selectedServiceIdx;
-                            final price = StoneServicesStore.getPrice(def.key);
+                            final price = def.key == 'polish'
+                                ? (_polishStoneType == 'granite'
+                                    ? StoneServicesStore.getPrice('polish_granite')
+                                    : StoneServicesStore.getPrice('polish_ceramics'))
+                                : StoneServicesStore.getPrice(def.key);
 
                             return InkWell(
                               onTap: () {
@@ -456,182 +583,488 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                       },
                     ),
 
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
 
-                    // Tanlangan xizmat tavsifi
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: context.cardColor,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: context.borderColor),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(curDef.icon, size: 20, color: isDark ? AppColors.neonLime : AppColors.ink),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                    // SILLIQLASH TANLANGAN BO'LSA: Granit va Keramogranit tanlovi
+                    if (curDef.key == 'polish') ...[
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1B2028) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: context.borderColor),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
                               children: [
+                                const Icon(Icons.tune_rounded, size: 16),
+                                const SizedBox(width: 8),
                                 Text(
-                                  curDef.name,
+                                  'Silliqlash uchun materialni tanlang:',
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w800,
                                     color: context.inkColor,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  curDef.description,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: context.mutedColor,
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                ChoiceChip(
+                                  avatar: const Icon(Icons.terrain_rounded, size: 18),
+                                  label: Text(
+                                    'Granit (${money(StoneServicesStore.getPrice('polish_granite'))} / m)',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: _polishStoneType == 'granite' ? FontWeight.w800 : FontWeight.w600,
+                                    ),
+                                  ),
+                                  selected: _polishStoneType == 'granite',
+                                  selectedColor: isDark ? AppColors.neonLime : AppColors.darkCard,
+                                  labelStyle: TextStyle(
+                                    color: _polishStoneType == 'granite'
+                                        ? (isDark ? AppColors.ink : Colors.white)
+                                        : context.inkColor,
+                                  ),
+                                  onSelected: (_) => setState(() => _polishStoneType = 'granite'),
+                                ),
+                                ChoiceChip(
+                                  avatar: const Icon(Icons.grid_view_rounded, size: 18),
+                                  label: Text(
+                                    'Keramogranit (${money(StoneServicesStore.getPrice('polish_ceramics'))} / m)',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: _polishStoneType == 'ceramics' ? FontWeight.w800 : FontWeight.w600,
+                                    ),
+                                  ),
+                                  selected: _polishStoneType == 'ceramics',
+                                  selectedColor: isDark ? AppColors.neonLime : AppColors.darkCard,
+                                  labelStyle: TextStyle(
+                                    color: _polishStoneType == 'ceramics'
+                                        ? (isDark ? AppColors.ink : Colors.white)
+                                        : context.inkColor,
+                                  ),
+                                  onSelected: (_) => setState(() => _polishStoneType = 'ceramics'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // KESISH TANLANGAN BO'LSA: ENI VA BO'YIGA QARAB KESISH
+                    if (curDef.key == 'cut') ...[
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1B2028) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: context.borderColor),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 10,
+                              runSpacing: 8,
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.straighten_rounded,
+                                        size: 18,
+                                        color: isDark ? AppColors.neonLime : AppColors.ink),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Eni va bo‘yi bo‘yicha kesish:',
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: context.inkColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('Birlik: ',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: context.mutedColor,
+                                            fontWeight: FontWeight.w600)),
+                                    ChoiceChip(
+                                      label: const Text('m', style: TextStyle(fontSize: 11.5)),
+                                      selected: !_useCm,
+                                      visualDensity: VisualDensity.compact,
+                                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                                      onSelected: (_) => setState(() => _useCm = false),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    ChoiceChip(
+                                      label: const Text('sm', style: TextStyle(fontSize: 11.5)),
+                                      selected: _useCm,
+                                      visualDensity: VisualDensity.compact,
+                                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                                      onSelected: (_) => setState(() => _useCm = true),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Eni, Bo'yi va Dona kiritish qatori
+                            Row(
+                              children: [
+                                // Bo'yi
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Bo‘yi (${_useCm ? 'sm' : 'm'}):',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: context.mutedColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      TextField(
+                                        controller: _lengthCtrl,
+                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: context.inkColor),
+                                        decoration: InputDecoration(
+                                          filled: true,
+                                          fillColor: context.cardColor,
+                                          isDense: true,
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                                        ),
+                                        onChanged: (_) => setState(() {}),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+
+                                // Eni
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Eni (${_useCm ? 'sm' : 'm'}):',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: context.mutedColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      TextField(
+                                        controller: _widthCtrl,
+                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: context.inkColor),
+                                        decoration: InputDecoration(
+                                          filled: true,
+                                          fillColor: context.cardColor,
+                                          isDense: true,
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                                        ),
+                                        onChanged: (_) => setState(() {}),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+
+                                // Dona (soni)
+                                SizedBox(
+                                  width: 130,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Donasi:',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: context.mutedColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          IconButton.filledTonal(
+                                            onPressed: () => _adjustPieces(-1),
+                                            icon: const Icon(Icons.remove, size: 16),
+                                            visualDensity: VisualDensity.compact,
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                          ),
+                                          Expanded(
+                                            child: TextField(
+                                              controller: _piecesCtrl,
+                                              textAlign: TextAlign.center,
+                                              keyboardType: TextInputType.number,
+                                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: context.inkColor),
+                                              decoration: InputDecoration(
+                                                filled: true,
+                                                fillColor: context.cardColor,
+                                                isDense: true,
+                                                contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                                              ),
+                                              onChanged: (_) => setState(() {}),
+                                            ),
+                                          ),
+                                          IconButton.filledTonal(
+                                            onPressed: () => _adjustPieces(1),
+                                            icon: const Icon(Icons.add, size: 16),
+                                            visualDensity: VisualDensity.compact,
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF232832) : const Color(0xFFE2E8F0),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '${money(curPrice)} / ${curDef.unit}',
+                            const SizedBox(height: 12),
+
+                            // Kesish turi (qirralari)
+                            Text(
+                              'Kesish usuli (qirralar):',
                               style: TextStyle(
                                 fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                color: context.inkColor,
+                                fontWeight: FontWeight.w700,
+                                color: context.mutedColor,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    // Miqdor kiritish (metr)
-                    Text(
-                      'Miqdor (${curDef.unit}):',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: context.mutedColor,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    Row(
-                      children: [
-                        // Kamaytirish
-                        IconButton.filledTonal(
-                          onPressed: () => _adjustQty(-1.0),
-                          icon: const Icon(Icons.remove_rounded, size: 20),
-                          style: IconButton.styleFrom(
-                            backgroundColor: context.cardColor,
-                            foregroundColor: context.inkColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(color: context.borderColor),
+                            const SizedBox(height: 6),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  ChoiceChip(
+                                    label: const Text('4 tomoni (Perimetr)'),
+                                    selected: _cutMode == 'perimeter',
+                                    visualDensity: VisualDensity.compact,
+                                    onSelected: (_) => setState(() => _cutMode = 'perimeter'),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  ChoiceChip(
+                                    label: const Text('Bo‘yiga kesish'),
+                                    selected: _cutMode == 'length',
+                                    visualDensity: VisualDensity.compact,
+                                    onSelected: (_) => setState(() => _cutMode = 'length'),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  ChoiceChip(
+                                    label: const Text('Eniga kesish'),
+                                    selected: _cutMode == 'width',
+                                    visualDensity: VisualDensity.compact,
+                                    onSelected: (_) => setState(() => _cutMode = 'width'),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  ChoiceChip(
+                                    label: const Text('Oddiy (faqat metr)'),
+                                    selected: _cutMode == 'manual',
+                                    visualDensity: VisualDensity.compact,
+                                    onSelected: (_) => setState(() => _cutMode = 'manual'),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
+
+                            // Agar oddiy metr rejimi tanlangan bo'lsa
+                            if (_cutMode == 'manual') ...[
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Text(
+                                    'To‘g‘ridan-to‘g‘ri metr: ',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: context.mutedColor,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  SizedBox(
+                                    width: 140,
+                                    child: TextField(
+                                      controller: _manualMetersCtrl,
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: context.inkColor),
+                                      decoration: InputDecoration(
+                                        filled: true,
+                                        fillColor: context.cardColor,
+                                        suffixText: 'm',
+                                        isDense: true,
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                                      ),
+                                      onChanged: (_) => setState(() {}),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+
+                            const SizedBox(height: 10),
+                            // Jonli hisob tafsiloti
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: context.cardColor,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: context.borderColor),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.calculate_rounded, size: 18, color: isDark ? AppColors.neonLime : AppColors.ink),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _cutMode == 'manual'
+                                          ? 'Jami kesish: $_calculatedTotalMeters metr'
+                                          : 'O‘lcham: ${_effectiveLengthM.toStringAsFixed(2)} × ${_effectiveWidthM.toStringAsFixed(2)} m · ${_parsePieces()} dona → Jami kesish: $_calculatedTotalMeters metr',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: context.inkColor,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-
-                        // Matn maydoni
-                        Expanded(
-                          child: TextField(
-                            controller: _qtyCtrl,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                              color: context.inkColor,
-                            ),
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: context.cardColor,
-                              suffixText: curDef.unit,
-                              suffixStyle: TextStyle(
+                      ),
+                      const SizedBox(height: 16),
+                    ] else ...[
+                      // FASKA, CHIZISH YOKI ODDIY REJIM: Miqdor (metr) kiritish
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1B2028) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: context.borderColor),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Xizmat hajmi (metrda):',
+                              style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
                                 color: context.mutedColor,
                               ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: BorderSide(color: context.borderColor),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: BorderSide(color: context.borderColor),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: BorderSide(
-                                  color: isDark ? AppColors.neonLime : AppColors.ink,
-                                  width: 1.5,
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                IconButton.filledTonal(
+                                  onPressed: () => _adjustManualMeters(-1.0),
+                                  icon: const Icon(Icons.remove_rounded, size: 20),
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: context.cardColor,
+                                    foregroundColor: context.inkColor,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      side: BorderSide(color: context.borderColor),
+                                    ),
+                                  ),
                                 ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _manualMetersCtrl,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w900,
+                                      color: context.inkColor,
+                                    ),
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: context.cardColor,
+                                      suffixText: curDef.unit,
+                                      suffixStyle: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: context.mutedColor,
+                                      ),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: context.borderColor)),
+                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: context.borderColor)),
+                                    ),
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton.filledTonal(
+                                  onPressed: () => _adjustManualMeters(1.0),
+                                  icon: const Icon(Icons.add_rounded, size: 20),
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: context.cardColor,
+                                    foregroundColor: context.inkColor,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      side: BorderSide(color: context.borderColor),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [1, 2, 5, 10, 20, 50].map((q) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 6),
+                                    child: ActionChip(
+                                      label: Text('+$q m'),
+                                      labelStyle: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: context.inkColor),
+                                      backgroundColor: context.cardColor,
+                                      side: BorderSide(color: context.borderColor),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                      onPressed: () => _adjustManualMeters(q.toDouble()),
+                                    ),
+                                  );
+                                }).toList(),
                               ),
                             ),
-                            onChanged: (_) => setState(() {}),
-                          ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-
-                        // Ko'paytirish
-                        IconButton.filledTonal(
-                          onPressed: () => _adjustQty(1.0),
-                          icon: const Icon(Icons.add_rounded, size: 20),
-                          style: IconButton.styleFrom(
-                            backgroundColor: context.cardColor,
-                            foregroundColor: context.inkColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(color: context.borderColor),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // Tezkor miqdor tugmalari
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [1, 2, 5, 10, 20, 50].map((q) {
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: ActionChip(
-                              label: Text('+$q ${curDef.unit}'),
-                              labelStyle: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w700,
-                                color: context.inkColor,
-                              ),
-                              backgroundColor: context.cardColor,
-                              side: BorderSide(color: context.borderColor),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                              onPressed: () => _adjustQty(q.toDouble()),
-                            ),
-                          );
-                        }).toList(),
                       ),
-                    ),
+                      const SizedBox(height: 16),
+                    ],
 
-                    const SizedBox(height: 18),
-
-                    // Izoh yoki tosh nomi
+                    // Izoh yoki buyurtma tafsiloti
                     Text(
                       'Izoh yoki buyurtma tafsiloti (ixtiyoriy):',
                       style: TextStyle(
@@ -640,7 +1073,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                         color: context.mutedColor,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     TextField(
                       controller: _noteCtrl,
                       style: TextStyle(fontSize: 13, color: context.inkColor),
@@ -649,22 +1082,9 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                         fillColor: context.cardColor,
                         hintText: 'Masalan: 3-etaj pillapoyaga, Angola toshiga...',
                         hintStyle: TextStyle(fontSize: 13, color: context.mutedColor),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(color: context.borderColor),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(color: context.borderColor),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(
-                            color: isDark ? AppColors.neonLime : AppColors.ink,
-                            width: 1.5,
-                          ),
-                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: context.borderColor)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: context.borderColor)),
                       ),
                     ),
                   ],
@@ -687,13 +1107,26 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        'Hisoblangan summa:',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: context.mutedColor,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Jami: $_calculatedTotalMeters metr · ',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: context.mutedColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            '${money(curPrice)} / m',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: context.mutedColor,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -723,7 +1156,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                       ),
                       const SizedBox(width: 8),
                       FilledButton.icon(
-                        onPressed: _currentQty > 0 ? _addToCart : null,
+                        onPressed: _calculatedTotalMeters > 0 ? _addToCart : null,
                         icon: const Icon(Icons.add_shopping_cart_rounded, size: 18),
                         label: const Text(
                           'Savatga qo‘shish',
@@ -761,26 +1194,32 @@ class ServicesPriceConfigDialog extends StatefulWidget {
 }
 
 class _ServicesPriceConfigDialogState extends State<ServicesPriceConfigDialog> {
-  late final Map<String, TextEditingController> _ctrls;
+  late final TextEditingController _cutCtrl;
+  late final TextEditingController _chamferCtrl;
+  late final TextEditingController _polishGraniteCtrl;
+  late final TextEditingController _polishCeramicsCtrl;
+  late final TextEditingController _grooveCtrl;
+
   bool _saving = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _ctrls = {
-      for (final def in kStoneServices)
-        def.key: TextEditingController(
-          text: StoneServicesStore.getPrice(def.key).round().toString(),
-        ),
-    };
+    _cutCtrl = TextEditingController(text: StoneServicesStore.getPrice('cut').round().toString());
+    _chamferCtrl = TextEditingController(text: StoneServicesStore.getPrice('chamfer').round().toString());
+    _polishGraniteCtrl = TextEditingController(text: StoneServicesStore.getPrice('polish_granite').round().toString());
+    _polishCeramicsCtrl = TextEditingController(text: StoneServicesStore.getPrice('polish_ceramics').round().toString());
+    _grooveCtrl = TextEditingController(text: StoneServicesStore.getPrice('groove').round().toString());
   }
 
   @override
   void dispose() {
-    for (final c in _ctrls.values) {
-      c.dispose();
-    }
+    _cutCtrl.dispose();
+    _chamferCtrl.dispose();
+    _polishGraniteCtrl.dispose();
+    _polishCeramicsCtrl.dispose();
+    _grooveCtrl.dispose();
     super.dispose();
   }
 
@@ -794,26 +1233,44 @@ class _ServicesPriceConfigDialogState extends State<ServicesPriceConfigDialog> {
       final repos = context.read<AppRepositories>();
       final prods = await repos.products.list();
 
-      for (final def in kStoneServices) {
-        final val = parseInput(_ctrls[def.key]?.text ?? '');
-        if (val != null && val >= 0) {
-          StoneServicesStore.setPrice(def.key, val);
+      final cutVal = parseInput(_cutCtrl.text);
+      final chamferVal = parseInput(_chamferCtrl.text);
+      final polishGraniteVal = parseInput(_polishGraniteCtrl.text);
+      final polishCeramicsVal = parseInput(_polishCeramicsCtrl.text);
+      final grooveVal = parseInput(_grooveCtrl.text);
 
-          // Bazadagi tegishli mahsulot narxini ham yangilaymiz
-          final p = prods.where((prod) =>
-              prod.id == def.defaultProductId ||
-              prod.name.trim().toLowerCase() == def.name.toLowerCase()).firstOrNull;
+      if (cutVal != null && cutVal >= 0) StoneServicesStore.setPrice('cut', cutVal);
+      if (chamferVal != null && chamferVal >= 0) StoneServicesStore.setPrice('chamfer', chamferVal);
+      if (polishGraniteVal != null && polishGraniteVal >= 0) StoneServicesStore.setPrice('polish_granite', polishGraniteVal);
+      if (polishCeramicsVal != null && polishCeramicsVal >= 0) StoneServicesStore.setPrice('polish_ceramics', polishCeramicsVal);
+      if (grooveVal != null && grooveVal >= 0) StoneServicesStore.setPrice('groove', grooveVal);
 
-          if (p != null) {
-            final updated = p.copyWith(price: val);
-            await repos.products.update(updated);
-          }
+      // Bazadagi mahsulotlarni yangilash
+      for (final p in prods) {
+        final name = p.name.trim().toLowerCase();
+        double? newPrice;
+
+        if (p.id == 19 || name == 'razmer kesish') {
+          newPrice = cutVal;
+        } else if (p.id == 20 || name == 'faska ochish') {
+          newPrice = chamferVal;
+        } else if (p.id == 21 || (name.contains('silliq') && name.contains('granit'))) {
+          newPrice = polishGraniteVal;
+        } else if (p.id == 23 || (name.contains('silliq') && name.contains('keramo'))) {
+          newPrice = polishCeramicsVal;
+        } else if (p.id == 22 || name == 'chizish') {
+          newPrice = grooveVal;
+        }
+
+        if (newPrice != null && newPrice >= 0 && newPrice != p.price) {
+          try {
+            await repos.products.update(p.copyWith(price: newPrice));
+          } catch (_) {}
         }
       }
 
       if (mounted) {
         Navigator.pop(context, true);
-        showMessage(context, 'Xizmatlar narxi muvaffaqiyatli saqlandi');
       }
     } catch (e) {
       if (mounted) {
@@ -825,6 +1282,76 @@ class _ServicesPriceConfigDialogState extends State<ServicesPriceConfigDialog> {
     }
   }
 
+  Widget _buildPriceRow({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required TextEditingController controller,
+    required bool isDark,
+    required BuildContext context,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: isDark ? AppColors.neonLime : AppColors.ink),
+          const SizedBox(width: 10),
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: context.inkColor,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: context.mutedColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            flex: 3,
+            child: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: context.inkColor,
+              ),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: context.cardColor,
+                isDense: true,
+                suffixText: " so'm",
+                suffixStyle: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: context.mutedColor,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: context.borderColor)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: context.borderColor)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = context.isDark;
@@ -833,7 +1360,7 @@ class _ServicesPriceConfigDialogState extends State<ServicesPriceConfigDialog> {
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
-        width: 520,
+        width: 540,
         decoration: BoxDecoration(
           color: context.dialogBg,
           borderRadius: BorderRadius.circular(22),
@@ -885,7 +1412,7 @@ class _ServicesPriceConfigDialogState extends State<ServicesPriceConfigDialog> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Faqat Admin uchun: har bir xizmatning 1 metr narxi',
+                          'Admin: kesish, faska, granit va keramagranit silliqlash narxlari',
                           style: TextStyle(
                             fontSize: 12,
                             color: context.mutedColor,
@@ -932,81 +1459,46 @@ class _ServicesPriceConfigDialogState extends State<ServicesPriceConfigDialog> {
                       ),
                     ),
 
-                  for (final def in kStoneServices) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Row(
-                        children: [
-                          Icon(def.icon, size: 18, color: isDark ? AppColors.neonLime : AppColors.ink),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            flex: 3,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  def.name,
-                                  style: TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: context.inkColor,
-                                  ),
-                                ),
-                                Text(
-                                  '1 ${def.unit} uchun',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: context.mutedColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            flex: 3,
-                            child: TextField(
-                              controller: _ctrls[def.key],
-                              keyboardType: TextInputType.number,
-                              textAlign: TextAlign.right,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                                color: context.inkColor,
-                              ),
-                              decoration: InputDecoration(
-                                filled: true,
-                                fillColor: context.cardColor,
-                                isDense: true,
-                                suffixText: " so'm",
-                                suffixStyle: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: context.mutedColor,
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(color: context.borderColor),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(color: context.borderColor),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                    color: isDark ? AppColors.neonLime : AppColors.ink,
-                                    width: 1.5,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  _buildPriceRow(
+                    title: 'Razmer kesish',
+                    subtitle: 'Eni va bo‘yiga kesish (1 metr)',
+                    icon: Icons.content_cut_rounded,
+                    controller: _cutCtrl,
+                    isDark: isDark,
+                    context: context,
+                  ),
+                  _buildPriceRow(
+                    title: 'Faska ochish',
+                    subtitle: 'Qirra berish (1 metr)',
+                    icon: Icons.architecture_rounded,
+                    controller: _chamferCtrl,
+                    isDark: isDark,
+                    context: context,
+                  ),
+                  _buildPriceRow(
+                    title: 'Silliqlash — Granit',
+                    subtitle: 'Tabiiy tosh jilolash (1 metr)',
+                    icon: Icons.terrain_rounded,
+                    controller: _polishGraniteCtrl,
+                    isDark: isDark,
+                    context: context,
+                  ),
+                  _buildPriceRow(
+                    title: 'Silliqlash — Keramogranit',
+                    subtitle: 'Keramogranit / Kafel jilolash (1 metr)',
+                    icon: Icons.grid_view_rounded,
+                    controller: _polishCeramicsCtrl,
+                    isDark: isDark,
+                    context: context,
+                  ),
+                  _buildPriceRow(
+                    title: 'Chizish',
+                    subtitle: 'Antislip yo‘l chizish (1 metr)',
+                    icon: Icons.line_weight_rounded,
+                    controller: _grooveCtrl,
+                    isDark: isDark,
+                    context: context,
+                  ),
                 ],
               ),
             ),

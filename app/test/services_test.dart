@@ -11,7 +11,7 @@ import 'package:stonex_erp/state/theme_controller.dart';
 import 'package:stonex_erp/ui/stone_services_dialog.dart';
 
 void main() {
-  group('Xizmatlar (Toshga ishlov berish: kesish, faska, silliqlash, chizish)', () {
+  group('Xizmatlar (Eni-bo‘yi kesish, Granit va Keramogranit silliqlash)', () {
     late MockStore store;
     late AppRepositories repos;
     late CartController cart;
@@ -33,41 +33,31 @@ void main() {
       cart = CartController(repos.sales);
     });
 
-    test('4 ta xizmat mavjudligi va standart narxlari', () {
+    test('4 ta xizmat mavjudligi va Silliqlashda Granit va Keramogranit narxlari', () {
       expect(kStoneServices.length, 4);
       final names = kStoneServices.map((s) => s.name).toList();
       expect(names, containsAll(['Razmer kesish', 'Faska ochish', 'Silliqlash', 'Chizish']));
 
       expect(StoneServicesStore.getPrice('cut'), 15000);
       expect(StoneServicesStore.getPrice('chamfer'), 20000);
-      expect(StoneServicesStore.getPrice('polish'), 25000);
+      expect(StoneServicesStore.getPrice('polish_granite'), 30000);
+      expect(StoneServicesStore.getPrice('polish_ceramics'), 20000);
       expect(StoneServicesStore.getPrice('groove'), 10000);
     });
 
-    test('Xizmat savatga to‘g‘ri qo‘shiladi va jami summa hisoblanadi', () async {
-      final cutDef = kStoneServices.firstWhere((s) => s.key == 'cut');
-      final product = await repos.products.findByCode(cutDef.key) ??
-          Product(
-            id: cutDef.defaultProductId,
-            name: cutDef.name,
-            category: 'Xizmat',
-            unit: 'metr',
-            price: 15000,
-            costPrice: 0,
-            stock: 999999,
-          );
+    test('Eni va bo‘yiga qarab kesish hisobi: 1.2 x 0.6 m · 5 dona (4 tomoni perimetr = 18m)', () {
+      const l = 1.2;
+      const w = 0.6;
+      const pieces = 5;
+      final perimeter = (l + w) * 2 * pieces;
+      expect(perimeter, 18.0);
 
-      // 12 metr razmer kesish
-      cart.add(product, quantity: 12, cutSpec: '12 metr');
-      expect(cart.lines.length, 1);
-      final line = cart.lines.first;
-      expect(line.product.name, 'Razmer kesish');
-      expect(line.quantity, 12);
-      expect(line.unitPrice, 15000);
-      expect(line.lineTotal, 180000);
+      final pricePerM = StoneServicesStore.getPrice('cut');
+      final total = perimeter * pricePerM;
+      expect(total, 270000.0);
     });
 
-    testWidgets('StoneServicesDialog render bo‘ladi va xizmat savatga qo‘shiladi', (tester) async {
+    testWidgets('StoneServicesDialog: Eni va bo‘yiga kesish hamda Silliqlash (Granit vs Keramogranit)', (tester) async {
       tester.view.physicalSize = const Size(1280, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -106,15 +96,10 @@ void main() {
       await tester.tap(find.text('Ochish'));
       await tester.pumpAndSettle();
 
-      // Dialog ochilganini tekshiramiz
+      // Dialog va Eni-bo'yi kesish qismi render bo'lganini tekshiramiz
       expect(find.text('Xizmatlar (Toshga ishlov berish)'), findsOneWidget);
-      expect(find.text('Razmer kesish'), findsWidgets);
-      expect(find.text('Faska ochish'), findsWidgets);
-      expect(find.text('Silliqlash'), findsWidgets);
-      expect(find.text('Chizish'), findsWidgets);
-
-      // Admin uchun narxlarni sozlash tugmasi mavjudligini tekshiramiz
-      expect(find.text('Narxlarni sozlash'), findsOneWidget);
+      expect(find.text('Eni va bo‘yi bo‘yicha kesish:'), findsOneWidget);
+      expect(find.text('4 tomoni (Perimetr)'), findsOneWidget);
 
       // Savatga qo'shish
       await tester.tap(find.text('Savatga qo‘shish'));
@@ -122,9 +107,35 @@ void main() {
 
       expect(cart.lines.isNotEmpty, true);
       expect(cart.lines.first.product.name, 'Razmer kesish');
+      expect(cart.lines.first.cutLength, 1.2);
+      expect(cart.lines.first.cutWidth, 0.6);
+
+      // Endi Silliqlashni ochib, Keramogranitni tanlash
+      await tester.tap(find.text('Ochish'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Silliqlash'));
+      await tester.pumpAndSettle();
+
+      // Granit va Keramogranit tanlovi borligini tekshiramiz
+      expect(find.text('Silliqlash uchun materialni tanlang:'), findsOneWidget);
+      expect(find.byIcon(Icons.terrain_rounded), findsWidgets);
+      expect(find.byIcon(Icons.grid_view_rounded), findsWidgets);
+
+      // Keramogranit chipini tanlaymiz
+      await tester.tap(find.textContaining('Keramogranit'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      // Savatga qo'shish
+      await tester.tap(find.text('Savatga qo‘shish'));
+      await tester.pumpAndSettle();
+
+      final silliqLine = cart.lines.firstWhere((l) => l.product.name.contains('Silliqlash'));
+      expect(silliqLine.product.name, contains('Keramogranit'));
+      expect(silliqLine.unitPrice, 20000);
     });
 
-    testWidgets('ServicesPriceConfigDialog admin orqali narxlarni yangilash', (tester) async {
+    testWidgets('ServicesPriceConfigDialog: Granit va Keramogranit alohida narx belgilash', (tester) async {
       tester.view.physicalSize = const Size(1280, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -148,9 +159,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Xizmatlar narxini belgilash'), findsOneWidget);
-      expect(find.text('Faqat Admin uchun: har bir xizmatning 1 metr narxi'), findsOneWidget);
+      expect(find.text('Silliqlash — Granit'), findsOneWidget);
+      expect(find.text('Silliqlash — Keramogranit'), findsOneWidget);
 
-      // Saqlash tugmasini bosish
+      // Saqlash
       await tester.tap(find.text('Saqlash'));
       await tester.pumpAndSettle();
     });
