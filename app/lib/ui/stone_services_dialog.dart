@@ -996,11 +996,10 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                             ),
                             const SizedBox(height: 14),
 
-                            // Kiritish maydoni (ixchamlashtirilgan)
+                            // Kiritish maydoni (Kesish kabi yarmini egallaydi va balandligi bir xil)
                             Row(
                               children: [
-                                SizedBox(
-                                  width: 180,
+                                Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
@@ -1016,7 +1015,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                       TextField(
                                         controller: _manualMetersCtrl,
                                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: context.inkColor),
+                                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: context.inkColor),
                                         decoration: InputDecoration(
                                           filled: true,
                                           fillColor: context.cardColor,
@@ -1024,7 +1023,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                           hintText: '1.0',
                                           suffixText: curDef.unit,
                                           suffixStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
                                           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
                                         ),
@@ -1033,6 +1032,8 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                     ],
                                   ),
                                 ),
+                                const SizedBox(width: 12),
+                                const Spacer(),
                               ],
                             ),
                             const SizedBox(height: 12),
