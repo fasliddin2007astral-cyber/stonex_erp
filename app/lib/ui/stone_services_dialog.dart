@@ -201,13 +201,13 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
     final pieces = _parsePieces();
 
     if (def.key == 'cut') {
+      final w = _effectiveWidthM;
       if (_cutUnit == 'meter') {
-        final m = _parseVal(_manualMetersCtrl);
-        return m > 0 ? m : 1.0;
+        // Metrda: faqat eni bo'yichadagi metrda hisoblanadi
+        return double.parse(w.toStringAsFixed(2));
       } else {
-        // Metr kvadratda: (Bo'yi_sm / 100) * Eni_m (dona shart emas)
+        // Metr kvadratda: (Bo'yi_sm / 100) * Eni_m
         final l = _effectiveLengthM;
-        final w = _effectiveWidthM;
         final area = l * w;
         return double.parse(area.toStringAsFixed(3));
       }
@@ -293,15 +293,16 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
 
     // O'lcham va spetsifikatsiya matni
     String specText;
+    final lenVal = _parseVal(_lengthCtrl);
+    final widVal = _parseVal(_widthCtrl);
+    final lenStr = '${lenVal % 1 == 0 ? lenVal.toInt() : lenVal} sm';
+    final widStr = '${widVal % 1 == 0 ? widVal.toInt() : widVal} m';
+
     if (def.key == 'cut') {
-      if (_cutUnit == 'm2') {
-        final lenVal = _parseVal(_lengthCtrl);
-        final widVal = _parseVal(_widthCtrl);
-        final lenStr = '${lenVal % 1 == 0 ? lenVal.toInt() : lenVal} sm';
-        final widStr = '${widVal % 1 == 0 ? widVal.toInt() : widVal} m';
-        specText = '$lenStr × $widStr ($qty m²)';
+      if (_cutUnit == 'meter') {
+        specText = '$lenStr × $widStr (eni bo‘yicha: $qty metr)';
       } else {
-        specText = '$qty metr';
+        specText = '$lenStr × $widStr ($qty m²)';
       }
     } else {
       specText = '$qty ${def.unit}';
@@ -314,8 +315,8 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
     cart.add(
       targetProduct,
       quantity: qty,
-      cutLength: (_cutUnit == 'm2' && l > 0) ? l : null,
-      cutWidth: (_cutUnit == 'm2' && w > 0) ? w : null,
+      cutLength: l > 0 ? l : null,
+      cutWidth: w > 0 ? w : null,
       cutPieces: null,
       cutSpec: specText,
     );
@@ -708,116 +709,81 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                             ),
                             const SizedBox(height: 14),
 
-                            // METR BO'LSA: METRNI O'ZI
-                            if (_cutUnit == 'meter') ...[
-                              Row(
-                                children: [
-                                  Text(
-                                    'Metr uzunligi: ',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
-                                      color: context.mutedColor,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  SizedBox(
-                                    width: 150,
-                                    child: TextField(
-                                      controller: _manualMetersCtrl,
-                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: context.inkColor),
-                                      decoration: InputDecoration(
-                                        filled: true,
-                                        fillColor: context.cardColor,
-                                        suffixText: 'm',
-                                        isDense: true,
-                                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
-                                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                            // Bo'yi va Eni kiritish qatori (ikkala rejimda ham bo'yi va eni kiritiladi)
+                            Row(
+                              children: [
+                                // Bo'yi (faqat sm)
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Bo‘yi (sm):',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: context.mutedColor,
+                                        ),
                                       ),
-                                      onChanged: (_) => setState(() {}),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ] else ...[
-                              // METR KVADRATDA BO'LSA: BO'YI VA ENI (DONA SHART EMAS)
-                              Row(
-                                children: [
-                                  // Bo'yi (faqat sm)
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Bo‘yi (sm):',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: context.mutedColor,
-                                          ),
+                                      const SizedBox(height: 4),
+                                      TextField(
+                                        controller: _lengthCtrl,
+                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: context.inkColor),
+                                        decoration: InputDecoration(
+                                          filled: true,
+                                          fillColor: context.cardColor,
+                                          isDense: true,
+                                          hintText: '120',
+                                          suffixText: 'sm',
+                                          suffixStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
                                         ),
-                                        const SizedBox(height: 4),
-                                        TextField(
-                                          controller: _lengthCtrl,
-                                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: context.inkColor),
-                                          decoration: InputDecoration(
-                                            filled: true,
-                                            fillColor: context.cardColor,
-                                            isDense: true,
-                                            hintText: '120',
-                                            suffixText: 'sm',
-                                            suffixStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
-                                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
-                                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
-                                          ),
-                                          onChanged: (_) => setState(() {}),
-                                        ),
-                                      ],
-                                    ),
+                                        onChanged: (_) => setState(() {}),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 12),
+                                ),
+                                const SizedBox(width: 12),
 
-                                  // Eni (faqat m)
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Eni (m):',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: context.mutedColor,
-                                          ),
+                                // Eni (faqat m)
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Eni (m):',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: context.mutedColor,
                                         ),
-                                        const SizedBox(height: 4),
-                                        TextField(
-                                          controller: _widthCtrl,
-                                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: context.inkColor),
-                                          decoration: InputDecoration(
-                                            filled: true,
-                                            fillColor: context.cardColor,
-                                            isDense: true,
-                                            hintText: '0.6',
-                                            suffixText: 'm',
-                                            suffixStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
-                                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
-                                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
-                                          ),
-                                          onChanged: (_) => setState(() {}),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      TextField(
+                                        controller: _widthCtrl,
+                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: context.inkColor),
+                                        decoration: InputDecoration(
+                                          filled: true,
+                                          fillColor: context.cardColor,
+                                          isDense: true,
+                                          hintText: '0.6',
+                                          suffixText: 'm',
+                                          suffixStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
                                         ),
-                                      ],
-                                    ),
+                                        onChanged: (_) => setState(() {}),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
 
                             const SizedBox(height: 12),
                             // Jonli hisob tafsiloti
@@ -835,9 +801,14 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                   Expanded(
                                     child: Builder(
                                       builder: (context) {
+                                        final lenVal = _parseVal(_lengthCtrl);
+                                        final widVal = _parseVal(_widthCtrl);
+                                        final lenStr = '${lenVal % 1 == 0 ? lenVal.toInt() : lenVal} sm';
+                                        final widStr = '${widVal % 1 == 0 ? widVal.toInt() : widVal} m';
+
                                         if (_cutUnit == 'meter') {
                                           return Text(
-                                            'Jami kesish: $_calculatedTotalMeters metr',
+                                            'O‘lcham: $lenStr × $widStr → Eni bo‘yicha kesish: $_calculatedTotalMeters metr',
                                             style: TextStyle(
                                               fontSize: 12,
                                               fontWeight: FontWeight.w700,
@@ -845,10 +816,6 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                             ),
                                           );
                                         } else {
-                                          final lenVal = _parseVal(_lengthCtrl);
-                                          final widVal = _parseVal(_widthCtrl);
-                                          final lenStr = '${lenVal % 1 == 0 ? lenVal.toInt() : lenVal} sm';
-                                          final widStr = '${widVal % 1 == 0 ? widVal.toInt() : widVal} m';
                                           return Text(
                                             'O‘lcham: $lenStr × $widStr → Jami maydon: $_calculatedTotalMeters m²',
                                             style: TextStyle(
