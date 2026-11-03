@@ -996,77 +996,44 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                             ),
                             const SizedBox(height: 14),
 
-                            // Kiritish maydoni (Kesishdagi kabi ixcham va toza)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            // Kiritish maydoni (ixchamlashtirilgan)
+                            Row(
                               children: [
-                                Text(
-                                  'Metrda kiritish:',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: context.mutedColor,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                TextField(
-                                  controller: _manualMetersCtrl,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: context.inkColor),
-                                  decoration: InputDecoration(
-                                    filled: true,
-                                    fillColor: context.cardColor,
-                                    isDense: true,
-                                    hintText: '1.0',
-                                    suffixText: curDef.unit,
-                                    suffixStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
-                                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
-                                  ),
-                                  onChanged: (_) => setState(() {}),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-
-                            // Tezkor tugmalar (ixcham, zamonaviy mini-pill ko‘rinishida)
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  Text(
-                                    'Tezkor:',
-                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: context.mutedColor),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  ...[1, 2, 5, 10, 20, 50].map((q) {
-                                    return Padding(
-                                      padding: const EdgeInsets.only(right: 6),
-                                      child: InkWell(
-                                        onTap: () => _adjustManualMeters(q.toDouble()),
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: context.cardColor,
-                                            borderRadius: BorderRadius.circular(8),
-                                            border: Border.all(color: context.borderColor),
-                                          ),
-                                          child: Text(
-                                            '+$q m',
-                                            style: TextStyle(
-                                              fontSize: 11.5,
-                                              fontWeight: FontWeight.w700,
-                                              color: context.inkColor,
-                                            ),
-                                          ),
+                                SizedBox(
+                                  width: 180,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Metrda kiritish:',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: context.mutedColor,
                                         ),
                                       ),
-                                    );
-                                  }),
-                                ],
-                              ),
+                                      const SizedBox(height: 4),
+                                      TextField(
+                                        controller: _manualMetersCtrl,
+                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: context.inkColor),
+                                        decoration: InputDecoration(
+                                          filled: true,
+                                          fillColor: context.cardColor,
+                                          isDense: true,
+                                          hintText: '1.0',
+                                          suffixText: curDef.unit,
+                                          suffixStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                                        ),
+                                        onChanged: (_) => setState(() {}),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 12),
 
