@@ -995,14 +995,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ];
 
     // Tanlangan kategoriya bo'yicha mahsulotlar va real qiymatlar
-    final catProducts = _filterCategoryProducts(products, _selectedCategory);
+    final catProducts = products;
     final chartData = _getRealChartPoints(
       catProducts: catProducts,
       allProducts: products,
       sales: sales,
       movements: movements,
       period: _selectedPeriod,
-      category: _selectedCategory,
+      category: 'Barchasi',
     );
 
     final labels = chartData.labels;
@@ -1116,7 +1116,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '$_selectedCategory bo‘yicha sotuv ko‘rsatkichi',
+                            'Davr bo‘yicha savdo ko‘rsatkichi',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -1154,7 +1154,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            '$_selectedCategory bo‘yicha tushum va savdo ko‘rsatkichi',
+                            'Davr bo‘yicha tushum va savdo ko‘rsatkichi',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -1177,8 +1177,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 builder: (context, constraints) {
                   final w = constraints.maxWidth;
                   final h = height != null
-                      ? (height - (isCompact ? 175.0 : 160.0))
-                      : (isCompact ? 190.0 : 220.0);
+                      ? (height - (isCompact ? 120.0 : 110.0))
+                      : (isCompact ? 220.0 : 250.0);
                   const padX = 14.0;
                   final usableW = math.max(10.0, w - (padX * 2));
                   final activeX = _chartHoverIndex == null
@@ -1336,7 +1336,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                                     BorderRadius.circular(6),
                                               ),
                                               child: Text(
-                                                _selectedCategory,
+                                                'Savdo',
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: const TextStyle(
@@ -1396,53 +1396,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 },
               ),
 
-              const SizedBox(height: 16),
 
-              // Kategoriyalar filtri pill-tugmalari
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    for (final cat in categories) ...[
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedCategory = cat;
-                          });
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: _selectedCategory == cat
-                                ? (context.isDark
-                                    ? AppColors.neonLime
-                                    : AppColors.darkCard)
-                                : context.pillColor,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            cat,
-                            style: TextStyle(
-                              color: _selectedCategory == cat
-                                  ? (context.isDark
-                                      ? AppColors.ink
-                                      : Colors.white)
-                                  : context.mutedColor,
-                              fontSize: 12,
-                              fontWeight: _selectedCategory == cat
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                  ],
-                ),
-              ),
             ],
           ),
         );
