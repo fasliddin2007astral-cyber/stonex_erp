@@ -396,16 +396,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   : 'O‘tgan yilga nisbatan';
       badgeRevenue = '$sign${revGrowth.toStringAsFixed(0)}% $compText';
     } else {
-      badgeRevenue = stats.revenue > 0 ? '+100% Yangi tushum' : '0% Savdo yo‘q';
+      badgeRevenue = stats.revenue > 0 ? '${stats.salesCount} ta savdo cheki' : 'Savdo yo‘q';
     }
 
     // 2. Kassa tushumi badge matni (Real tushum sur'ati / to'lov foizi)
     final cashRate = stats.revenue > 0
-        ? (stats.cash / stats.revenue * 100)
+        ? (stats.cash / stats.revenue * 100).clamp(0.0, 100.0)
         : (stats.cash > 0 ? 100.0 : 0.0);
     final badgeCash = stats.revenue > 0
         ? '${cashRate.toStringAsFixed(0)}% Tushum sur’ati'
-        : (stats.cash > 0 ? '100% To‘langan' : '0% Tushum');
+        : (stats.cash > 0 ? 'To‘langan' : '0% Tushum');
 
     // 3. Qarzdorlik kartasi (Nasiya foizi va cheklar soni)
     final debtProgress = stats.revenue > 0
@@ -420,23 +420,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
             : 'Undirish kutilmoqda')
         : 'Nasiya yo‘q';
 
-    // 4. Sof Foyda badge matni
+    // 4. Sof Foyda badge matni (Mantiqan to'g'ri: zarar bo'lganda rentabellik/zarar ko'rsatiladi)
     String badgeProfit;
-    bool isPositiveProfit = stats.profit >= 0;
-    if (_selectedTopPeriod == 'Barchasi') {
-      badgeProfit = stats.margin >= 0
-          ? '+${stats.margin.toStringAsFixed(1)}% rentabellik'
-          : '-${stats.margin.abs().toStringAsFixed(1)}% zarar';
-    } else if (stats.prevProfit > 0) {
-      final profitGrowth =
-          ((stats.profit - stats.prevProfit) / stats.prevProfit * 100);
-      final sign = profitGrowth >= 0 ? '+' : '';
-      badgeProfit = '$sign${profitGrowth.toStringAsFixed(0)}% o‘sish';
-      isPositiveProfit = profitGrowth >= 0;
-    } else if (stats.profit > 0) {
-      badgeProfit = '+${stats.margin.toStringAsFixed(1)}% rentabellik';
-    } else {
+    bool isPositiveProfit;
+
+    if (stats.profit < 0) {
+      isPositiveProfit = false;
+      if (stats.revenue > 0) {
+        badgeProfit = '-${stats.margin.abs().toStringAsFixed(1)}% zarar';
+      } else {
+        badgeProfit = 'Zararda';
+      }
+    } else if (stats.profit == 0) {
+      isPositiveProfit = true;
       badgeProfit = 'Hozircha foyda 0';
+    } else {
+      isPositiveProfit = true;
+      if (_selectedTopPeriod == 'Barchasi') {
+        badgeProfit = '+${stats.margin.toStringAsFixed(1)}% rentabellik';
+      } else if (stats.prevProfit > 0) {
+        final profitGrowth =
+            ((stats.profit - stats.prevProfit) / stats.prevProfit * 100);
+        if (profitGrowth >= 0) {
+          badgeProfit = '+${profitGrowth.toStringAsFixed(0)}% o‘sish';
+        } else {
+          badgeProfit = '-${profitGrowth.abs().toStringAsFixed(0)}% pasayish';
+        }
+      } else {
+        badgeProfit = '+${stats.margin.toStringAsFixed(1)}% rentabellik';
+      }
     }
 
     final double? topCardHeight = (isDesktop || isTablet) ? 182.0 : null;
@@ -476,7 +488,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       value: money(stats.profit),
       badgeText: badgeProfit,
       isPositive: isPositiveProfit,
-      icon: Icons.trending_up_rounded,
+      icon: isPositiveProfit
+          ? Icons.trending_up_rounded
+          : Icons.trending_down_rounded,
       height: topCardHeight,
       onTap: () => _reload(),
     );
