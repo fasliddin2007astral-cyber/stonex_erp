@@ -685,30 +685,22 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Birlik tanlovi: Metrda va Metr kvadratda
-                            Wrap(
-                              alignment: WrapAlignment.spaceBetween,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              spacing: 8,
-                              runSpacing: 6,
+                            // Birlik tanlovi: Metrda va Metr kvadratda (o'ng tomonga yopishtirilgan)
+                            Row(
                               children: [
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.straighten_rounded,
-                                        size: 18,
-                                        color: isDark ? AppColors.neonLime : AppColors.ink),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Kesish o‘lchovi:',
-                                      style: TextStyle(
-                                        fontSize: 13.5,
-                                        fontWeight: FontWeight.w800,
-                                        color: context.inkColor,
-                                      ),
-                                    ),
-                                  ],
+                                Icon(Icons.straighten_rounded,
+                                    size: 18,
+                                    color: isDark ? AppColors.neonLime : AppColors.ink),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Kesish o‘lchovi:',
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: context.inkColor,
+                                  ),
                                 ),
+                                const Spacer(),
                                 Container(
                                   padding: const EdgeInsets.all(3),
                                   decoration: BoxDecoration(
