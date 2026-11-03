@@ -21,6 +21,13 @@ import 'receipt_dialog.dart';
 
 String _u(String unit) => unit == 'm2' ? 'm²' : unit;
 
+double _roundClean(double val) {
+  if ((val - val.round()).abs() < 0.01) {
+    return val.roundToDouble();
+  }
+  return double.parse(val.toStringAsFixed(3));
+}
+
 BoxDecoration _cardBox({Color? color, double radius = 22}) => BoxDecoration(
       color: color,
       borderRadius: BorderRadius.circular(radius),
@@ -918,10 +925,10 @@ class _CartPanel extends StatelessWidget {
                       if (s.first == 'pachka' && !inPachka) {
                         inPachka = true;
                         inDona = false;
-                        ctrl.text = qty(double.parse((cur / box).toStringAsFixed(2)));
+                        ctrl.text = qty(_roundClean(cur / box));
                       } else if (s.first == 'm2' && inPachka) {
                         inPachka = false;
-                        ctrl.text = qty(double.parse((cur * box).toStringAsFixed(2)));
+                        ctrl.text = qty(_roundClean(cur * box));
                       }
                     });
                   },
@@ -931,8 +938,8 @@ class _CartPanel extends StatelessWidget {
                   final cur = parseInput(ctrl.text) ?? 0;
                   final box = l.product.effectiveBoxM2 ?? 1.0;
                   final propText = inPachka
-                      ? '${qty(cur)} pachka = ${qty(double.parse((cur * box).toStringAsFixed(3)))} m²'
-                      : '${qty(cur)} m² = ${qty(double.parse((cur / box).toStringAsFixed(2)))} pachka';
+                      ? '${qty(cur)} pachka = ${qty(_roundClean(cur * box))} m²'
+                      : '${qty(cur)} m² = ${qty(_roundClean(cur / box))} pachka';
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
@@ -1602,7 +1609,7 @@ class _CartLineTile extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                   onSelected: (sel) {
                     if (sel && l.inPachka) {
-                      cart.update(l, inPachka: false, quantity: double.parse(l.baseQty.toStringAsFixed(2)));
+                      cart.update(l, inPachka: false, quantity: _roundClean(l.baseQty));
                     }
                   },
                 ),
@@ -1617,7 +1624,7 @@ class _CartLineTile extends StatelessWidget {
                     if (sel && !l.inPachka) {
                       final box = p.effectiveBoxM2 ?? 1.0;
                       final pQty = l.quantity / box;
-                      cart.update(l, inPachka: true, quantity: double.parse(pQty.toStringAsFixed(2)));
+                      cart.update(l, inPachka: true, quantity: _roundClean(pQty));
                     }
                   },
                 ),
