@@ -437,7 +437,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } else {
       isPositiveProfit = true;
       if (_selectedTopPeriod == 'Barchasi') {
-        badgeProfit = '+${stats.margin.toStringAsFixed(1)}% rentabellik';
+        badgeProfit = '+${stats.margin.toStringAsFixed(1)}% foyda';
       } else if (stats.prevProfit > 0) {
         final profitGrowth =
             ((stats.profit - stats.prevProfit) / stats.prevProfit * 100);
@@ -447,7 +447,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           badgeProfit = '-${profitGrowth.abs().toStringAsFixed(0)}% pasayish';
         }
       } else {
-        badgeProfit = '+${stats.margin.toStringAsFixed(1)}% rentabellik';
+        badgeProfit = '+${stats.margin.toStringAsFixed(1)}% foyda';
       }
     }
 
