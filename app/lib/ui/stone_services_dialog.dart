@@ -864,7 +864,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                   ),
                                   const SizedBox(width: 10),
 
-                                  // O‘ng tomonga mahkam yopishtirilgan sonini (dona) kiritish qismi
+                                  // O‘ng tomonga mahkam yopishtirilgan sonini boshqarish steppri: [-] 1 [+]
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
                                     decoration: BoxDecoration(
@@ -878,14 +878,6 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Text(
-                                          'Soni: ',
-                                          style: TextStyle(
-                                            fontSize: 11.5,
-                                            fontWeight: FontWeight.w700,
-                                            color: context.mutedColor,
-                                          ),
-                                        ),
                                         InkWell(
                                           onTap: () => _adjustPieces(-1),
                                           borderRadius: BorderRadius.circular(6),
@@ -941,16 +933,6 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                             ),
                                           ),
                                         ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'dona',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                            color: context.mutedColor,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 2),
                                       ],
                                     ),
                                   ),
