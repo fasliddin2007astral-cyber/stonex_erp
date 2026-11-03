@@ -996,8 +996,9 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                             ),
                             const SizedBox(height: 14),
 
-                            // Kiritish maydoni (Kesish kabi yarmini egallaydi va balandligi bir xil)
+                            // Kiritish maydoni va o‘ng tomonida -1 va +1 tugmalari
                             Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Expanded(
                                   child: Column(
@@ -1032,15 +1033,75 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 12),
-                                const Spacer(),
+                                const SizedBox(width: 10),
+
+                                // O‘ng tomonidagi yonida -1 va +1 tugmalari
+                                InkWell(
+                                  onTap: () => _adjustManualMeters(-1.0),
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Container(
+                                    height: 41,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    decoration: BoxDecoration(
+                                      color: context.cardColor,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: context.borderColor),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.remove_rounded, size: 15, color: context.inkColor),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          '1 m',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w800,
+                                            color: context.inkColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                InkWell(
+                                  onTap: () => _adjustManualMeters(1.0),
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Container(
+                                    height: 41,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    decoration: BoxDecoration(
+                                      color: context.cardColor,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: context.borderColor),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.add_rounded, size: 15, color: context.inkColor),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          '1 m',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w800,
+                                            color: context.inkColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 12),
 
-                            // Jonli hisob tafsiloti va o‘ng tomonda boshqarish steppri (Kesishdagi kabi)
+                            // Jonli hisob tafsiloti
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
                                 color: context.cardColor,
                                 borderRadius: BorderRadius.circular(12),
@@ -1060,7 +1121,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                         return Text(
                                           'Hajmi: $mStr ${curDef.unit} → Jami: ${money(total)}',
                                           style: TextStyle(
-                                            fontSize: 12,
+                                            fontSize: 12.5,
                                             fontWeight: FontWeight.w700,
                                             color: context.inkColor,
                                           ),
@@ -1068,78 +1129,6 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                           overflow: TextOverflow.ellipsis,
                                         );
                                       },
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-
-                                  // O‘ng tomonga mahkam yopishtirilgan stepper: [-] qiymat [+]
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF14181F) : const Color(0xFFEFF2F6),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: isDark ? const Color(0xFF2D3748) : const Color(0xFFCBD5E1),
-                                        width: 0.8,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        InkWell(
-                                          onTap: () => _adjustManualMeters(-1.0),
-                                          borderRadius: BorderRadius.circular(6),
-                                          child: Container(
-                                            width: 24,
-                                            height: 24,
-                                            decoration: BoxDecoration(
-                                              color: isDark ? const Color(0xFF21262D) : Colors.white,
-                                              borderRadius: BorderRadius.circular(6),
-                                              border: Border.all(color: context.borderColor),
-                                            ),
-                                            alignment: Alignment.center,
-                                            child: Icon(Icons.remove_rounded, size: 14, color: context.inkColor),
-                                          ),
-                                        ),
-                                        Container(
-                                          constraints: const BoxConstraints(minWidth: 34),
-                                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                                          alignment: Alignment.center,
-                                          child: Builder(
-                                            builder: (context) {
-                                              final m = _parseVal(_manualMetersCtrl);
-                                              final valStr = m % 1 == 0 ? '${m.toInt()}' : '$m';
-                                              return Text(
-                                                valStr,
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w900,
-                                                  color: context.inkColor,
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                        InkWell(
-                                          onTap: () => _adjustManualMeters(1.0),
-                                          borderRadius: BorderRadius.circular(6),
-                                          child: Container(
-                                            width: 24,
-                                            height: 24,
-                                            decoration: BoxDecoration(
-                                              color: isDark ? const Color(0xFF21262D) : Colors.white,
-                                              borderRadius: BorderRadius.circular(6),
-                                              border: Border.all(color: context.borderColor),
-                                            ),
-                                            alignment: Alignment.center,
-                                            child: Icon(
-                                              Icons.add_rounded,
-                                              size: 14,
-                                              color: context.inkColor,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
                                     ),
                                   ),
                                 ],
