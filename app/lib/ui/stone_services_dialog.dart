@@ -208,17 +208,9 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
       final l = _effectiveLengthM;
       final w = _effectiveWidthM;
 
-      if (_cutMode == 'perimeter') {
-        // 4 tomoni: 2 * (L + W) * dona
-        final perim = (l + w) * 2 * pieces;
-        return double.parse(perim.toStringAsFixed(2));
-      } else if (_cutMode == 'length') {
-        // Bo'yi bo'yicha: L * dona
-        return double.parse((l * pieces).toStringAsFixed(2));
-      } else if (_cutMode == 'width') {
-        // Eni bo'yicha: W * dona
-        return double.parse((w * pieces).toStringAsFixed(2));
-      }
+      // 4 tomoni (Perimetr): 2 * (L + W) * dona
+      final perim = (l + w) * 2 * pieces;
+      return double.parse(perim.toStringAsFixed(2));
     }
 
     // Faska, Silliqlash va Chizish uchun:
@@ -309,14 +301,11 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
     // O'lcham va spetsifikatsiya matni
     String specText;
     if (def.key == 'cut' && _cutMode != 'manual') {
-      final modeName = _cutMode == 'perimeter'
-          ? '4 tomoni'
-          : (_cutMode == 'length' ? 'bo‘yi' : 'eni');
       final lenVal = _parseVal(_lengthCtrl);
       final widVal = _parseVal(_widthCtrl);
       final lenStr = '${lenVal % 1 == 0 ? lenVal.toInt() : lenVal} sm';
       final widStr = '${widVal % 1 == 0 ? widVal.toInt() : widVal} m';
-      specText = '$lenStr × $widStr · $pieces dona ($modeName: $qty m)';
+      specText = '$lenStr × $widStr · $pieces dona (perimetr: $qty m)';
     } else {
       specText = '$qty ${def.unit}';
     }
@@ -868,21 +857,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                     visualDensity: VisualDensity.compact,
                                     onSelected: (_) => setState(() => _cutMode = 'perimeter'),
                                   ),
-                                  const SizedBox(width: 6),
-                                  ChoiceChip(
-                                    label: const Text('Bo‘yiga kesish'),
-                                    selected: _cutMode == 'length',
-                                    visualDensity: VisualDensity.compact,
-                                    onSelected: (_) => setState(() => _cutMode = 'length'),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  ChoiceChip(
-                                    label: const Text('Eniga kesish'),
-                                    selected: _cutMode == 'width',
-                                    visualDensity: VisualDensity.compact,
-                                    onSelected: (_) => setState(() => _cutMode = 'width'),
-                                  ),
-                                  const SizedBox(width: 6),
+                                  const SizedBox(width: 8),
                                   ChoiceChip(
                                     label: const Text('Oddiy (faqat metr)'),
                                     selected: _cutMode == 'manual',
