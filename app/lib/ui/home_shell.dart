@@ -801,7 +801,6 @@ class _HomeShellState extends State<HomeShell> {
                       dests: dests,
                       index: _index,
                       user: widget.user,
-                      onToggleSidebar: _toggleSidebar,
                       onSelect: (i) {
                         setState(() {
                           _index = i;
@@ -955,7 +954,6 @@ class _HomeShellState extends State<HomeShell> {
             dests: dests,
             index: _index,
             user: widget.user,
-            onToggleSidebar: () => Navigator.pop(context),
             onSelect: (i) {
               setState(() {
                 _index = i;
@@ -1218,7 +1216,6 @@ class _VaultSidebar extends StatelessWidget {
     required this.onSelect,
     required this.onLogout,
     required this.onOpenSettings,
-    this.onToggleSidebar,
   });
 
   final List<_Dest> dests;
@@ -1227,7 +1224,6 @@ class _VaultSidebar extends StatelessWidget {
   final ValueChanged<int> onSelect;
   final VoidCallback onLogout;
   final VoidCallback onOpenSettings;
-  final VoidCallback? onToggleSidebar;
 
   @override
   Widget build(BuildContext context) {
@@ -1299,13 +1295,6 @@ class _VaultSidebar extends StatelessWidget {
                   ],
                 ),
               ),
-              if (onToggleSidebar != null)
-                IconButton(
-                  tooltip: 'Menyuni yopish (Ctrl+B)',
-                  icon: const Icon(Icons.menu_open_rounded,
-                      color: Color(0xFF8E959E), size: 20),
-                  onPressed: onToggleSidebar,
-                ),
             ],
           ),
 

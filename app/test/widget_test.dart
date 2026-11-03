@@ -100,8 +100,8 @@ void main() {
 
     // Test toggle sidebar collapse & expand
     final toggleBtn = find.byTooltip('Menyuni yopish (Ctrl+B)');
-    expect(toggleBtn, findsWidgets);
-    await tester.tap(toggleBtn.first);
+    expect(toggleBtn, findsOneWidget);
+    await tester.tap(toggleBtn);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -110,7 +110,7 @@ void main() {
     await tester.tap(openBtn);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byTooltip('Menyuni yopish (Ctrl+B)'), findsWidgets);
+    expect(find.byTooltip('Menyuni yopish (Ctrl+B)'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
