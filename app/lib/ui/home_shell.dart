@@ -1018,47 +1018,44 @@ class _VaultHeader extends StatelessWidget {
 
           // Valyuta kursi vidjeti (AQSH dollari va so'm)
           const CurrencyBadge(),
-          const SizedBox(width: 10),
 
           if (isDashboard) ...[
+            const Spacer(),
+
             // Qidiruv paneli (Vault oval shape - faqat Dashboardda tizim bo‘yicha qidiruv)
-            Flexible(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 220, minWidth: 120),
-                child: InkWell(
-                  onTap: onSearchPressed,
-                  borderRadius: BorderRadius.circular(30),
-                  child: Container(
-                    height: 42,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                          color:
-                              isDark ? const Color(0xFF282D34) : AppColors.border),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.search_rounded,
-                            size: 18, color: AppColors.muted),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Qidirish...',
-                            style: TextStyle(fontSize: 12.5, color: AppColors.muted),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 240, minWidth: 140),
+              child: InkWell(
+                onTap: onSearchPressed,
+                borderRadius: BorderRadius.circular(30),
+                child: Container(
+                  height: 42,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                        color:
+                            isDark ? const Color(0xFF282D34) : AppColors.border),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.search_rounded,
+                          size: 18, color: AppColors.muted),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Qidirish...',
+                          style: TextStyle(fontSize: 12.5, color: AppColors.muted),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        _SearchKeyBadge(),
-                      ],
-                    ),
+                      ),
+                      _SearchKeyBadge(),
+                    ],
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
-
             const SizedBox(width: 10),
 
             // Bildirishnoma (qo'ng'iroqcha)
@@ -1099,7 +1096,7 @@ class _VaultHeader extends StatelessWidget {
               ],
             ),
 
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
 
             // Sozlamalar tugmasi
             _HeaderIconBtn(
