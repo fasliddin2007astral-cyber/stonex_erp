@@ -814,59 +814,57 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                             ),
 
                             const SizedBox(height: 12),
-                            // Jonli hisob tafsiloti va o'ng tomonda sonini kiritish qismi
+                            // Jonli hisob tafsiloti va o‘ng tomonda sonini kiritish qismi
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                               decoration: BoxDecoration(
                                 color: context.cardColor,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: context.borderColor),
                               ),
-                              child: Wrap(
-                                alignment: WrapAlignment.spaceBetween,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                spacing: 8,
-                                runSpacing: 6,
+                              child: Row(
                                 children: [
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.calculate_rounded, size: 18, color: isDark ? AppColors.neonLime : AppColors.ink),
-                                      const SizedBox(width: 8),
-                                      Builder(
-                                        builder: (context) {
-                                          final lenVal = _parseVal(_lengthCtrl);
-                                          final widVal = _parseVal(_widthCtrl);
-                                          final pieces = _parsePieces();
-                                          final lenStr = '${lenVal % 1 == 0 ? lenVal.toInt() : lenVal} sm';
-                                          final widStr = '${widVal % 1 == 0 ? widVal.toInt() : widVal} m';
-                                          final pStr = pieces > 1 ? ' · $pieces dona' : '';
+                                  Icon(Icons.calculate_rounded, size: 18, color: isDark ? AppColors.neonLime : AppColors.ink),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Builder(
+                                      builder: (context) {
+                                        final lenVal = _parseVal(_lengthCtrl);
+                                        final widVal = _parseVal(_widthCtrl);
+                                        final pieces = _parsePieces();
+                                        final lenStr = '${lenVal % 1 == 0 ? lenVal.toInt() : lenVal} sm';
+                                        final widStr = '${widVal % 1 == 0 ? widVal.toInt() : widVal} m';
+                                        final pStr = pieces > 1 ? ' · $pieces dona' : '';
 
-                                          if (_cutUnit == 'meter') {
-                                            return Text(
-                                              'O‘lcham: $lenStr × $widStr$pStr → Eni: $_calculatedTotalMeters m',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w700,
-                                                color: context.inkColor,
-                                              ),
-                                            );
-                                          } else {
-                                            return Text(
-                                              'O‘lcham: $lenStr × $widStr$pStr → Maydon: $_calculatedTotalMeters m²',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w700,
-                                                color: context.inkColor,
-                                              ),
-                                            );
-                                          }
-                                        },
-                                      ),
-                                    ],
+                                        if (_cutUnit == 'meter') {
+                                          return Text(
+                                            'O‘lcham: $lenStr × $widStr$pStr → Eni: $_calculatedTotalMeters m',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: context.inkColor,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          );
+                                        } else {
+                                          return Text(
+                                            'O‘lcham: $lenStr × $widStr$pStr → Maydon: $_calculatedTotalMeters m²',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: context.inkColor,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          );
+                                        }
+                                      },
+                                    ),
                                   ),
+                                  const SizedBox(width: 10),
 
-                                  // O'ng tomondagi chiroyli sonini (dona) kiritish qismi
+                                  // O‘ng tomonga mahkam yopishtirilgan sonini (dona) kiritish qismi
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
                                     decoration: BoxDecoration(
@@ -900,7 +898,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                               border: Border.all(color: context.borderColor),
                                             ),
                                             alignment: Alignment.center,
-                                            child: const Icon(Icons.remove_rounded, size: 14),
+                                            child: Icon(Icons.remove_rounded, size: 14, color: context.inkColor),
                                           ),
                                         ),
                                         SizedBox(
@@ -931,14 +929,15 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                             width: 24,
                                             height: 24,
                                             decoration: BoxDecoration(
-                                              color: isDark ? AppColors.neonLime : AppColors.darkCard,
+                                              color: isDark ? const Color(0xFF21262D) : Colors.white,
                                               borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(color: context.borderColor),
                                             ),
                                             alignment: Alignment.center,
                                             child: Icon(
                                               Icons.add_rounded,
                                               size: 14,
-                                              color: isDark ? AppColors.ink : Colors.white,
+                                              color: context.inkColor,
                                             ),
                                           ),
                                         ),
