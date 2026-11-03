@@ -715,14 +715,14 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       _buildMiniCutUnitPill(
-                                        label: 'Metr (m)',
+                                        label: 'm',
                                         selected: _cutUnit == 'meter',
                                         isDark: isDark,
                                         onTap: () => setState(() => _cutUnit = 'meter'),
                                       ),
                                       const SizedBox(width: 3),
                                       _buildMiniCutUnitPill(
-                                        label: 'Metr² (m²)',
+                                        label: 'm²',
                                         selected: _cutUnit == 'm2',
                                         isDark: isDark,
                                         onTap: () => setState(() => _cutUnit = 'm2'),
