@@ -97,6 +97,21 @@ void main() {
     expect(find.text('Jami Topshiriqlar'), findsOneWidget);
     expect(find.text('Angola'), findsWidgets);
     expect(find.text('Ishchi Bobur'), findsWidgets);
+
+    // Test toggle sidebar collapse & expand
+    final toggleBtn = find.byTooltip('Menyuni yopish (Ctrl+B)');
+    expect(toggleBtn, findsWidgets);
+    await tester.tap(toggleBtn.first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final openBtn = find.byTooltip('Menyuni ochish (Ctrl+B)');
+    expect(openBtn, findsOneWidget);
+    await tester.tap(openBtn);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byTooltip('Menyuni yopish (Ctrl+B)'), findsWidgets);
+
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
   });

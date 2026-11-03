@@ -118,6 +118,13 @@ class _HomeShellState extends State<HomeShell> {
   List<AppNotification> _notifications = [];
   Timer? _notifTimer;
   bool _isSearchOpen = false;
+  bool _sidebarOpen = true;
+
+  void _toggleSidebar() {
+    setState(() {
+      _sidebarOpen = !_sidebarOpen;
+    });
+  }
 
   @override
   void initState() {
@@ -130,14 +137,22 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   bool _handleKeyEvent(KeyEvent event) {
-    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.keyK) {
+    if (event is KeyDownEvent) {
       final isMeta = HardwareKeyboard.instance.isMetaPressed;
       final isCtrl = HardwareKeyboard.instance.isControlPressed;
       if (isMeta || isCtrl) {
-        if (!_isSearchOpen && mounted) {
-          _openGlobalSearch();
+        if (event.logicalKey == LogicalKeyboardKey.keyK) {
+          if (!_isSearchOpen && mounted) {
+            _openGlobalSearch();
+          }
+          return true;
         }
-        return true;
+        if (event.logicalKey == LogicalKeyboardKey.keyB) {
+          if (mounted) {
+            _toggleSidebar();
+          }
+          return true;
+        }
       }
     }
     return false;
@@ -770,27 +785,42 @@ class _HomeShellState extends State<HomeShell> {
         backgroundColor: AppColors.sidebar,
         body: Row(
           children: [
-            // Chap Tomondagi "Vault" uslubidagi qora panel
-            SizedBox(
-              width: 250,
-              child: _VaultSidebar(
-                dests: dests,
-                index: _index,
-                user: widget.user,
-                onSelect: (i) {
-                  setState(() {
-                    _index = i;
-                  });
-                },
-                onLogout: logout,
-                onOpenSettings: _openSettingsBottomSheet,
+            // Chap Tomondagi "Vault" uslubidagi qora panel (ochib-yopiladigan)
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOutCubic,
+              width: _sidebarOpen ? 250 : 0,
+              child: ClipRect(
+                child: OverflowBox(
+                  minWidth: 250,
+                  maxWidth: 250,
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(
+                    width: 250,
+                    child: _VaultSidebar(
+                      dests: dests,
+                      index: _index,
+                      user: widget.user,
+                      onToggleSidebar: _toggleSidebar,
+                      onSelect: (i) {
+                        setState(() {
+                          _index = i;
+                        });
+                      },
+                      onLogout: logout,
+                      onOpenSettings: _openSettingsBottomSheet,
+                    ),
+                  ),
+                ),
               ),
             ),
 
             // Asosiy och rangli boshqaruv paneli
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(0, 10, 10, 10),
+              child: AnimatedPadding(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOutCubic,
+                padding: EdgeInsets.fromLTRB(_sidebarOpen ? 0 : 10, 10, 10, 10),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(26),
                   child: ColoredBox(
@@ -803,6 +833,8 @@ class _HomeShellState extends State<HomeShell> {
                           searchCtrl: _searchCtrl,
                           actionLabel: dests[_index].actionLabel,
                           unreadCount: unreadCount,
+                          sidebarOpen: _sidebarOpen,
+                          onToggleSidebar: _toggleSidebar,
                           onActionPressed: () =>
                               _onAction(dests[_index].actionLabel),
                           onNotificationPressed: _showNotifications,
@@ -923,6 +955,7 @@ class _HomeShellState extends State<HomeShell> {
             dests: dests,
             index: _index,
             user: widget.user,
+            onToggleSidebar: () => Navigator.pop(context),
             onSelect: (i) {
               setState(() {
                 _index = i;
@@ -978,6 +1011,8 @@ class _VaultHeader extends StatelessWidget {
     required this.onNotificationPressed,
     required this.onSearchPressed,
     required this.onSettingsPressed,
+    this.sidebarOpen = true,
+    this.onToggleSidebar,
   });
 
   final String title;
@@ -989,6 +1024,8 @@ class _VaultHeader extends StatelessWidget {
   final VoidCallback onNotificationPressed;
   final VoidCallback onSearchPressed;
   final VoidCallback onSettingsPressed;
+  final bool sidebarOpen;
+  final VoidCallback? onToggleSidebar;
 
   @override
   Widget build(BuildContext context) {
@@ -1001,11 +1038,23 @@ class _VaultHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Chap tomon: Sahifa nomi va Valyuta kursi
+          // Chap tomon: Menyuni ochish/yopish, Sahifa nomi va Valyuta kursi
           Flexible(
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (onToggleSidebar != null) ...[
+                  _HeaderIconBtn(
+                    icon: sidebarOpen
+                        ? Icons.menu_open_rounded
+                        : Icons.menu_rounded,
+                    tooltip: sidebarOpen
+                        ? 'Menyuni yopish (Ctrl+B)'
+                        : 'Menyuni ochish (Ctrl+B)',
+                    onTap: onToggleSidebar!,
+                  ),
+                  const SizedBox(width: 14),
+                ],
                 Flexible(
                   child: Text(
                     title,
@@ -1124,9 +1173,14 @@ class _VaultHeader extends StatelessWidget {
 }
 
 class _HeaderIconBtn extends StatelessWidget {
-  const _HeaderIconBtn({required this.icon, required this.onTap});
+  const _HeaderIconBtn({
+    required this.icon,
+    required this.onTap,
+    this.tooltip,
+  });
   final IconData icon;
   final VoidCallback onTap;
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -1142,6 +1196,7 @@ class _HeaderIconBtn extends StatelessWidget {
             color: isDark ? const Color(0xFF282D34) : AppColors.border),
       ),
       child: IconButton(
+        tooltip: tooltip,
         icon:
             Icon(icon, size: 19, color: isDark ? Colors.white : AppColors.ink),
         onPressed: onTap,
@@ -1163,6 +1218,7 @@ class _VaultSidebar extends StatelessWidget {
     required this.onSelect,
     required this.onLogout,
     required this.onOpenSettings,
+    this.onToggleSidebar,
   });
 
   final List<_Dest> dests;
@@ -1171,6 +1227,7 @@ class _VaultSidebar extends StatelessWidget {
   final ValueChanged<int> onSelect;
   final VoidCallback onLogout;
   final VoidCallback onOpenSettings;
+  final VoidCallback? onToggleSidebar;
 
   @override
   Widget build(BuildContext context) {
@@ -1242,6 +1299,13 @@ class _VaultSidebar extends StatelessWidget {
                   ],
                 ),
               ),
+              if (onToggleSidebar != null)
+                IconButton(
+                  tooltip: 'Menyuni yopish (Ctrl+B)',
+                  icon: const Icon(Icons.menu_open_rounded,
+                      color: Color(0xFF8E959E), size: 20),
+                  onPressed: onToggleSidebar,
+                ),
             ],
           ),
 
