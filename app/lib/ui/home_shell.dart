@@ -22,6 +22,7 @@ import 'products_screen.dart';
 import 'purchases_screen.dart';
 import 'sales_history_screen.dart';
 import 'stock_screen.dart';
+import 'stone_services_dialog.dart';
 import 'users_screen.dart';
 
 class _Dest {
@@ -892,6 +893,13 @@ class _HomeShellState extends State<HomeShell> {
         actions: [
           const Center(child: CurrencyBadge(isCompact: true)),
           const SizedBox(width: 4),
+          if (dests[_index].label.startsWith('Savdo')) ...[
+            IconButton(
+              tooltip: 'Xizmatlar (kesish, faska, silliqlash, chizish)',
+              icon: const Icon(Icons.design_services_rounded, size: 22),
+              onPressed: () => StoneServicesDialog.show(context, user: widget.user),
+            ),
+          ],
           if (isDashboard) ...[
             IconButton(
               tooltip: 'Tizim bo‘yicha qidiruv',
@@ -1028,6 +1036,7 @@ class _VaultHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDashboard = title == 'Asosiy oyna' || title == 'Dashboard';
+    final isPos = title.startsWith('Savdo');
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -1162,6 +1171,30 @@ class _VaultHeader extends StatelessWidget {
                   onTap: onSettingsPressed,
                 ),
               ],
+            ),
+          ],
+
+          if (isPos) ...[
+            const SizedBox(width: 16),
+            FilledButton.icon(
+              onPressed: () => StoneServicesDialog.show(context, user: user),
+              icon: const Icon(Icons.design_services_rounded, size: 18),
+              label: const Text(
+                'Xizmatlar',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: isDark ? const Color(0xFF232832) : const Color(0xFFF1F5F9),
+                foregroundColor: isDark ? AppColors.neonLime : AppColors.ink,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  side: BorderSide(
+                    color: isDark ? const Color(0xFF282D34) : AppColors.border,
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                elevation: 0,
+              ),
             ),
           ],
         ],
