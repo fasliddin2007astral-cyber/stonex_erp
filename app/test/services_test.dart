@@ -45,16 +45,15 @@ void main() {
       expect(StoneServicesStore.getPrice('groove'), 10000);
     });
 
-    test('Eni va bo‘yiga qarab kesish hisobi: 1.2 x 0.6 m · 5 dona (4 tomoni perimetr = 18m)', () {
-      const l = 1.2;
-      const w = 0.6;
-      const pieces = 5;
-      final perimeter = (l + w) * 2 * pieces;
-      expect(perimeter, 18.0);
+    test('Kesish hisobi: Metr kvadratda (120 sm x 0.6 m = 0.72 m²)', () {
+      const lSm = 120.0;
+      const wM = 0.6;
+      final area = (lSm / 100) * wM;
+      expect(area, 0.72);
 
       final pricePerM = StoneServicesStore.getPrice('cut');
-      final total = perimeter * pricePerM;
-      expect(total, 270000.0);
+      final total = area * pricePerM;
+      expect(total, 10800.0);
     });
 
     testWidgets('StoneServicesDialog: Eni va bo‘yiga kesish hamda Silliqlash (Granit vs Keramogranit)', (tester) async {
@@ -96,10 +95,11 @@ void main() {
       await tester.tap(find.text('Ochish'));
       await tester.pumpAndSettle();
 
-      // Dialog va Eni-bo'yi kesish qismi render bo'lganini tekshiramiz
+      // Dialog va Kesish o'lchovi (Metrda / Metr kvadratda) render bo'lganini tekshiramiz
       expect(find.text('Xizmatlar (Toshga ishlov berish)'), findsOneWidget);
-      expect(find.text('Eni va bo‘yi bo‘yicha kesish:'), findsOneWidget);
-      expect(find.text('4 tomoni (Perimetr)'), findsOneWidget);
+      expect(find.text('Kesish o‘lchovi:'), findsOneWidget);
+      expect(find.text('Metr kvadratda (m²)'), findsOneWidget);
+      expect(find.text('Metrda (m)'), findsOneWidget);
 
       // Savatga qo'shish
       await tester.tap(find.text('Savatga qo‘shish'));
@@ -109,6 +109,7 @@ void main() {
       expect(cart.lines.first.product.name, 'Razmer kesish');
       expect(cart.lines.first.cutLength, 1.2);
       expect(cart.lines.first.cutWidth, 0.6);
+      expect(cart.lines.first.quantity, 0.72);
 
       // Endi Silliqlashni ochib, Keramogranitni tanlash
       await tester.tap(find.text('Ochish'));
