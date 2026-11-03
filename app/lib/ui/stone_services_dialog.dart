@@ -211,13 +211,15 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
 
     if (def.key == 'cut') {
       final w = _effectiveWidthM;
+      final pieces = _parsePieces();
       if (_cutUnit == 'meter') {
-        // Metrda: faqat eni bo'yichadagi metrda hisoblanadi
-        return double.parse(w.toStringAsFixed(2));
+        // Metrda: eni bo'yicha metr * dona
+        final total = w * pieces;
+        return double.parse(total.toStringAsFixed(2));
       } else {
-        // Metr kvadratda: (Bo'yi_sm / 100) * Eni_m
+        // Metr kvadratda: (Bo'yi_sm / 100) * Eni_m * dona
         final l = _effectiveLengthM;
-        final area = l * w;
+        final area = l * w * pieces;
         return double.parse(area.toStringAsFixed(3));
       }
     }
@@ -320,11 +322,12 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
     final lenStr = '${lenVal % 1 == 0 ? lenVal.toInt() : lenVal} sm';
     final widStr = '${widVal % 1 == 0 ? widVal.toInt() : widVal} m';
 
+    final pStr = pieces > 1 ? ' · $pieces dona' : '';
     if (def.key == 'cut') {
       if (_cutUnit == 'meter') {
-        specText = '$lenStr × $widStr (eni bo‘yicha: $qty metr)';
+        specText = '$lenStr × $widStr$pStr (eni: $qty metr)';
       } else {
-        specText = '$lenStr × $widStr ($qty m²)';
+        specText = '$lenStr × $widStr$pStr ($qty m²)';
       }
     } else {
       specText = '$qty ${def.unit}';
@@ -339,7 +342,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
       quantity: qty,
       cutLength: l > 0 ? l : null,
       cutWidth: w > 0 ? w : null,
-      cutPieces: null,
+      cutPieces: pieces > 0 ? pieces : null,
       cutSpec: specText,
     );
 
@@ -811,46 +814,145 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                             ),
 
                             const SizedBox(height: 12),
-                            // Jonli hisob tafsiloti
+                            // Jonli hisob tafsiloti va o'ng tomonda sonini kiritish qismi
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
                                 color: context.cardColor,
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: context.borderColor),
                               ),
-                              child: Row(
+                              child: Wrap(
+                                alignment: WrapAlignment.spaceBetween,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: 8,
+                                runSpacing: 6,
                                 children: [
-                                  Icon(Icons.calculate_rounded, size: 18, color: isDark ? AppColors.neonLime : AppColors.ink),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Builder(
-                                      builder: (context) {
-                                        final lenVal = _parseVal(_lengthCtrl);
-                                        final widVal = _parseVal(_widthCtrl);
-                                        final lenStr = '${lenVal % 1 == 0 ? lenVal.toInt() : lenVal} sm';
-                                        final widStr = '${widVal % 1 == 0 ? widVal.toInt() : widVal} m';
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.calculate_rounded, size: 18, color: isDark ? AppColors.neonLime : AppColors.ink),
+                                      const SizedBox(width: 8),
+                                      Builder(
+                                        builder: (context) {
+                                          final lenVal = _parseVal(_lengthCtrl);
+                                          final widVal = _parseVal(_widthCtrl);
+                                          final pieces = _parsePieces();
+                                          final lenStr = '${lenVal % 1 == 0 ? lenVal.toInt() : lenVal} sm';
+                                          final widStr = '${widVal % 1 == 0 ? widVal.toInt() : widVal} m';
+                                          final pStr = pieces > 1 ? ' · $pieces dona' : '';
 
-                                        if (_cutUnit == 'meter') {
-                                          return Text(
-                                            'O‘lcham: $lenStr × $widStr → Eni bo‘yicha kesish: $_calculatedTotalMeters metr',
+                                          if (_cutUnit == 'meter') {
+                                            return Text(
+                                              'O‘lcham: $lenStr × $widStr$pStr → Eni: $_calculatedTotalMeters m',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: context.inkColor,
+                                              ),
+                                            );
+                                          } else {
+                                            return Text(
+                                              'O‘lcham: $lenStr × $widStr$pStr → Maydon: $_calculatedTotalMeters m²',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: context.inkColor,
+                                              ),
+                                            );
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  ),
+
+                                  // O'ng tomondagi chiroyli sonini (dona) kiritish qismi
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF14181F) : const Color(0xFFEFF2F6),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: isDark ? const Color(0xFF2D3748) : const Color(0xFFCBD5E1),
+                                        width: 0.8,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Soni: ',
+                                          style: TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: context.mutedColor,
+                                          ),
+                                        ),
+                                        InkWell(
+                                          onTap: () => _adjustPieces(-1),
+                                          borderRadius: BorderRadius.circular(6),
+                                          child: Container(
+                                            width: 24,
+                                            height: 24,
+                                            decoration: BoxDecoration(
+                                              color: isDark ? const Color(0xFF21262D) : Colors.white,
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(color: context.borderColor),
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: const Icon(Icons.remove_rounded, size: 14),
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          width: 38,
+                                          child: TextField(
+                                            controller: _piecesCtrl,
+                                            textAlign: TextAlign.center,
+                                            keyboardType: TextInputType.number,
                                             style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w900,
                                               color: context.inkColor,
                                             ),
-                                          );
-                                        } else {
-                                          return Text(
-                                            'O‘lcham: $lenStr × $widStr → Jami maydon: $_calculatedTotalMeters m²',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
-                                              color: context.inkColor,
+                                            decoration: const InputDecoration(
+                                              isDense: true,
+                                              contentPadding: EdgeInsets.symmetric(vertical: 2),
+                                              border: InputBorder.none,
+                                              enabledBorder: InputBorder.none,
+                                              focusedBorder: InputBorder.none,
                                             ),
-                                          );
-                                        }
-                                      },
+                                            onChanged: (_) => setState(() {}),
+                                          ),
+                                        ),
+                                        InkWell(
+                                          onTap: () => _adjustPieces(1),
+                                          borderRadius: BorderRadius.circular(6),
+                                          child: Container(
+                                            width: 24,
+                                            height: 24,
+                                            decoration: BoxDecoration(
+                                              color: isDark ? AppColors.neonLime : AppColors.darkCard,
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: Icon(
+                                              Icons.add_rounded,
+                                              size: 14,
+                                              color: isDark ? AppColors.ink : Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'dona',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: context.mutedColor,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 2),
+                                      ],
                                     ),
                                   ),
                                 ],
