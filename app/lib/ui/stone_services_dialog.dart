@@ -709,23 +709,34 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                     ),
                                   ],
                                 ),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    ChoiceChip(
-                                      label: const Text('Metrda (m)'),
-                                      selected: _cutUnit == 'meter',
-                                      visualDensity: VisualDensity.compact,
-                                      onSelected: (_) => setState(() => _cutUnit = 'meter'),
+                                Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF14181F) : const Color(0xFFEFF2F6),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: isDark ? const Color(0xFF2D3748) : const Color(0xFFCBD5E1),
+                                      width: 0.8,
                                     ),
-                                    const SizedBox(width: 8),
-                                    ChoiceChip(
-                                      label: const Text('Metr kvadratda (m²)'),
-                                      selected: _cutUnit == 'm2',
-                                      visualDensity: VisualDensity.compact,
-                                      onSelected: (_) => setState(() => _cutUnit = 'm2'),
-                                    ),
-                                  ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      _buildMiniCutUnitPill(
+                                        label: 'Metr (m)',
+                                        selected: _cutUnit == 'meter',
+                                        isDark: isDark,
+                                        onTap: () => setState(() => _cutUnit = 'meter'),
+                                      ),
+                                      const SizedBox(width: 3),
+                                      _buildMiniCutUnitPill(
+                                        label: 'Metr² (m²)',
+                                        selected: _cutUnit == 'm2',
+                                        isDark: isDark,
+                                        onTap: () => setState(() => _cutUnit = 'm2'),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -1072,6 +1083,60 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                     ],
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniCutUnitPill({
+    required String label,
+    required bool selected,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected
+              ? (isDark ? AppColors.neonLime : AppColors.darkCard)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: (isDark ? AppColors.neonLime : AppColors.darkCard).withValues(alpha: 0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+              size: 13,
+              color: selected
+                  ? (isDark ? AppColors.ink : Colors.white)
+                  : context.mutedColor,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                color: selected
+                    ? (isDark ? AppColors.ink : Colors.white)
+                    : context.mutedColor,
               ),
             ),
           ],

@@ -100,8 +100,8 @@ void main() {
       // Dialog va Kesish o'lchovi (Metrda / Metr kvadratda) render bo'lganini tekshiramiz
       expect(find.text('Xizmatlar (Toshga ishlov berish)'), findsOneWidget);
       expect(find.text('Kesish o‘lchovi:'), findsOneWidget);
-      expect(find.text('Metr kvadratda (m²)'), findsOneWidget);
-      expect(find.text('Metrda (m)'), findsOneWidget);
+      expect(find.text('Metr² (m²)'), findsOneWidget);
+      expect(find.text('Metr (m)'), findsOneWidget);
 
       // Savatga qo'shish
       await tester.tap(find.text('Savatga qo‘shish'));
