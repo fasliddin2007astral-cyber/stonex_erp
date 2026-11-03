@@ -72,6 +72,8 @@ const List<StoneServiceDef> kStoneServices = [
 class StoneServicesStore {
   static final Map<String, double> _prices = {
     'cut': 15000,
+    'cut_meter': 15000,
+    'cut_m2': 25000,
     'chamfer': 20000,
     'polish_granite': 30000,
     'polish_ceramics': 20000,
@@ -82,11 +84,15 @@ class StoneServicesStore {
     if (key == 'polish') {
       return _prices['polish_granite'] ?? 30000;
     }
+    if (key == 'cut') {
+      return _prices['cut_meter'] ?? _prices['cut'] ?? 15000;
+    }
     return _prices[key] ?? 10000;
   }
 
   static void setPrice(String key, double price) {
     _prices[key] = price;
+    if (key == 'cut_meter') _prices['cut'] = price;
   }
 
   static Map<String, double> getAllPrices() => Map.unmodifiable(_prices);
@@ -97,8 +103,11 @@ class StoneServicesStore {
       final list = await repo.list();
       for (final p in list) {
         final name = p.name.trim().toLowerCase();
-        if (p.id == 19 || name.contains('kesish')) {
+        if (p.id == 19 || (name.contains('kesish') && (name.contains('metr') || !name.contains('kvadrat')))) {
+          _prices['cut_meter'] = p.price;
           _prices['cut'] = p.price;
+        } else if (p.id == 24 || (name.contains('kesish') && (name.contains('kvadrat') || name.contains('m2')))) {
+          _prices['cut_m2'] = p.price;
         } else if (p.id == 20 || name.contains('faska')) {
           _prices['chamfer'] = p.price;
         } else if (p.id == 21 || (name.contains('silliq') && name.contains('granit'))) {
@@ -220,6 +229,11 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
   /// Joriy tanlangan xizmat narxi (so'm / metr)
   double get _activeUnitPrice {
     final def = kStoneServices[_selectedServiceIdx];
+    if (def.key == 'cut') {
+      return _cutUnit == 'meter'
+          ? StoneServicesStore.getPrice('cut_meter')
+          : (StoneServicesStore.getAllPrices()['cut_m2'] ?? 25000);
+    }
     if (def.key == 'polish') {
       return _polishStoneType == 'granite'
           ? StoneServicesStore.getPrice('polish_granite')
@@ -262,7 +276,15 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
     int targetProductId = def.defaultProductId;
     String serviceDisplayName = def.name;
 
-    if (def.key == 'polish') {
+    if (def.key == 'cut') {
+      if (_cutUnit == 'meter') {
+        targetProductId = 19;
+        serviceDisplayName = 'Razmer kesish (Metrda)';
+      } else {
+        targetProductId = 24;
+        serviceDisplayName = 'Razmer kesish (Kvadratda)';
+      }
+    } else if (def.key == 'polish') {
       if (_polishStoneType == 'granite') {
         targetProductId = 21;
         serviceDisplayName = 'Silliqlash (Granit)';
@@ -993,7 +1015,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                             ),
                           ),
                           Text(
-                            '${money(curPrice)} / m',
+                            '${money(curPrice)} / ${_selectedServiceIdx == 0 && _cutUnit == 'm2' ? 'm²' : 'm'}',
                             style: TextStyle(
                               fontSize: 12,
                               color: context.mutedColor,
@@ -1068,7 +1090,8 @@ class ServicesPriceConfigDialog extends StatefulWidget {
 }
 
 class _ServicesPriceConfigDialogState extends State<ServicesPriceConfigDialog> {
-  late final TextEditingController _cutCtrl;
+  late final TextEditingController _cutMeterCtrl;
+  late final TextEditingController _cutM2Ctrl;
   late final TextEditingController _chamferCtrl;
   late final TextEditingController _polishGraniteCtrl;
   late final TextEditingController _polishCeramicsCtrl;
@@ -1080,7 +1103,8 @@ class _ServicesPriceConfigDialogState extends State<ServicesPriceConfigDialog> {
   @override
   void initState() {
     super.initState();
-    _cutCtrl = TextEditingController(text: StoneServicesStore.getPrice('cut').round().toString());
+    _cutMeterCtrl = TextEditingController(text: StoneServicesStore.getPrice('cut_meter').round().toString());
+    _cutM2Ctrl = TextEditingController(text: (StoneServicesStore.getAllPrices()['cut_m2'] ?? 25000).round().toString());
     _chamferCtrl = TextEditingController(text: StoneServicesStore.getPrice('chamfer').round().toString());
     _polishGraniteCtrl = TextEditingController(text: StoneServicesStore.getPrice('polish_granite').round().toString());
     _polishCeramicsCtrl = TextEditingController(text: StoneServicesStore.getPrice('polish_ceramics').round().toString());
@@ -1089,7 +1113,8 @@ class _ServicesPriceConfigDialogState extends State<ServicesPriceConfigDialog> {
 
   @override
   void dispose() {
-    _cutCtrl.dispose();
+    _cutMeterCtrl.dispose();
+    _cutM2Ctrl.dispose();
     _chamferCtrl.dispose();
     _polishGraniteCtrl.dispose();
     _polishCeramicsCtrl.dispose();
@@ -1107,13 +1132,18 @@ class _ServicesPriceConfigDialogState extends State<ServicesPriceConfigDialog> {
       final repos = context.read<AppRepositories>();
       final prods = await repos.products.list();
 
-      final cutVal = parseInput(_cutCtrl.text);
+      final cutMeterVal = parseInput(_cutMeterCtrl.text);
+      final cutM2Val = parseInput(_cutM2Ctrl.text);
       final chamferVal = parseInput(_chamferCtrl.text);
       final polishGraniteVal = parseInput(_polishGraniteCtrl.text);
       final polishCeramicsVal = parseInput(_polishCeramicsCtrl.text);
       final grooveVal = parseInput(_grooveCtrl.text);
 
-      if (cutVal != null && cutVal >= 0) StoneServicesStore.setPrice('cut', cutVal);
+      if (cutMeterVal != null && cutMeterVal >= 0) {
+        StoneServicesStore.setPrice('cut_meter', cutMeterVal);
+        StoneServicesStore.setPrice('cut', cutMeterVal);
+      }
+      if (cutM2Val != null && cutM2Val >= 0) StoneServicesStore.setPrice('cut_m2', cutM2Val);
       if (chamferVal != null && chamferVal >= 0) StoneServicesStore.setPrice('chamfer', chamferVal);
       if (polishGraniteVal != null && polishGraniteVal >= 0) StoneServicesStore.setPrice('polish_granite', polishGraniteVal);
       if (polishCeramicsVal != null && polishCeramicsVal >= 0) StoneServicesStore.setPrice('polish_ceramics', polishCeramicsVal);
@@ -1124,8 +1154,10 @@ class _ServicesPriceConfigDialogState extends State<ServicesPriceConfigDialog> {
         final name = p.name.trim().toLowerCase();
         double? newPrice;
 
-        if (p.id == 19 || name == 'razmer kesish') {
-          newPrice = cutVal;
+        if (p.id == 19 || (name.contains('kesish') && !name.contains('kvadrat'))) {
+          newPrice = cutMeterVal;
+        } else if (p.id == 24 || (name.contains('kesish') && name.contains('kvadrat'))) {
+          newPrice = cutM2Val;
         } else if (p.id == 20 || name == 'faska ochish') {
           newPrice = chamferVal;
         } else if (p.id == 21 || (name.contains('silliq') && name.contains('granit'))) {
@@ -1334,10 +1366,18 @@ class _ServicesPriceConfigDialogState extends State<ServicesPriceConfigDialog> {
                     ),
 
                   _buildPriceRow(
-                    title: 'Razmer kesish',
-                    subtitle: 'Eni va bo‘yiga kesish (1 metr)',
-                    icon: Icons.content_cut_rounded,
-                    controller: _cutCtrl,
+                    title: 'Kesish — Metrda (eni bo‘yicha)',
+                    subtitle: 'Chiziqli metr bo‘yicha kesish (1 metr)',
+                    icon: Icons.straighten_rounded,
+                    controller: _cutMeterCtrl,
+                    isDark: isDark,
+                    context: context,
+                  ),
+                  _buildPriceRow(
+                    title: 'Kesish — Kvadratda (m²)',
+                    subtitle: 'Tosh yuzasi kvadrat metri bo‘yicha (1 m²)',
+                    icon: Icons.crop_square_rounded,
+                    controller: _cutM2Ctrl,
                     isDark: isDark,
                     context: context,
                   ),

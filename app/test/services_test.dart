@@ -33,27 +33,29 @@ void main() {
       cart = CartController(repos.sales);
     });
 
-    test('4 ta xizmat mavjudligi va Silliqlashda Granit va Keramogranit narxlari', () {
+    test('4 ta xizmat mavjudligi va Silliqlash hamda Kesish alohida narxlari', () {
       expect(kStoneServices.length, 4);
       final names = kStoneServices.map((s) => s.name).toList();
       expect(names, containsAll(['Razmer kesish', 'Faska ochish', 'Silliqlash', 'Chizish']));
 
-      expect(StoneServicesStore.getPrice('cut'), 15000);
+      expect(StoneServicesStore.getPrice('cut_meter'), 15000);
+      expect(StoneServicesStore.getAllPrices()['cut_m2'], 25000);
       expect(StoneServicesStore.getPrice('chamfer'), 20000);
       expect(StoneServicesStore.getPrice('polish_granite'), 30000);
       expect(StoneServicesStore.getPrice('polish_ceramics'), 20000);
       expect(StoneServicesStore.getPrice('groove'), 10000);
     });
 
-    test('Kesish hisobi: Metr kvadratda (120 sm x 0.6 m = 0.72 m²)', () {
+    test('Kesish hisobi: Metrda eni bo‘yicha (0.6 m) va Metr kvadratda (0.72 m²)', () {
       const lSm = 120.0;
       const wM = 0.6;
       final area = (lSm / 100) * wM;
       expect(area, 0.72);
 
-      final pricePerM = StoneServicesStore.getPrice('cut');
-      final total = area * pricePerM;
-      expect(total, 10800.0);
+      final priceCutM = StoneServicesStore.getPrice('cut_meter');
+      final priceCutM2 = StoneServicesStore.getAllPrices()['cut_m2'] ?? 25000;
+      expect(wM * priceCutM, 9000.0);
+      expect(area * priceCutM2, 18000.0);
     });
 
     testWidgets('StoneServicesDialog: Eni va bo‘yiga kesish hamda Silliqlash (Granit vs Keramogranit)', (tester) async {
@@ -106,7 +108,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(cart.lines.isNotEmpty, true);
-      expect(cart.lines.first.product.name, 'Razmer kesish');
+      expect(cart.lines.first.product.name, contains('Razmer kesish'));
       expect(cart.lines.first.cutLength, 1.2);
       expect(cart.lines.first.cutWidth, 0.6);
       expect(cart.lines.first.quantity, 0.72);
@@ -160,6 +162,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Xizmatlar narxini belgilash'), findsOneWidget);
+      expect(find.text('Kesish — Metrda (eni bo‘yicha)'), findsOneWidget);
+      expect(find.text('Kesish — Kvadratda (m²)'), findsOneWidget);
       expect(find.text('Silliqlash — Granit'), findsOneWidget);
       expect(find.text('Silliqlash — Keramogranit'), findsOneWidget);
 
