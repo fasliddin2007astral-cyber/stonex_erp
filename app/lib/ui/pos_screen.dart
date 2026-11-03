@@ -29,6 +29,50 @@ BoxDecoration _cardBox({Color? color, double radius = 22}) => BoxDecoration(
 
 ShapeBorder get _dialogShape => RoundedRectangleBorder(borderRadius: BorderRadius.circular(24));
 
+
+bool _isCategoryMatch(Product p, String selectedCategory) {
+  if (selectedCategory == 'Barchasi') return true;
+
+  String norm(String s) => s
+      .toLowerCase()
+      .replaceAll('‘', "'")
+      .replaceAll('’', "'")
+      .replaceAll('ʻ', "'")
+      .replaceAll('ʼ', "'")
+      .replaceAll('`', "'")
+      .trim();
+
+  final sel = norm(selectedCategory);
+
+  // 1. Mahsulotning o'z kategoriyasi bilan solishtirish
+  if (p.category != null && p.category!.trim().isNotEmpty) {
+    final cat = norm(p.category!);
+    if (cat == sel) return true;
+    if (sel == 'kerama granit' && (cat.contains('keramo') || cat.contains('kerama') || cat.contains('plitka'))) return true;
+    if (sel == 'granit' && cat.contains('granit') && !cat.contains('kerama') && !cat.contains('keramo')) return true;
+    if (sel.startsWith("qo'shimcha") && (cat.contains("qo'shimcha") || cat.contains('material') || cat.contains('aksessuar') || cat.contains('kley'))) return true;
+    if (sel == 'kafel' && (cat.contains('kafel') || cat.contains('plita'))) return true;
+    if (sel == 'marmar' && cat.contains('marmar')) return true;
+    if (sel == 'xomashyo' && cat.contains('xomashyo')) return true;
+    if (sel.startsWith('tayyor') && cat.contains('tayyor')) return true;
+  }
+
+  // 2. Mahsulot nomi bo'yicha intellektual moslik
+  final n = norm(p.name);
+  if (n.contains(sel)) return true;
+
+  if (sel == 'kerama granit' && (n.contains('keramogranit') || n.contains('keramo') || n.contains('kerama'))) return true;
+  if (sel == 'granit' && (n.contains('angola') || n.contains('tan brown') || n.contains('black crystal') || n.contains('granit'))) {
+    if (p.category == null || !norm(p.category!).contains('keram')) return true;
+  }
+  if (sel == 'marmar' && (n.contains('miramir') || n.contains('marmar') || n.contains('travertin'))) return true;
+  if (sel == 'kafel' && (n.contains('kafel') || n.contains('plita'))) return true;
+  if (sel.startsWith("qo'shimcha") && (n.contains('kley') || n.contains('akfix') || n.contains('disk') || n.contains('cherepashka') || n.contains("chizg'ich") || n.contains('qalamtarosh') || n.contains('qalamqosh') || n.contains('rizak'))) return true;
+  if (sel == 'xomashyo' && (n.contains('sim') || n.contains('blok') || n.contains('xomashyo'))) return true;
+
+  return false;
+}
+
 class PosScreen extends StatefulWidget {
   const PosScreen({super.key});
   @override
@@ -237,15 +281,15 @@ class _PosScreenState extends State<PosScreen> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
-                      color: sel ? Colors.white : AppColors.ink,
+                      color: sel ? (context.isDark ? AppColors.ink : Colors.white) : context.inkColor,
                     ),
                   ),
                   selected: sel,
-                  selectedColor: AppColors.darkCard,
-                  backgroundColor: Colors.white,
+                  selectedColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                  backgroundColor: context.cardColor,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
-                    side: BorderSide(color: sel ? AppColors.darkCard : AppColors.border),
+                    side: BorderSide(color: sel ? (context.isDark ? AppColors.neonLime : AppColors.darkCard) : context.borderColor),
                   ),
                   showCheckmark: false,
                   onSelected: (_) {
@@ -283,16 +327,7 @@ class _PosScreenState extends State<PosScreen> {
             }
 
             if (_selectedCategory != 'Barchasi') {
-              items = items.where((p) {
-                // 1. Agar mahsulotda kategoriya kiritilgan bo'lsa, to'g'ridan-to'g'ri solishtiramiz
-                if (p.category != null && p.category!.trim().isNotEmpty) {
-                  return p.category!.toLowerCase() == _selectedCategory.toLowerCase();
-                }
-                // 2. Aks holda nomi bo'yicha intellektual qidiruv
-                final n = p.name.toLowerCase();
-                final cat = _selectedCategory.toLowerCase();
-                return n.contains(cat);
-              }).toList();
+              items = items.where((p) => _isCategoryMatch(p, _selectedCategory)).toList();
             }
 
             if (items.isEmpty) {
