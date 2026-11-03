@@ -944,7 +944,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                       ),
                       const SizedBox(height: 16),
                     ] else ...[
-                      // FASKA, CHIZISH YOKI ODDIY REJIM: Miqdor (metr) kiritish
+                      // SILLIQLASH, FASKA VA BOSHQA XIZMATLAR: Hajm (metrda) kiritish
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
@@ -955,89 +955,226 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Xizmat hajmi (metrda):',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: context.mutedColor,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
+                            // Sarlavha (Kesish o‘lchovi kabi qilib)
                             Row(
                               children: [
-                                IconButton.filledTonal(
-                                  onPressed: () => _adjustManualMeters(-1.0),
-                                  icon: const Icon(Icons.remove_rounded, size: 20),
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: context.cardColor,
-                                    foregroundColor: context.inkColor,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      side: BorderSide(color: context.borderColor),
-                                    ),
-                                  ),
+                                Icon(
+                                  Icons.straighten_rounded,
+                                  size: 18,
+                                  color: isDark ? AppColors.neonLime : AppColors.ink,
                                 ),
                                 const SizedBox(width: 8),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _manualMetersCtrl,
-                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                    textAlign: TextAlign.center,
+                                Text(
+                                  'Xizmat hajmi:',
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: context.inkColor,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF14181F) : const Color(0xFFEFF2F6),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: isDark ? const Color(0xFF2D3748) : const Color(0xFFCBD5E1),
+                                      width: 0.8,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    curDef.unit,
                                     style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w900,
-                                      color: context.inkColor,
-                                    ),
-                                    decoration: InputDecoration(
-                                      filled: true,
-                                      fillColor: context.cardColor,
-                                      suffixText: curDef.unit,
-                                      suffixStyle: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: context.mutedColor,
-                                      ),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: context.borderColor)),
-                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: context.borderColor)),
-                                    ),
-                                    onChanged: (_) => setState(() {}),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                IconButton.filledTonal(
-                                  onPressed: () => _adjustManualMeters(1.0),
-                                  icon: const Icon(Icons.add_rounded, size: 20),
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: context.cardColor,
-                                    foregroundColor: context.inkColor,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      side: BorderSide(color: context.borderColor),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: context.mutedColor,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 14),
+
+                            // Kiritish maydoni (Kesishdagi kabi ixcham va toza)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Metrda kiritish:',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: context.mutedColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                TextField(
+                                  controller: _manualMetersCtrl,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: context.inkColor),
+                                  decoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: context.cardColor,
+                                    isDense: true,
+                                    hintText: '1.0',
+                                    suffixText: curDef.unit,
+                                    suffixStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                                  ),
+                                  onChanged: (_) => setState(() {}),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Tezkor tugmalar (ixcham, zamonaviy mini-pill ko‘rinishida)
                             SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
                               child: Row(
-                                children: [1, 2, 5, 10, 20, 50].map((q) {
-                                  return Padding(
-                                    padding: const EdgeInsets.only(right: 6),
-                                    child: ActionChip(
-                                      label: Text('+$q m'),
-                                      labelStyle: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: context.inkColor),
-                                      backgroundColor: context.cardColor,
-                                      side: BorderSide(color: context.borderColor),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                      onPressed: () => _adjustManualMeters(q.toDouble()),
+                                children: [
+                                  Text(
+                                    'Tezkor:',
+                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: context.mutedColor),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  ...[1, 2, 5, 10, 20, 50].map((q) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(right: 6),
+                                      child: InkWell(
+                                        onTap: () => _adjustManualMeters(q.toDouble()),
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: context.cardColor,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: context.borderColor),
+                                          ),
+                                          child: Text(
+                                            '+$q m',
+                                            style: TextStyle(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: context.inkColor,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Jonli hisob tafsiloti va o‘ng tomonda boshqarish steppri (Kesishdagi kabi)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: context.cardColor,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: context.borderColor),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.calculate_rounded, size: 18, color: isDark ? AppColors.neonLime : AppColors.ink),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Builder(
+                                      builder: (context) {
+                                        final m = _parseVal(_manualMetersCtrl);
+                                        final price = _activeUnitPrice;
+                                        final total = m * price;
+                                        final mStr = m % 1 == 0 ? '${m.toInt()}' : '$m';
+                                        return Text(
+                                          'Hajmi: $mStr ${curDef.unit} → Jami: ${money(total)}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: context.inkColor,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        );
+                                      },
                                     ),
-                                  );
-                                }).toList(),
+                                  ),
+                                  const SizedBox(width: 10),
+
+                                  // O‘ng tomonga mahkam yopishtirilgan stepper: [-] qiymat [+]
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF14181F) : const Color(0xFFEFF2F6),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: isDark ? const Color(0xFF2D3748) : const Color(0xFFCBD5E1),
+                                        width: 0.8,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        InkWell(
+                                          onTap: () => _adjustManualMeters(-1.0),
+                                          borderRadius: BorderRadius.circular(6),
+                                          child: Container(
+                                            width: 24,
+                                            height: 24,
+                                            decoration: BoxDecoration(
+                                              color: isDark ? const Color(0xFF21262D) : Colors.white,
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(color: context.borderColor),
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: Icon(Icons.remove_rounded, size: 14, color: context.inkColor),
+                                          ),
+                                        ),
+                                        Container(
+                                          constraints: const BoxConstraints(minWidth: 34),
+                                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                                          alignment: Alignment.center,
+                                          child: Builder(
+                                            builder: (context) {
+                                              final m = _parseVal(_manualMetersCtrl);
+                                              final valStr = m % 1 == 0 ? '${m.toInt()}' : '$m';
+                                              return Text(
+                                                valStr,
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w900,
+                                                  color: context.inkColor,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                        InkWell(
+                                          onTap: () => _adjustManualMeters(1.0),
+                                          borderRadius: BorderRadius.circular(6),
+                                          child: Container(
+                                            width: 24,
+                                            height: 24,
+                                            decoration: BoxDecoration(
+                                              color: isDark ? const Color(0xFF21262D) : Colors.white,
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(color: context.borderColor),
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: Icon(
+                                              Icons.add_rounded,
+                                              size: 14,
+                                              color: context.inkColor,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
