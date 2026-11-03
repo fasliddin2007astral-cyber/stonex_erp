@@ -1916,114 +1916,128 @@ class _ProductDialogState extends State<ProductDialog> {
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: standardProductCategories.contains(_category) ? _category : null,
-                dropdownColor: context.isDark ? const Color(0xFF1E2631) : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                elevation: 8,
-                icon: const Icon(Icons.keyboard_arrow_down_rounded),
-                style: TextStyle(
-                  color: context.inkColor,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                ),
-                decoration: InputDecoration(
-                  labelText: 'Mahsulot kategoriyasi',
-                  prefixIcon: const Icon(Icons.category_rounded, size: 20),
-                  suffixIcon: _category != null
-                      ? IconButton(
-                          icon: const Icon(Icons.clear_rounded, size: 18),
-                          tooltip: 'Tozalash',
-                          onPressed: () => setState(() => _category = null),
-                        )
-                      : null,
-                ),
-                hint: const Text('Kategoriyani tanlang'),
-                selectedItemBuilder: (BuildContext context) {
-                  return standardProductCategories.map<Widget>((String cat) {
-                    final color = _getCategoryColor(cat);
-                    return Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Icon(_getCategoryIcon(cat), size: 14, color: color),
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            cat,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
-                              color: context.inkColor,
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }).toList();
-                },
-                items: [
-                  for (final cat in standardProductCategories)
-                    DropdownMenuItem(
-                      value: cat,
-                      child: Builder(
-                        builder: (context) {
-                          final isSel = _category == cat;
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 1,
+                    child: DropdownButtonFormField<String>(
+                      value: standardProductCategories.contains(_category) ? _category : null,
+                      dropdownColor: context.isDark ? const Color(0xFF1E2631) : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      elevation: 8,
+                      icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+                      style: TextStyle(
+                        color: context.inkColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Kategoriya',
+                        prefixIcon: const Icon(Icons.category_rounded, size: 18),
+                        suffixIcon: _category != null
+                            ? IconButton(
+                                icon: const Icon(Icons.clear_rounded, size: 16),
+                                tooltip: 'Tozalash',
+                                onPressed: () => setState(() => _category = null),
+                              )
+                            : null,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                      ),
+                      hint: const Text('Tanlang', style: TextStyle(fontSize: 12.5)),
+                      selectedItemBuilder: (BuildContext context) {
+                        return standardProductCategories.map<Widget>((String cat) {
                           final color = _getCategoryColor(cat);
                           return Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(6),
+                                padding: const EdgeInsets.all(3),
                                 decoration: BoxDecoration(
-                                  color: color.withValues(alpha: 0.14),
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: color.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(5),
                                 ),
-                                child: Icon(_getCategoryIcon(cat), size: 16, color: color),
+                                child: Icon(_getCategoryIcon(cat), size: 13, color: color),
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
+                              const SizedBox(width: 6),
+                              Flexible(
                                 child: Text(
                                   cat,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
-                                    color: isSel
-                                        ? (context.isDark ? AppColors.neonLime : color)
-                                        : context.inkColor,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: context.inkColor,
                                   ),
                                 ),
                               ),
-                              if (isSel)
-                                Icon(
-                                  Icons.check_circle_rounded,
-                                  size: 18,
-                                  color: context.isDark ? AppColors.neonLime : color,
-                                ),
                             ],
                           );
-                        },
-                      ),
+                        }).toList();
+                      },
+                      items: [
+                        for (final cat in standardProductCategories)
+                          DropdownMenuItem(
+                            value: cat,
+                            child: Builder(
+                              builder: (context) {
+                                final isSel = _category == cat;
+                                final color = _getCategoryColor(cat);
+                                return Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: color.withValues(alpha: 0.14),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(_getCategoryIcon(cat), size: 16, color: color),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        cat,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
+                                          color: isSel
+                                              ? (context.isDark ? AppColors.neonLime : color)
+                                              : context.inkColor,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isSel)
+                                      Icon(
+                                        Icons.check_circle_rounded,
+                                        size: 18,
+                                        color: context.isDark ? AppColors.neonLime : color,
+                                      ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                      ],
+                      onChanged: (v) => setState(() => _category = v),
                     ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 1,
+                    child: TextField(
+                      controller: _sort,
+                      style: const TextStyle(fontSize: 13),
+                      decoration: const InputDecoration(
+                        labelText: 'Turi (Sort, Rang...)',
+                        hintText: '1-sort, Qora...',
+                        prefixIcon: Icon(Icons.style_outlined, size: 18),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
                 ],
-                onChanged: (v) => setState(() => _category = v),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _sort,
-                decoration: const InputDecoration(
-                  labelText: "Mahsulot turi (Sort, Rang yoki Xususiyat)",
-                  hintText: "Masalan: 1-sort, Oliy sort, Qora, Matoviy...",
-                  prefixIcon: Icon(Icons.style_outlined, size: 20),
-                ),
-                onChanged: (_) => setState(() {}),
               ),
 
               const SizedBox(height: 12),

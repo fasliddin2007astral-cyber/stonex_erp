@@ -1,7 +1,8 @@
 double parseNum(dynamic v) {
   if (v == null) return 0;
   if (v is num) return v.toDouble();
-  return double.tryParse(v.toString()) ?? 0; // backend Decimal'ni satr sifatida yuboradi
+  return double.tryParse(v.toString()) ??
+      0; // backend Decimal'ni satr sifatida yuboradi
 }
 
 double? parseNumOrNull(dynamic v) {
@@ -118,8 +119,12 @@ class AttendanceRecord {
         userId: (j['user_id'] as num?)?.toInt() ?? 0,
         userName: j['user_name']?.toString(),
         date: (j['date'] ?? '').toString(),
-        checkIn: j['check_in'] != null ? DateTime.tryParse(j['check_in'].toString()) : null,
-        checkOut: j['check_out'] != null ? DateTime.tryParse(j['check_out'].toString()) : null,
+        checkIn: j['check_in'] != null
+            ? DateTime.tryParse(j['check_in'].toString())
+            : null,
+        checkOut: j['check_out'] != null
+            ? DateTime.tryParse(j['check_out'].toString())
+            : null,
         workedHours: parseNum(j['worked_hours']),
         status: (j['status'] ?? 'present').toString(),
         note: j['note']?.toString(),
@@ -238,26 +243,30 @@ const List<String> standardProductCategories = [
 class Product {
   final int id;
   final String name;
-  final String? category; // Standart kategoriyalar: Granit, Kerama granit, Kafel, Marmar, Tayyor mahsulot, Xomashyo, Qo‘shimcha
+  final String?
+      category; // Standart kategoriyalar: Granit, Kerama granit, Kafel, Marmar, Tayyor mahsulot, Xomashyo, Qo‘shimcha
   final String sku;
   final String qrCode;
   final String unit; // m2, dona, kg, m
   final double? donaM2; // faqat toshlar uchun (0.25)
   final double? thickness; // tosh qalinligi (sm, masalan: 2.0 sm)
-  final double? tileLength; // kafel/keramogranit bo'yi (sm, masalan: 60 yoki 120 sm)
+  final double?
+      tileLength; // kafel/keramogranit bo'yi (sm, masalan: 60 yoki 120 sm)
   final double? tileWidth; // kafel/keramogranit eni (sm, masalan: 60 sm)
   final int? boxPieces; // 1 pachkadagi donalar soni (masalan: 4 dona)
   final double? boxM2; // 1 pachka kvadrati (m2)
   final String? sort; // 1, 1.5, 2, 3, oliy
   final bool hasSorts; // 1, 1.5, 2 sortlari mavjudligi (kassada tanlanadi)
-  final String? color; // rangi (masalan: Ko'k, Oq, Qora yoki vergul bilan ajratilgan)
+  final String?
+      color; // rangi (masalan: Ko'k, Oq, Qora yoki vergul bilan ajratilgan)
   final double? priceSort1; // 1-sort narxi
   final double? priceSort1_5; // 1.5-sort narxi
   final double? priceSort2; // 2-sort narxi
   final double price; // bazaviy birlik narxi
   final double costPrice;
   final double stock;
-  final double minStock; // kamida qancha bo'lishi kerak (ogohlantirish chegarasi)
+  final double
+      minStock; // kamida qancha bo'lishi kerak (ogohlantirish chegarasi)
   final String? imageUrl;
 
   const Product({
@@ -313,7 +322,8 @@ class Product {
 
   double priceForSort(String? s) {
     if (s == '1' && priceSort1 != null && priceSort1! > 0) return priceSort1!;
-    if (s == '1.5' && priceSort1_5 != null && priceSort1_5! > 0) return priceSort1_5!;
+    if (s == '1.5' && priceSort1_5 != null && priceSort1_5! > 0)
+      return priceSort1_5!;
     if (s == '2' && priceSort2 != null && priceSort2! > 0) return priceSort2!;
     return price;
   }
@@ -328,10 +338,12 @@ class Product {
     if (color != null && color!.isNotEmpty) {
       return color!.trim();
     }
-    final match = RegExp(r'\((1|1\.5|2|3|Oliy|oliy)[ -]sort\)', caseSensitive: false).firstMatch(name);
+    final match =
+        RegExp(r'\((1|1\.5|2|3|Oliy|oliy)[ -]sort\)', caseSensitive: false)
+            .firstMatch(name);
     if (match != null) {
       final s = match.group(1)!;
-      return s.toLowerCase() == 'oliy' ? 'Oliy sort' : '\-sort';
+      return s.toLowerCase() == 'oliy' ? 'Oliy sort' : '$s-sort';
     }
     if (hasSorts) {
       return '1 • 1.5 • 2 sort';
@@ -399,23 +411,28 @@ class Product {
         unit: (j['unit'] ?? 'm²').toString(),
         donaM2: j['dona_m2'] == null ? null : parseNum(j['dona_m2']),
         thickness: j['thickness'] == null ? null : parseNum(j['thickness']),
-        tileLength: j['tile_length'] == null ? null : parseNum(j['tile_length']),
+        tileLength:
+            j['tile_length'] == null ? null : parseNum(j['tile_length']),
         tileWidth: j['tile_width'] == null ? null : parseNum(j['tile_width']),
         boxPieces: (j['box_pieces'] as num?)?.toInt(),
         boxM2: j['box_m2'] == null ? null : parseNum(j['box_m2']),
         sort: j['sort']?.toString(),
         hasSorts: j['has_sorts'] == true,
         color: j['color']?.toString(),
-        priceSort1: j['price_sort1'] == null ? null : parseNum(j['price_sort1']),
-        priceSort1_5: j['price_sort1_5'] == null ? null : parseNum(j['price_sort1_5']),
-        priceSort2: j['price_sort2'] == null ? null : parseNum(j['price_sort2']),
+        priceSort1:
+            j['price_sort1'] == null ? null : parseNum(j['price_sort1']),
+        priceSort1_5:
+            j['price_sort1_5'] == null ? null : parseNum(j['price_sort1_5']),
+        priceSort2:
+            j['price_sort2'] == null ? null : parseNum(j['price_sort2']),
         price: parseNum(j['price']),
         costPrice: parseNum(j['cost_price']),
         stock: parseNum(j['stock']),
         minStock: j['min_stock'] == null ? 15.0 : parseNum(j['min_stock']),
-        imageUrl: (j['image_url'] != null && j['image_url'].toString().isNotEmpty)
-            ? j['image_url'].toString()
-            : null,
+        imageUrl:
+            (j['image_url'] != null && j['image_url'].toString().isNotEmpty)
+                ? j['image_url'].toString()
+                : null,
       );
 
   @override
@@ -486,7 +503,9 @@ class CartLine {
     }
     if (color == null && product.availableColors.isNotEmpty) {
       color = product.availableColors.first;
-    } else if (color == null && product.color != null && product.color!.isNotEmpty) {
+    } else if (color == null &&
+        product.color != null &&
+        product.color!.isNotEmpty) {
       color = product.color;
     }
   }
@@ -501,10 +520,13 @@ class CartLine {
     }
     return quantity;
   }
+
   double get lineTotal => baseQty * unitPrice;
 
   String get displayName {
-    final col = (color != null && color!.isNotEmpty && !product.name.toLowerCase().contains(color!.toLowerCase()))
+    final col = (color != null &&
+            color!.isNotEmpty &&
+            !product.name.toLowerCase().contains(color!.toLowerCase()))
         ? ' ($color)'
         : '';
     final s = (sort != null && sort!.isNotEmpty) ? ' [$sort-sort]' : '';
@@ -561,7 +583,8 @@ class SaleItemRecord {
   });
 
   bool get isCut =>
-      (productName.contains('[') && (productName.contains(']') || productName.contains('dona)'))) ||
+      (productName.contains('[') &&
+          (productName.contains(']') || productName.contains('dona)'))) ||
       productName.toLowerCase().contains('kesil') ||
       productName.toLowerCase().contains('maxsus razmer');
 
@@ -603,7 +626,9 @@ class Customer {
         phone: j['phone'] as String?,
         passport: j['passport'] as String?,
         photoUrl: j['photo_url'] as String?,
-        createdAt: j['created_at'] != null ? DateTime.tryParse(j['created_at'].toString()) : null,
+        createdAt: j['created_at'] != null
+            ? DateTime.tryParse(j['created_at'].toString())
+            : null,
         totalSpent: parseNum(j['total_spent']),
         totalDebt: parseNum(j['total_debt']),
         salesCount: (j['sales_count'] as num?)?.toInt() ?? 0,
@@ -749,17 +774,31 @@ class SaleResult {
       paidUsd: parseNumOrNull(j['paid_usd']),
       status: (j['status'] as String?) ?? 'completed',
       note: j['note'] as String?,
-      customerId: cust != null ? (cust['id'] as num?)?.toInt() : (j['customer_id'] as num?)?.toInt(),
-      customerName: cust != null ? (cust['name'] as String?) : (j['customer_name'] as String?),
-      customerPhone: cust != null ? (cust['phone'] as String?) : (j['customer_phone'] as String?),
-      customerPassport: cust != null ? (cust['passport'] as String?) : (j['customer_passport'] as String?),
-      customerPhotoUrl: cust != null ? (cust['photo_url'] as String?) : (j['customer_photo_url'] as String?),
+      customerId: cust != null
+          ? (cust['id'] as num?)?.toInt()
+          : (j['customer_id'] as num?)?.toInt(),
+      customerName: cust != null
+          ? (cust['name'] as String?)
+          : (j['customer_name'] as String?),
+      customerPhone: cust != null
+          ? (cust['phone'] as String?)
+          : (j['customer_phone'] as String?),
+      customerPassport: cust != null
+          ? (cust['passport'] as String?)
+          : (j['customer_passport'] as String?),
+      customerPhotoUrl: cust != null
+          ? (cust['photo_url'] as String?)
+          : (j['customer_photo_url'] as String?),
       cashierId: (j['cashier_id'] as num?)?.toInt(),
       cashierName: j['cashier_name'] as String?,
       paymentMethod: (j['payment_method'] as String?) ?? 'cash',
-      createdAt: j['created_at'] != null ? DateTime.tryParse(j['created_at'].toString()) : null,
+      createdAt: j['created_at'] != null
+          ? DateTime.tryParse(j['created_at'].toString())
+          : null,
       items: itemsRaw != null
-          ? itemsRaw.map((e) => SaleItemRecord.fromJson(e as Map<String, dynamic>)).toList()
+          ? itemsRaw
+              .map((e) => SaleItemRecord.fromJson(e as Map<String, dynamic>))
+              .toList()
           : const [],
     );
   }
@@ -796,7 +835,8 @@ class StockMovementRecord {
     required this.createdAt,
   });
 
-  factory StockMovementRecord.fromJson(Map<String, dynamic> j) => StockMovementRecord(
+  factory StockMovementRecord.fromJson(Map<String, dynamic> j) =>
+      StockMovementRecord(
         id: (j['id'] as num?)?.toInt() ?? 0,
         productId: (j['product_id'] as num?)?.toInt() ?? 0,
         productName: j['product_name'] as String?,
@@ -813,14 +853,22 @@ class StockMovementRecord {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is StockMovementRecord && runtimeType == other.runtimeType && id == other.id;
+      other is StockMovementRecord &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
 
   @override
   int get hashCode => id.hashCode;
 }
 
 class FinanceSummary {
-  final double revenue, cashCollected, cogs, grossProfit, expenses, netProfit, receivables;
+  final double revenue,
+      cashCollected,
+      cogs,
+      grossProfit,
+      expenses,
+      netProfit,
+      receivables;
   const FinanceSummary({
     required this.revenue,
     required this.cashCollected,
@@ -891,7 +939,9 @@ class ProductionTask {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ProductionTask && runtimeType == other.runtimeType && id == other.id;
+      other is ProductionTask &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
 
   @override
   int get hashCode => id.hashCode;
@@ -937,9 +987,10 @@ class AppNotification {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is AppNotification && runtimeType == other.runtimeType && id == other.id;
+      other is AppNotification &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
 
   @override
   int get hashCode => id.hashCode;
 }
-
