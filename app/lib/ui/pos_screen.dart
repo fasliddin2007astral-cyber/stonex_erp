@@ -1552,7 +1552,14 @@ class _CartLineTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Row(
                   children: [
-                    Text(sub, style: TextStyle(fontSize: 12, color: context.subtextColor)),
+                    Expanded(
+                      child: Text(
+                        sub,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: context.subtextColor),
+                      ),
+                    ),
                     if (p.sortLabel.isNotEmpty || (l.sort != null && l.sort!.isNotEmpty)) ...[
                       const SizedBox(width: 6),
                       Container(
@@ -1583,10 +1590,12 @@ class _CartLineTile extends StatelessWidget {
 
           if (p.hasPachka) ...[
             const SizedBox(height: 6),
-            Row(
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text('O‘lchov: ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.subtextColor)),
-                const SizedBox(width: 4),
                 ChoiceChip(
                   label: const Text('m²', style: TextStyle(fontSize: 10.5)),
                   selected: !l.inPachka,
@@ -1597,7 +1606,6 @@ class _CartLineTile extends StatelessWidget {
                     }
                   },
                 ),
-                const SizedBox(width: 4),
                 ChoiceChip(
                   label: Text(
                     'Pachka (${p.effectiveBoxM2 != null ? '${qty(p.effectiveBoxM2!)} m²' : ''})',
@@ -1617,17 +1625,20 @@ class _CartLineTile extends StatelessWidget {
             ),
           ],
 
-          // Rang tanlash (agar Angola kabi bir nechta rangi bo'lsa yoki bitta rang belgilangan bo'lsa)
-          if (p.availableColors.length > 1) ...[
+          // Variant / Rang va Razmer bo'yicha kesish (bitta qatorda, "Rang:" so'zisiz)
+          if ((p.availableColors.length > 1) ||
+              (l.color != null && l.color!.isNotEmpty) ||
+              (p.unit == 'm2')) ...[
             const SizedBox(height: 6),
-            Row(
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Text('Rang:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.subtextColor)),
-                const SizedBox(width: 6),
-                for (final col in p.availableColors)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 5),
-                    child: ChoiceChip(
+                // 1. Rang yoki Sort/Variant tanlovi
+                if (p.availableColors.length > 1) ...[
+                  for (final col in p.availableColors)
+                    ChoiceChip(
                       avatar: Container(
                         width: 7,
                         height: 7,
@@ -1636,84 +1647,68 @@ class _CartLineTile extends StatelessWidget {
                           shape: BoxShape.circle,
                         ),
                       ),
-                      label: Text(col, style: const TextStyle(fontSize: 11)),
+                      label: Text(col, style: const TextStyle(fontSize: 10.5)),
                       selected: (l.color ?? p.availableColors.first) == col,
                       onSelected: (sel) {
                         if (sel) cart.update(l, color: col);
                       },
                       visualDensity: VisualDensity.compact,
                     ),
-                  ),
-              ],
-            ),
-          ] else if (l.color != null && l.color!.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Text('Rang: ', style: TextStyle(fontSize: 11, color: context.subtextColor)),
-                StoneColorBadge(colorName: l.color!, fontSize: 10),
-              ],
-            ),
-          ],
+                ] else if (l.color != null && l.color!.isNotEmpty) ...[
+                  StoneColorBadge(colorName: l.color!, fontSize: 10),
+                ],
 
-
-
-          // Razmer bo'yicha kesish (Eni va Bo'yi)
-          if (p.unit == 'm2') ...[
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                InkWell(
-                  onTap: onCutCalculator,
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: (l.cutSpec != null)
-                          ? (context.isDark ? AppColors.neonLime.withValues(alpha: 0.18) : AppColors.greenSoft)
-                          : context.borderColor.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
+                // 2. Razmer bo'yicha kesish (variant/rang yonida)
+                if (p.unit == 'm2') ...[
+                  InkWell(
+                    onTap: onCutCalculator,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
                         color: (l.cutSpec != null)
-                            ? (context.isDark ? AppColors.neonLime : AppColors.green)
-                            : context.borderColor,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.straighten_rounded,
-                          size: 13,
+                            ? (context.isDark ? AppColors.neonLime.withValues(alpha: 0.18) : AppColors.greenSoft)
+                            : context.borderColor.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
                           color: (l.cutSpec != null)
-                              ? (context.isDark ? AppColors.neonLime : AppColors.ink)
-                              : context.subtextColor,
+                              ? (context.isDark ? AppColors.neonLime : AppColors.green)
+                              : context.borderColor,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          l.cutSpec != null ? '📐 ${l.cutSpec}' : '📐 Razmer kesish',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.straighten_rounded,
+                            size: 13,
                             color: (l.cutSpec != null)
                                 ? (context.isDark ? AppColors.neonLime : AppColors.ink)
                                 : context.subtextColor,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 4),
+                          Text(
+                            l.cutSpec != null ? '📐 ${l.cutSpec}' : '📐 Razmer kesish',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: (l.cutSpec != null)
+                                  ? (context.isDark ? AppColors.neonLime : AppColors.ink)
+                                  : context.subtextColor,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                if (l.cutSpec != null)
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 14),
-                    visualDensity: VisualDensity.compact,
-                    tooltip: 'Razmerni tozalash',
-                    onPressed: () => cart.update(l, cutSpec: '', cutLength: null, cutWidth: null, cutThickness: null, cutPieces: null),
-                  ),
+                  if (l.cutSpec != null)
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 14),
+                      visualDensity: VisualDensity.compact,
+                      tooltip: 'Razmerni tozalash',
+                      onPressed: () => cart.update(l, cutSpec: '', cutLength: null, cutWidth: null, cutThickness: null, cutPieces: null),
+                    ),
+                ],
               ],
             ),
           ],
@@ -1742,10 +1737,18 @@ class _CartLineTile extends StatelessWidget {
                 _StepBtn(icon: Icons.add_rounded, onTap: () => cart.update(l, quantity: l.quantity + 1)),
               ]),
             ),
-            const Spacer(),
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: Text(money(l.lineTotal), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.inkColor)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    money(l.lineTotal),
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: context.inkColor),
+                  ),
+                ),
+              ),
             ),
           ]),
           if (short)
