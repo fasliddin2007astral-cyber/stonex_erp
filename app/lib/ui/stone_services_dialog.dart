@@ -15,6 +15,7 @@ class StoneServiceDef {
   final String unit;
   final String description;
   final IconData icon;
+  final String? assetIcon;
   final double defaultPrice;
   final int defaultProductId;
 
@@ -24,6 +25,7 @@ class StoneServiceDef {
     required this.unit,
     required this.description,
     required this.icon,
+    this.assetIcon,
     required this.defaultPrice,
     required this.defaultProductId,
   });
@@ -36,6 +38,7 @@ const List<StoneServiceDef> kStoneServices = [
     unit: 'metr',
     description: 'Eni va bo‘yi bo‘yicha plita va toshlarni aniq o‘lchamda kesish',
     icon: Icons.content_cut_rounded,
+    assetIcon: 'assets/icons/service_cut.png',
     defaultPrice: 15000,
     defaultProductId: 19,
   ),
@@ -45,6 +48,7 @@ const List<StoneServiceDef> kStoneServices = [
     unit: 'metr',
     description: 'Zinapoya, podokonnik yoki plita chetlariga faska (qirra) berish',
     icon: Icons.architecture_rounded,
+    assetIcon: 'assets/icons/service_chamfer.png',
     defaultPrice: 20000,
     defaultProductId: 20,
   ),
@@ -559,13 +563,23 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(
-                                      def.icon,
-                                      size: 24,
-                                      color: sel
-                                          ? (isDark ? AppColors.neonLime : const Color(0xFF16A34A))
-                                          : context.mutedColor,
-                                    ),
+                                    if (def.assetIcon != null)
+                                      Image.asset(
+                                        def.assetIcon!,
+                                        width: 24,
+                                        height: 24,
+                                        color: sel
+                                            ? (isDark ? AppColors.neonLime : const Color(0xFF16A34A))
+                                            : context.mutedColor,
+                                      )
+                                    else
+                                      Icon(
+                                        def.icon,
+                                        size: 24,
+                                        color: sel
+                                            ? (isDark ? AppColors.neonLime : const Color(0xFF16A34A))
+                                            : context.mutedColor,
+                                      ),
                                     const SizedBox(height: 6),
                                     Text(
                                       def.name,
@@ -691,9 +705,17 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                             // Birlik tanlovi: Metrda va Metr kvadratda (o'ng tomonga yopishtirilgan)
                             Row(
                               children: [
-                                Icon(Icons.straighten_rounded,
-                                    size: 18,
-                                    color: isDark ? AppColors.neonLime : AppColors.ink),
+                                if (curDef.assetIcon != null)
+                                  Image.asset(
+                                    curDef.assetIcon!,
+                                    width: 18,
+                                    height: 18,
+                                    color: isDark ? AppColors.neonLime : AppColors.ink,
+                                  )
+                                else
+                                  Icon(Icons.straighten_rounded,
+                                      size: 18,
+                                      color: isDark ? AppColors.neonLime : AppColors.ink),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Kesish o‘lchovi:',
@@ -958,11 +980,19 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                             // Sarlavha (Kesish o‘lchovi kabi qilib)
                             Row(
                               children: [
-                                Icon(
-                                  Icons.straighten_rounded,
-                                  size: 18,
-                                  color: isDark ? AppColors.neonLime : AppColors.ink,
-                                ),
+                                if (curDef.assetIcon != null)
+                                  Image.asset(
+                                    curDef.assetIcon!,
+                                    width: 18,
+                                    height: 18,
+                                    color: isDark ? AppColors.neonLime : AppColors.ink,
+                                  )
+                                else
+                                  Icon(
+                                    Icons.straighten_rounded,
+                                    size: 18,
+                                    color: isDark ? AppColors.neonLime : AppColors.ink,
+                                  ),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Xizmat hajmi:',
@@ -1426,6 +1456,7 @@ class _ServicesPriceConfigDialogState extends State<ServicesPriceConfigDialog> {
     required String title,
     required String subtitle,
     required IconData icon,
+    String? assetIcon,
     required TextEditingController controller,
     required bool isDark,
     required BuildContext context,
@@ -1434,7 +1465,15 @@ class _ServicesPriceConfigDialogState extends State<ServicesPriceConfigDialog> {
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: isDark ? AppColors.neonLime : AppColors.ink),
+          if (assetIcon != null)
+            Image.asset(
+              assetIcon,
+              width: 18,
+              height: 18,
+              color: isDark ? AppColors.neonLime : AppColors.ink,
+            )
+          else
+            Icon(icon, size: 18, color: isDark ? AppColors.neonLime : AppColors.ink),
           const SizedBox(width: 10),
           Expanded(
             flex: 3,
@@ -1603,6 +1642,7 @@ class _ServicesPriceConfigDialogState extends State<ServicesPriceConfigDialog> {
                     title: 'Kesish — Metrda (eni bo‘yicha)',
                     subtitle: 'Chiziqli metr bo‘yicha kesish (1 metr)',
                     icon: Icons.straighten_rounded,
+                    assetIcon: 'assets/icons/service_cut.png',
                     controller: _cutMeterCtrl,
                     isDark: isDark,
                     context: context,
@@ -1611,6 +1651,7 @@ class _ServicesPriceConfigDialogState extends State<ServicesPriceConfigDialog> {
                     title: 'Kesish — Kvadratda (m²)',
                     subtitle: 'Tosh yuzasi kvadrat metri bo‘yicha (1 m²)',
                     icon: Icons.crop_square_rounded,
+                    assetIcon: 'assets/icons/service_cut.png',
                     controller: _cutM2Ctrl,
                     isDark: isDark,
                     context: context,
@@ -1619,6 +1660,7 @@ class _ServicesPriceConfigDialogState extends State<ServicesPriceConfigDialog> {
                     title: 'Faska ochish',
                     subtitle: 'Qirra berish (1 metr)',
                     icon: Icons.architecture_rounded,
+                    assetIcon: 'assets/icons/service_chamfer.png',
                     controller: _chamferCtrl,
                     isDark: isDark,
                     context: context,

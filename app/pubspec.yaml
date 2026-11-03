@@ -32,4 +32,5 @@ flutter:
   assets:
     - assets/videos/
     - assets/app_icon.png
+    - assets/icons/
 
