@@ -22,15 +22,15 @@ class MockStore {
   int nextAttendanceId = 100;
 
   final List<Product> products = [
-    const Product(id: 1, name: 'Angola', category: 'Granit', qrCode: 'STX-ANGOLA', unit: 'm2', donaM2: 0.25, price: 180000, costPrice: 120000, stock: 200, imageUrl: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=400&auto=format&fit=crop&q=80'),
-    const Product(id: 2, name: 'Miramir', category: 'Marmar', qrCode: 'STX-MIRAMIR', unit: 'm2', donaM2: 0.25, price: 170000, costPrice: 110000, stock: 150, imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&auto=format&fit=crop&q=80'),
-    const Product(id: 3, name: 'Tan Brown', category: 'Granit', qrCode: 'STX-TANBROWN', unit: 'm2', donaM2: 0.25, price: 190000, costPrice: 130000, stock: 120, imageUrl: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=400&auto=format&fit=crop&q=80'),
-    const Product(id: 4, name: 'Metalogranit 60x120', category: 'Kerama granit', qrCode: 'STX-METALOGRANIT', unit: 'm2', donaM2: 0.72, tileLength: 120, tileWidth: 60, boxPieces: 2, boxM2: 1.44, price: 150000, costPrice: 95000, stock: 80, imageUrl: 'https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=400&auto=format&fit=crop&q=80'),
-    const Product(id: 5, name: 'Kley Akfix', category: 'Qo‘shimcha', qrCode: 'STX-KLEY', unit: 'dona', price: 45000, costPrice: 30000, stock: 100, imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=400&auto=format&fit=crop&q=80'),
-    const Product(id: 6, name: 'Sim', category: 'Xomashyo', qrCode: 'STX-SIM', unit: 'm', price: 12000, costPrice: 7000, stock: 500),
-    const Product(id: 7, name: 'Disk Olmos', category: 'Qo‘shimcha', qrCode: 'STX-DISK', unit: 'dona', price: 250000, costPrice: 170000, stock: 30),
-    const Product(id: 8, name: 'Italiya Plita 60x60', category: 'Kafel', qrCode: 'STX-KAFEL', unit: 'm2', donaM2: 0.36, tileLength: 60, tileWidth: 60, boxPieces: 4, boxM2: 1.44, price: 135000, costPrice: 90000, stock: 95),
-    const Product(id: 9, name: 'Marmar Stol Ustligi', category: 'Tayyor mahsulot', qrCode: 'STX-TAYYOR-STOL', unit: 'dona', price: 1200000, costPrice: 750000, stock: 8),
+    const Product(id: 1, name: 'Angola', category: 'Granit', qrCode: 'STX-ANGOLA', unit: 'm2', donaM2: 0.25, price: 180000, costPrice: 120000, stock: 200, imageUrl: 'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?w=600&auto=format&fit=crop&q=80'),
+    const Product(id: 2, name: 'Miramir', category: 'Marmar', qrCode: 'STX-MIRAMIR', unit: 'm2', donaM2: 0.25, price: 170000, costPrice: 110000, stock: 150, imageUrl: 'https://images.unsplash.com/photo-1615529182904-14819c35db37?w=600&auto=format&fit=crop&q=80'),
+    const Product(id: 3, name: 'Tan Brown', category: 'Granit', qrCode: 'STX-TANBROWN', unit: 'm2', donaM2: 0.25, price: 190000, costPrice: 130000, stock: 120, imageUrl: 'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=600&auto=format&fit=crop&q=80'),
+    const Product(id: 4, name: 'Metalogranit 60x120', category: 'Kerama granit', qrCode: 'STX-METALOGRANIT', unit: 'm2', donaM2: 0.72, tileLength: 120, tileWidth: 60, boxPieces: 2, boxM2: 1.44, price: 150000, costPrice: 95000, stock: 80, imageUrl: 'https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=600&auto=format&fit=crop&q=80'),
+    const Product(id: 5, name: 'Kley Akfix', category: 'Qo‘shimcha', qrCode: 'STX-KLEY', unit: 'dona', price: 45000, costPrice: 30000, stock: 100, imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop&q=80'),
+    const Product(id: 6, name: 'Sim', category: 'Xomashyo', qrCode: 'STX-SIM', unit: 'm', price: 12000, costPrice: 7000, stock: 500, imageUrl: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=600&auto=format&fit=crop&q=80'),
+    const Product(id: 7, name: 'Disk Olmos', category: 'Qo‘shimcha', qrCode: 'STX-DISK', unit: 'dona', price: 250000, costPrice: 170000, stock: 30, imageUrl: 'https://images.unsplash.com/photo-1572981779307-38b8cabb2407?w=600&auto=format&fit=crop&q=80'),
+    const Product(id: 8, name: 'Italiya Plita 60x60', category: 'Kafel', qrCode: 'STX-KAFEL', unit: 'm2', donaM2: 0.36, tileLength: 60, tileWidth: 60, boxPieces: 4, boxM2: 1.44, price: 135000, costPrice: 90000, stock: 95, imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=600&auto=format&fit=crop&q=80'),
+    const Product(id: 9, name: 'Marmar Stol Ustligi', category: 'Tayyor mahsulot', qrCode: 'STX-TAYYOR-STOL', unit: 'dona', price: 1200000, costPrice: 750000, stock: 8, imageUrl: 'https://images.unsplash.com/photo-1615529182904-14819c35db37?w=600&auto=format&fit=crop&q=80'),
   ];
 
   /// Faqat mock rejimi uchun test akkauntlari (haqiqiy backendda parollar xeshlangan).
