@@ -1061,13 +1061,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         final legendDots = [
           _LegendDot(
-            color: AppColors.neonLime,
-            label: _chartHoverIndex != null
-                ? 'Zaxira: ${money(activeStockVal)}'
-                : 'Zaxira: ${money(catStockVal)}',
-          ),
-          _LegendDot(
-            color: AppColors.green,
+            color: context.isDark ? const Color(0xFF10B981) : AppColors.green,
             label: _chartHoverIndex != null
                 ? 'Sotuv: ${money(activeSaleVal)}'
                 : 'Sotuv: ${money(catSalesVal)}',
@@ -1098,7 +1092,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Ombor Zaxirasi va Savdo Dinamikasi',
+                            'Savdo Dinamikasi',
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -1108,7 +1102,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '$_selectedCategory bo‘yicha ko‘rsatkich',
+                            '$_selectedCategory bo‘yicha sotuv ko‘rsatkichi',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -1136,7 +1130,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Ombor Zaxirasi va Savdo Hajmi Dinamikasi',
+                            'Savdo Dinamikasi',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -1146,7 +1140,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            '$_selectedCategory bo‘yicha zaxira va chiqim ko‘rsatkichi',
+                            '$_selectedCategory bo‘yicha tushum va savdo ko‘rsatkichi',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -1157,8 +1151,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(width: 12),
                     legendDots[0],
-                    const SizedBox(width: 12),
-                    legendDots[1],
                     const SizedBox(width: 12),
                     periodDropdown,
                   ],
@@ -1256,10 +1248,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Positioned.fill(
                               child: CustomPaint(
                                 painter: _WaveSplineChartPainter(
-                                  stockPoints: stockPoints,
                                   salesPoints: salesPoints,
                                   labels: labels,
-                                  scaleStockMax: scaleStockMax,
                                   scaleSaleMax: scaleSaleMax,
                                   hoverIndex: _chartHoverIndex,
                                   isDark: context.isDark,
@@ -1346,41 +1336,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         ],
                                       ),
                                       const SizedBox(height: 6),
-                                      Row(
-                                        children: [
-                                          Container(
-                                            width: 7,
-                                            height: 7,
-                                            decoration: const BoxDecoration(
-                                              color: AppColors.neonLime,
-                                              shape: BoxShape.circle,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          const Text(
-                                            'Zaxira: ',
-                                            style: TextStyle(
-                                                color: Color(0xFF9CA3AF),
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w500),
-                                          ),
-                                          Expanded(
-                                            child: FittedBox(
-                                              fit: BoxFit.scaleDown,
-                                              alignment: Alignment.centerLeft,
-                                              child: Text(
-                                                money(activeStockVal),
-                                                style: const TextStyle(
-                                                  color: AppColors.neonLime,
-                                                  fontWeight: FontWeight.w900,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 3),
                                       Row(
                                         children: [
                                           Container(
@@ -4109,19 +4064,15 @@ class _LegendDot extends StatelessWidget {
 }
 
 class _WaveSplineChartPainter extends CustomPainter {
-  final List<double> stockPoints;
   final List<double> salesPoints;
   final List<String> labels;
-  final double scaleStockMax;
   final double scaleSaleMax;
   final int? hoverIndex;
   final bool isDark;
 
   _WaveSplineChartPainter({
-    required this.stockPoints,
     required this.salesPoints,
     required this.labels,
-    required this.scaleStockMax,
     required this.scaleSaleMax,
     this.hoverIndex,
     this.isDark = false,
@@ -4194,7 +4145,6 @@ class _WaveSplineChartPainter extends CustomPainter {
     final baselineY = h - bottomPad;
     final drawH = baselineY - topPad;
 
-    final safeStockMax = scaleStockMax > 0 ? scaleStockMax : 1.0;
     final safeSaleMax = scaleSaleMax > 0 ? scaleSaleMax : 1.0;
 
     // Y o'qi gorizontal chiziqlari (3 ta qator)
@@ -4209,22 +4159,10 @@ class _WaveSplineChartPainter extends CustomPainter {
       canvas.drawLine(Offset(padX, y), Offset(w - padX, y), gridPaint);
     }
 
-    // Yuqori chiziqda: Zaxira shkalasi
-    textPainter.text = TextSpan(
-      text: 'Zaxira: ${_formatShortMoney(scaleStockMax)}',
-      style: TextStyle(
-        fontSize: 9,
-        color: AppColors.neonLime.withValues(alpha: isDark ? 0.85 : 0.95),
-        fontWeight: FontWeight.w700,
-      ),
-    );
-    textPainter.layout();
-    textPainter.paint(canvas, const Offset(padX + 2, topPad - 2));
-
-    // O'rta/pastki chiziqda: Sotuv shkalasi
+    // Yuqori chiziqda: Sotuv shkalasi
     if (scaleSaleMax > 0) {
       textPainter.text = TextSpan(
-        text: 'Sotuv: ${_formatShortMoney(scaleSaleMax)}',
+        text: 'Maksimal: ${_formatShortMoney(scaleSaleMax)}',
         style: TextStyle(
           fontSize: 9,
           color: (isDark ? const Color(0xFF10B981) : AppColors.green)
@@ -4233,55 +4171,26 @@ class _WaveSplineChartPainter extends CustomPainter {
         ),
       );
       textPainter.layout();
-      textPainter.paint(canvas, Offset(padX + 2, topPad + (drawH * 0.50) - 10));
+      textPainter.paint(canvas, const Offset(padX + 2, topPad - 2));
     }
 
-    if (stockPoints.isEmpty) return;
+    if (salesPoints.isEmpty) return;
 
-    final n = stockPoints.length;
+    final n = salesPoints.length;
 
-    // Nuqtalarni hisoblash
-    final stockCoords = <Offset>[];
+    // Nuqtalarni hisoblash - savdo to'liq dinamik balandlikda (0% - 85%)
     final saleCoords = <Offset>[];
 
     for (int i = 0; i < n; i++) {
       final x = padX + (n > 1 ? (usableW * i / (n - 1)) : (usableW / 2));
-      final sRatio = (stockPoints[i] / safeStockMax).clamp(0.0, 1.0);
-      final oRatio = (i < salesPoints.length && safeSaleMax > 0
-              ? (salesPoints[i] / safeSaleMax)
-              : 0.0)
+      final oRatio = (safeSaleMax > 0 ? (salesPoints[i] / safeSaleMax) : 0.0)
           .clamp(0.0, 1.0);
 
-      // Zaxira yuqori zonada (28% - 92% balandlik)
-      final yStock = baselineY - (drawH * 0.28) - (sRatio * drawH * 0.65);
-      // Sotuv pastki zonada (0% - 50% balandlik)
-      final ySale = baselineY - (oRatio * drawH * 0.50);
-
-      stockCoords.add(Offset(x, yStock));
+      final ySale = baselineY - (oRatio * drawH * 0.85);
       saleCoords.add(Offset(x, ySale));
     }
 
-    // 1. Zaxira Spline yo'li
-    final stockPath = _buildSpline(stockCoords, baselineY);
-
-    // Gradient ostki to'ldirish (Zaxira)
-    final fillPathStock = Path.from(stockPath)
-      ..lineTo(stockCoords.last.dx, baselineY)
-      ..lineTo(stockCoords.first.dx, baselineY)
-      ..close();
-
-    final fill1 = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          AppColors.neonLime.withValues(alpha: isDark ? 0.28 : 0.20),
-          AppColors.neonLime.withValues(alpha: 0.0),
-        ],
-      ).createShader(Rect.fromLTWH(0, topPad, w, drawH));
-    canvas.drawPath(fillPathStock, fill1);
-
-    // 2. Sotuv Spline yo'li
+    // 1. Sotuv Spline yo'li
     final salePath = _buildSpline(saleCoords, baselineY);
 
     // Gradient ostki to'ldirish (Sotuv)
@@ -4296,36 +4205,23 @@ class _WaveSplineChartPainter extends CustomPainter {
         end: Alignment.bottomCenter,
         colors: [
           (isDark ? const Color(0xFF10B981) : AppColors.green)
-              .withValues(alpha: isDark ? 0.18 : 0.12),
+              .withValues(alpha: isDark ? 0.25 : 0.18),
           (isDark ? const Color(0xFF10B981) : AppColors.green)
               .withValues(alpha: 0.0),
         ],
       ).createShader(Rect.fromLTWH(0, topPad, w, drawH));
     canvas.drawPath(fillPathSale, fill2);
 
-    // Chiziqlarni chizish
-    final stroke1 = Paint()
-      ..color = AppColors.neonLime
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(stockPath, stroke1);
-
+    // Chiziqni chizish
     final stroke2 = Paint()
       ..color = isDark ? const Color(0xFF10B981) : AppColors.green
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.4
+      ..strokeWidth = 2.8
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
     canvas.drawPath(salePath, stroke2);
 
     // Marker nuqtalar
-    final stockDotPaint = Paint()..color = AppColors.neonLime;
-    final stockDotBorder = Paint()
-      ..color = isDark ? const Color(0xFF161B22) : Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
     final saleDotPaint = Paint()
       ..color = isDark ? const Color(0xFF10B981) : AppColors.green;
     final saleDotBorder = Paint()
@@ -4333,20 +4229,15 @@ class _WaveSplineChartPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
 
-    for (final pt in stockCoords) {
-      canvas.drawCircle(pt, 3.5, stockDotPaint);
-      canvas.drawCircle(pt, 3.5, stockDotBorder);
-    }
     for (final pt in saleCoords) {
-      canvas.drawCircle(pt, 3.0, saleDotPaint);
-      canvas.drawCircle(pt, 3.0, saleDotBorder);
+      canvas.drawCircle(pt, 3.5, saleDotPaint);
+      canvas.drawCircle(pt, 3.5, saleDotBorder);
     }
 
-    // Aktiv hover ko'rsatkichi - faqat hover qilinganda barqaror chiziladi
+    // Aktiv hover ko'rsatkichi
     if (hoverIndex != null &&
         hoverIndex! >= 0 &&
-        hoverIndex! < stockCoords.length) {
-      final activeStockCoord = stockCoords[hoverIndex!];
+        hoverIndex! < saleCoords.length) {
       final activeSaleCoord = saleCoords[hoverIndex!];
 
       // Vertikal yo'naltiruvchi chiziq
@@ -4355,44 +4246,27 @@ class _WaveSplineChartPainter extends CustomPainter {
             (isDark ? Colors.white : AppColors.ink).withValues(alpha: 0.18)
         ..strokeWidth = 1.2;
       canvas.drawLine(
-        Offset(activeStockCoord.dx, topPad),
-        Offset(activeStockCoord.dx, baselineY),
+        Offset(activeSaleCoord.dx, topPad),
+        Offset(activeSaleCoord.dx, baselineY),
         guidePaint,
-      );
-
-      // Aktiv Zaxira beacon halqasi
-      canvas.drawCircle(
-        activeStockCoord,
-        8.0,
-        Paint()..color = AppColors.neonLime.withValues(alpha: 0.35),
-      );
-      canvas.drawCircle(
-        activeStockCoord,
-        5.0,
-        Paint()..color = isDark ? const Color(0xFF161B22) : Colors.white,
-      );
-      canvas.drawCircle(
-        activeStockCoord,
-        3.5,
-        Paint()..color = AppColors.neonLime,
       );
 
       // Aktiv Sotuv beacon halqasi
       canvas.drawCircle(
         activeSaleCoord,
-        7.0,
+        8.0,
         Paint()
           ..color = (isDark ? const Color(0xFF10B981) : AppColors.green)
               .withValues(alpha: 0.35),
       );
       canvas.drawCircle(
         activeSaleCoord,
-        4.5,
+        5.0,
         Paint()..color = isDark ? const Color(0xFF161B22) : Colors.white,
       );
       canvas.drawCircle(
         activeSaleCoord,
-        3.0,
+        3.5,
         Paint()..color = isDark ? const Color(0xFF10B981) : AppColors.green,
       );
     }
@@ -4403,7 +4277,7 @@ class _WaveSplineChartPainter extends CustomPainter {
       if (isTight && i % 2 != 0 && i != labels.length - 1 && i != hoverIndex) {
         continue;
       }
-      final x = stockCoords[i].dx;
+      final x = saleCoords[i].dx;
       final isHovered = (hoverIndex != null && i == hoverIndex);
 
       textPainter.text = TextSpan(

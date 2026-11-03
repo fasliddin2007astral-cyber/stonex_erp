@@ -257,7 +257,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     // Verify chart title & stock table card rendered without overflow
-    expect(find.text('Ombor Zaxirasi va Savdo Dinamikasi'), findsOneWidget);
+    expect(find.text('Savdo Dinamikasi'), findsOneWidget);
     expect(find.text('Ombor Holati va Mahsulotlar'), findsOneWidget);
 
     // Touch/drag on the chart area to trigger hover tooltip
@@ -292,7 +292,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.textContaining('Ombor Zaxirasi va Savdo'), findsOneWidget);
+    expect(find.textContaining('Savdo Dinamikasi'), findsOneWidget);
     expect(find.text('Ombor Holati va Mahsulotlar'), findsOneWidget);
     expect(find.text('Jami Savdolar (Daromad)'), findsOneWidget);
     expect(find.text('Kassaga Tushgan Pul'), findsOneWidget);
