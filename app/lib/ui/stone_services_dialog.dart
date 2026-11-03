@@ -138,9 +138,10 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
 
   // Kesish va o'lchamlar uchun controllerlar
   final _lengthCtrl = TextEditingController(text: '1.2');
-  final _widthCtrl = TextEditingController(text: '0.6');
+  final _widthCtrl = TextEditingController(text: '60');
   final _piecesCtrl = TextEditingController(text: '1');
-  bool _useCm = false; // Metr yoki Santimetr
+  bool _lengthInCm = false; // Bo'yi metrda (default) yoki santimetrda
+  bool _widthInCm = true;   // Eni santimetrda (default) yoki metrda
 
   // Kesish rejimi: 'perimeter' (4 tomoni), 'length' (bo'yi), 'width' (eni), 'manual' (to'g'ridan-to'g'ri metr)
   String _cutMode = 'perimeter';
@@ -187,12 +188,12 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
 
   double get _effectiveLengthM {
     final raw = _parseVal(_lengthCtrl);
-    return _useCm ? raw / 100 : raw;
+    return _lengthInCm ? raw / 100 : raw;
   }
 
   double get _effectiveWidthM {
     final raw = _parseVal(_widthCtrl);
-    return _useCm ? raw / 100 : raw;
+    return _widthInCm ? raw / 100 : raw;
   }
 
   /// Jami hisoblangan metr yoki miqdor
@@ -312,7 +313,13 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
       final modeName = _cutMode == 'perimeter'
           ? '4 tomoni'
           : (_cutMode == 'length' ? 'bo‘yi' : 'eni');
-      specText = '${l.toStringAsFixed(2)} × ${w.toStringAsFixed(2)} m · $pieces dona ($modeName: $qty m)';
+      final lenStr = _lengthInCm
+          ? '${_parseVal(_lengthCtrl).toStringAsFixed(_parseVal(_lengthCtrl) % 1 == 0 ? 0 : 1)} sm'
+          : '${_effectiveLengthM.toStringAsFixed(2)} m';
+      final widStr = _widthInCm
+          ? '${_parseVal(_widthCtrl).toStringAsFixed(_parseVal(_widthCtrl) % 1 == 0 ? 0 : 1)} sm'
+          : '${_effectiveWidthM.toStringAsFixed(2)} m';
+      specText = '$lenStr × $widStr · $pieces dona ($modeName: $qty m)';
     } else {
       specText = '$qty ${def.unit}';
     }
@@ -673,10 +680,9 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Wrap(
-                              alignment: WrapAlignment.spaceBetween,
                               crossAxisAlignment: WrapCrossAlignment.center,
-                              spacing: 10,
-                              runSpacing: 8,
+                              spacing: 8,
+                              runSpacing: 4,
                               children: [
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -695,30 +701,20 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                     ),
                                   ],
                                 ),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text('Birlik: ',
-                                        style: TextStyle(
-                                            fontSize: 12,
-                                            color: context.mutedColor,
-                                            fontWeight: FontWeight.w600)),
-                                    ChoiceChip(
-                                      label: const Text('m', style: TextStyle(fontSize: 11.5)),
-                                      selected: !_useCm,
-                                      visualDensity: VisualDensity.compact,
-                                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                                      onSelected: (_) => setState(() => _useCm = false),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: (isDark ? AppColors.neonLime : const Color(0xFF16A34A)).withValues(alpha: 0.14),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    'm va sm mustaqil',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
                                     ),
-                                    const SizedBox(width: 4),
-                                    ChoiceChip(
-                                      label: const Text('sm', style: TextStyle(fontSize: 11.5)),
-                                      selected: _useCm,
-                                      visualDensity: VisualDensity.compact,
-                                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                                      onSelected: (_) => setState(() => _useCm = true),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -732,13 +728,48 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        'Bo‘yi (${_useCm ? 'sm' : 'm'}):',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: context.mutedColor,
-                                        ),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            'Bo‘yi:',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: context.mutedColor,
+                                            ),
+                                          ),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              _UnitChoicePill(
+                                                label: 'm',
+                                                selected: !_lengthInCm,
+                                                isDark: isDark,
+                                                onTap: () {
+                                                  if (_lengthInCm) {
+                                                    final v = _parseVal(_lengthCtrl);
+                                                    if (v > 0) _lengthCtrl.text = (v / 100).toString();
+                                                    setState(() => _lengthInCm = false);
+                                                  }
+                                                },
+                                              ),
+                                              const SizedBox(width: 2),
+                                              _UnitChoicePill(
+                                                label: 'sm',
+                                                selected: _lengthInCm,
+                                                isDark: isDark,
+                                                onTap: () {
+                                                  if (!_lengthInCm) {
+                                                    final v = _parseVal(_lengthCtrl);
+                                                    if (v > 0) _lengthCtrl.text = (v * 100).round().toString();
+                                                    setState(() => _lengthInCm = true);
+                                                  }
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                       const SizedBox(height: 4),
                                       TextField(
@@ -749,6 +780,8 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                           filled: true,
                                           fillColor: context.cardColor,
                                           isDense: true,
+                                          suffixText: _lengthInCm ? 'sm' : 'm',
+                                          suffixStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
                                           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
                                           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
@@ -765,13 +798,48 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        'Eni (${_useCm ? 'sm' : 'm'}):',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: context.mutedColor,
-                                        ),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            'Eni:',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: context.mutedColor,
+                                            ),
+                                          ),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              _UnitChoicePill(
+                                                label: 'sm',
+                                                selected: _widthInCm,
+                                                isDark: isDark,
+                                                onTap: () {
+                                                  if (!_widthInCm) {
+                                                    final v = _parseVal(_widthCtrl);
+                                                    if (v > 0) _widthCtrl.text = (v * 100).round().toString();
+                                                    setState(() => _widthInCm = true);
+                                                  }
+                                                },
+                                              ),
+                                              const SizedBox(width: 2),
+                                              _UnitChoicePill(
+                                                label: 'm',
+                                                selected: !_widthInCm,
+                                                isDark: isDark,
+                                                onTap: () {
+                                                  if (_widthInCm) {
+                                                    final v = _parseVal(_widthCtrl);
+                                                    if (v > 0) _widthCtrl.text = (v / 100).toString();
+                                                    setState(() => _widthInCm = false);
+                                                  }
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                       const SizedBox(height: 4),
                                       TextField(
@@ -782,6 +850,8 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                           filled: true,
                                           fillColor: context.cardColor,
                                           isDense: true,
+                                          suffixText: _widthInCm ? 'sm' : 'm',
+                                          suffixStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
                                           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
                                           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
@@ -943,15 +1013,25 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                   Icon(Icons.calculate_rounded, size: 18, color: isDark ? AppColors.neonLime : AppColors.ink),
                                   const SizedBox(width: 8),
                                   Expanded(
-                                    child: Text(
-                                      _cutMode == 'manual'
-                                          ? 'Jami kesish: $_calculatedTotalMeters metr'
-                                          : 'O‘lcham: ${_effectiveLengthM.toStringAsFixed(2)} × ${_effectiveWidthM.toStringAsFixed(2)} m · ${_parsePieces()} dona → Jami kesish: $_calculatedTotalMeters metr',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: context.inkColor,
-                                      ),
+                                    child: Builder(
+                                      builder: (context) {
+                                        final lenStr = _lengthInCm
+                                            ? '${_parseVal(_lengthCtrl).toStringAsFixed(_parseVal(_lengthCtrl) % 1 == 0 ? 0 : 1)} sm'
+                                            : '${_effectiveLengthM.toStringAsFixed(2)} m';
+                                        final widStr = _widthInCm
+                                            ? '${_parseVal(_widthCtrl).toStringAsFixed(_parseVal(_widthCtrl) % 1 == 0 ? 0 : 1)} sm'
+                                            : '${_effectiveWidthM.toStringAsFixed(2)} m';
+                                        return Text(
+                                          _cutMode == 'manual'
+                                              ? 'Jami kesish: $_calculatedTotalMeters metr'
+                                              : 'O‘lcham: $lenStr × $widStr · ${_parsePieces()} dona → Jami kesish: $_calculatedTotalMeters metr',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: context.inkColor,
+                                          ),
+                                        );
+                                      },
                                     ),
                                   ),
                                 ],
@@ -1545,6 +1625,54 @@ class _ServicesPriceConfigDialogState extends State<ServicesPriceConfigDialog> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Bo'yi va Eni birliklarini (m / sm) mustaqil tanlash uchun miniatyura chip
+class _UnitChoicePill extends StatelessWidget {
+  const _UnitChoicePill({
+    required this.label,
+    required this.selected,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: selected
+              ? (isDark ? AppColors.neonLime : AppColors.darkCard)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: selected
+                ? (isDark ? AppColors.neonLime : AppColors.darkCard)
+                : context.borderColor,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: selected
+                ? (isDark ? AppColors.ink : Colors.white)
+                : context.mutedColor,
+          ),
         ),
       ),
     );
