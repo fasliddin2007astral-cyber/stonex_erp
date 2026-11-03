@@ -1729,6 +1729,7 @@ class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
 
     // 2. Mahsulotlar
     for (final p in _products) {
+      if (p.isService) continue;
       if (q.isEmpty ||
           p.name.toLowerCase().contains(q) ||
           p.sku.toLowerCase().contains(q) ||

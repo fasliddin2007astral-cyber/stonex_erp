@@ -320,6 +320,9 @@ class Product {
 
   bool get hasMultipleColors => availableColors.length > 1;
 
+  /// Xizmatlar (kesish, silliqlash, faska, chizish) mahsulotlar katalogiga aralashmasligi uchun
+  bool get isService => category?.trim().toLowerCase() == 'xizmat';
+
   double priceForSort(String? s) {
     if (s == '1' && priceSort1 != null && priceSort1! > 0) return priceSort1!;
     if (s == '1.5' && priceSort1_5 != null && priceSort1_5! > 0)

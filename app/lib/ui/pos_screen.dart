@@ -40,6 +40,7 @@ ShapeBorder get _dialogShape => RoundedRectangleBorder(borderRadius: BorderRadiu
 
 
 bool _isCategoryMatch(Product p, String selectedCategory) {
+  if (p.isService) return false;
   if (selectedCategory == 'Barchasi') return true;
 
   String norm(String s) => s
@@ -350,7 +351,7 @@ class _PosScreenState extends State<PosScreen> {
           builder: (context, snap) {
             if (snap.hasError) return ErrorView(message: snap.error.toString(), onRetry: _reload);
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-            var items = snap.data!;
+            var items = snap.data!.where((p) => !p.isService).toList();
 
             final query = _search.text.trim().toLowerCase();
             if (query.isNotEmpty) {

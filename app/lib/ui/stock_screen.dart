@@ -91,7 +91,7 @@ class _StockScreenState extends State<StockScreen> {
                   DropdownButtonFormField<Product>(
                     value: selected,
                     decoration: const InputDecoration(labelText: 'Mahsulot'),
-                    items: products.map((p) => DropdownMenuItem(value: p, child: Text(p.name))).toList(),
+                    items: products.where((p) => !p.isService).map((p) => DropdownMenuItem(value: p, child: Text(p.name))).toList(),
                     onChanged: (v) {
                       if (v != null) {
                         setS(() {
@@ -755,7 +755,7 @@ class _StockPurchaseDialogState extends State<StockPurchaseDialog> {
                   DropdownButtonFormField<Product>(
                     value: _selected,
                     decoration: const InputDecoration(labelText: 'Mahsulot'),
-                    items: products.map((p) => DropdownMenuItem(value: p, child: Text(p.name))).toList(),
+                    items: products.where((p) => !p.isService).map((p) => DropdownMenuItem(value: p, child: Text(p.name))).toList(),
                     onChanged: (v) {
                       if (v != null) {
                         setState(() {

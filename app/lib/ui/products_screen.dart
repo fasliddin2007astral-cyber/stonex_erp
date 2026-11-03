@@ -134,7 +134,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             return ErrorView(message: snap.error.toString(), onRetry: _reload);
           }
 
-          var allProducts = snap.data ?? [];
+          var allProducts = (snap.data ?? []).where((p) => !p.isService).toList();
           var displayList = List<Product>.from(allProducts);
 
           // Qidiruv va Filtr qo'llash
