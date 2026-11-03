@@ -1026,19 +1026,28 @@ class _CartPanel extends StatelessWidget {
 
   Future<void> _openCutCalculator(BuildContext context, CartLine l) async {
     final cart = context.read<CartController>();
-    final lengthCtrl = TextEditingController(text: l.cutLength != null ? l.cutLength.toString() : '1.0');
-    final widthCtrl = TextEditingController(text: l.cutWidth != null ? l.cutWidth.toString() : '1.0');
+    // Bo'yi faqat santimetrda (sm), Eni esa metrda (m) kiritiladi va hisoblanadi
+    final initialLenSm = l.cutLength != null ? (l.cutLength! * 100) : 120.0;
+    final lengthCtrl = TextEditingController(
+      text: initialLenSm % 1 == 0 ? initialLenSm.toInt().toString() : initialLenSm.toString(),
+    );
+    final initialWidM = l.cutWidth != null ? l.cutWidth! : 0.6;
+    final widthCtrl = TextEditingController(
+      text: initialWidM % 1 == 0 ? initialWidM.toInt().toString() : initialWidM.toString(),
+    );
     final countCtrl = TextEditingController(text: l.cutPieces != null ? l.cutPieces.toString() : '1');
     final initialThickness = l.cutThickness ?? l.product.thickness ?? 2.0;
-    final thicknessCtrl = TextEditingController(text: initialThickness > 0 ? (initialThickness % 1 == 0 ? initialThickness.toInt().toString() : initialThickness.toString()) : '2.0');
-    bool inCm = false;
+    final thicknessCtrl = TextEditingController(
+      text: initialThickness > 0
+          ? (initialThickness % 1 == 0 ? initialThickness.toInt().toString() : initialThickness.toString())
+          : '2.0',
+    );
 
     double calcArea() {
-      final len = parseInput(lengthCtrl.text) ?? 0;
-      final wid = parseInput(widthCtrl.text) ?? 0;
+      final lenSm = parseInput(lengthCtrl.text) ?? 0;
+      final widM = parseInput(widthCtrl.text) ?? 0;
       final cnt = parseInput(countCtrl.text) ?? 1;
-      final lenM = inCm ? len / 100 : len;
-      final widM = inCm ? wid / 100 : wid;
+      final lenM = lenSm / 100; // Bo'yi faqat sm dan metrga
       return (lenM * widM * cnt);
     }
 
@@ -1082,41 +1091,22 @@ class _CartPanel extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(4),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       decoration: BoxDecoration(
                         color: context.isDark ? const Color(0xFF21262D) : const Color(0xFFEFF2F6),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Expanded(
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(10),
-                              onTap: () => setS(() => inCm = false),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: !inCm ? (context.isDark ? AppColors.neonLime : AppColors.darkCard) : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                alignment: Alignment.center,
-                                child: Text('Metrda (m)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: !inCm ? (context.isDark ? AppColors.ink : Colors.white) : context.inkColor)),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(10),
-                              onTap: () => setS(() => inCm = true),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: inCm ? (context.isDark ? AppColors.neonLime : AppColors.darkCard) : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                alignment: Alignment.center,
-                                child: Text('Santimetrda (sm)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: inCm ? (context.isDark ? AppColors.ink : Colors.white) : context.inkColor)),
-                              ),
+                          Icon(Icons.straighten_rounded, size: 16, color: context.isDark ? AppColors.neonLime : AppColors.ink),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Bo‘yi faqat santimetrda (sm) · Eni metrda (m)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: context.inkColor,
                             ),
                           ),
                         ],
@@ -1129,9 +1119,10 @@ class _CartPanel extends StatelessWidget {
                           child: TextField(
                             controller: lengthCtrl,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: InputDecoration(
-                              labelText: 'Bo‘yi (${inCm ? "sm" : "m"})',
-                              hintText: inCm ? '120' : '1.20',
+                            decoration: const InputDecoration(
+                              labelText: 'Bo‘yi (sm)',
+                              hintText: '120',
+                              suffixText: 'sm',
                             ),
                             onChanged: (_) => setS(() {}),
                           ),
@@ -1141,9 +1132,10 @@ class _CartPanel extends StatelessWidget {
                           child: TextField(
                             controller: widthCtrl,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: InputDecoration(
-                              labelText: 'Eni (${inCm ? "sm" : "m"})',
-                              hintText: inCm ? '60' : '0.60',
+                            decoration: const InputDecoration(
+                              labelText: 'Eni (m)',
+                              hintText: '0.6',
+                              suffixText: 'm',
                             ),
                             onChanged: (_) => setS(() {}),
                           ),
@@ -1239,18 +1231,19 @@ class _CartPanel extends StatelessWidget {
     );
 
     if (ok == true && context.mounted) {
-      final len = parseInput(lengthCtrl.text) ?? 0;
-      final wid = parseInput(widthCtrl.text) ?? 0;
+      final lenSm = parseInput(lengthCtrl.text) ?? 0;
+      final widM = parseInput(widthCtrl.text) ?? 0;
       final cnt = (parseInput(countCtrl.text) ?? 1).toInt();
       final thick = parseInput(thicknessCtrl.text) ?? initialThickness;
-      final lenM = inCm ? len / 100 : len;
-      final widM = inCm ? wid / 100 : wid;
+      final lenM = lenSm / 100;
       final area = lenM * widM * cnt;
       if (area > 0) {
         final thickStr = thick > 0 ? '${thick % 1 == 0 ? thick.toInt() : thick} sm' : '';
+        final lenStr = '${lenSm % 1 == 0 ? lenSm.toInt() : lenSm} sm';
+        final widStr = '${widM % 1 == 0 ? widM.toInt() : widM} m';
         final spec = thickStr.isNotEmpty
-            ? '$lenM×${widM}m ($thickStr, $cnt dona)'
-            : '$lenM×${widM}m ($cnt dona)';
+            ? '$lenStr × $widStr ($thickStr, $cnt dona)'
+            : '$lenStr × $widStr ($cnt dona)';
         cart.update(
           l,
           quantity: double.parse(area.toStringAsFixed(3)),

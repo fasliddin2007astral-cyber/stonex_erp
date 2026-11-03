@@ -137,11 +137,10 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
   int _selectedServiceIdx = 0;
 
   // Kesish va o'lchamlar uchun controllerlar
-  final _lengthCtrl = TextEditingController(text: '1.2');
-  final _widthCtrl = TextEditingController(text: '60');
+  // Bo'yi faqat santimetrda (sm), Eni esa metrda (m) kiritiladi va hisoblanadi
+  final _lengthCtrl = TextEditingController(text: '120'); // Bo'yi (sm)
+  final _widthCtrl = TextEditingController(text: '0.6');   // Eni (m)
   final _piecesCtrl = TextEditingController(text: '1');
-  bool _lengthInCm = false; // Bo'yi metrda (default) yoki santimetrda
-  bool _widthInCm = true;   // Eni santimetrda (default) yoki metrda
 
   // Kesish rejimi: 'perimeter' (4 tomoni), 'length' (bo'yi), 'width' (eni), 'manual' (to'g'ridan-to'g'ri metr)
   String _cutMode = 'perimeter';
@@ -188,12 +187,12 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
 
   double get _effectiveLengthM {
     final raw = _parseVal(_lengthCtrl);
-    return _lengthInCm ? raw / 100 : raw;
+    return raw / 100; // Bo'yi faqat santimetrda (sm), metrga o'tkaziladi
   }
 
   double get _effectiveWidthM {
     final raw = _parseVal(_widthCtrl);
-    return _widthInCm ? raw / 100 : raw;
+    return raw; // Eni har doim metrda (m) kiritiladi va hisoblanadi
   }
 
   /// Jami hisoblangan metr yoki miqdor
@@ -313,12 +312,10 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
       final modeName = _cutMode == 'perimeter'
           ? '4 tomoni'
           : (_cutMode == 'length' ? 'bo‘yi' : 'eni');
-      final lenStr = _lengthInCm
-          ? '${_parseVal(_lengthCtrl).toStringAsFixed(_parseVal(_lengthCtrl) % 1 == 0 ? 0 : 1)} sm'
-          : '${_effectiveLengthM.toStringAsFixed(2)} m';
-      final widStr = _widthInCm
-          ? '${_parseVal(_widthCtrl).toStringAsFixed(_parseVal(_widthCtrl) % 1 == 0 ? 0 : 1)} sm'
-          : '${_effectiveWidthM.toStringAsFixed(2)} m';
+      final lenVal = _parseVal(_lengthCtrl);
+      final widVal = _parseVal(_widthCtrl);
+      final lenStr = '${lenVal % 1 == 0 ? lenVal.toInt() : lenVal} sm';
+      final widStr = '${widVal % 1 == 0 ? widVal.toInt() : widVal} m';
       specText = '$lenStr × $widStr · $pieces dona ($modeName: $qty m)';
     } else {
       specText = '$qty ${def.unit}';
@@ -708,7 +705,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
-                                    'm va sm mustaqil',
+                                    'Bo‘yi faqat sm · Eni metrda',
                                     style: TextStyle(
                                       fontSize: 10.5,
                                       fontWeight: FontWeight.w700,
@@ -723,53 +720,18 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                             // Eni, Bo'yi va Dona kiritish qatori
                             Row(
                               children: [
-                                // Bo'yi
+                                // Bo'yi (faqat sm)
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            'Bo‘yi:',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
-                                              color: context.mutedColor,
-                                            ),
-                                          ),
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              _UnitChoicePill(
-                                                label: 'm',
-                                                selected: !_lengthInCm,
-                                                isDark: isDark,
-                                                onTap: () {
-                                                  if (_lengthInCm) {
-                                                    final v = _parseVal(_lengthCtrl);
-                                                    if (v > 0) _lengthCtrl.text = (v / 100).toString();
-                                                    setState(() => _lengthInCm = false);
-                                                  }
-                                                },
-                                              ),
-                                              const SizedBox(width: 2),
-                                              _UnitChoicePill(
-                                                label: 'sm',
-                                                selected: _lengthInCm,
-                                                isDark: isDark,
-                                                onTap: () {
-                                                  if (!_lengthInCm) {
-                                                    final v = _parseVal(_lengthCtrl);
-                                                    if (v > 0) _lengthCtrl.text = (v * 100).round().toString();
-                                                    setState(() => _lengthInCm = true);
-                                                  }
-                                                },
-                                              ),
-                                            ],
-                                          ),
-                                        ],
+                                      Text(
+                                        'Bo‘yi (sm):',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: context.mutedColor,
+                                        ),
                                       ),
                                       const SizedBox(height: 4),
                                       TextField(
@@ -780,7 +742,8 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                           filled: true,
                                           fillColor: context.cardColor,
                                           isDense: true,
-                                          suffixText: _lengthInCm ? 'sm' : 'm',
+                                          hintText: '120',
+                                          suffixText: 'sm',
                                           suffixStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
                                           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
@@ -793,53 +756,18 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                 ),
                                 const SizedBox(width: 10),
 
-                                // Eni
+                                // Eni (faqat m)
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            'Eni:',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
-                                              color: context.mutedColor,
-                                            ),
-                                          ),
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              _UnitChoicePill(
-                                                label: 'sm',
-                                                selected: _widthInCm,
-                                                isDark: isDark,
-                                                onTap: () {
-                                                  if (!_widthInCm) {
-                                                    final v = _parseVal(_widthCtrl);
-                                                    if (v > 0) _widthCtrl.text = (v * 100).round().toString();
-                                                    setState(() => _widthInCm = true);
-                                                  }
-                                                },
-                                              ),
-                                              const SizedBox(width: 2),
-                                              _UnitChoicePill(
-                                                label: 'm',
-                                                selected: !_widthInCm,
-                                                isDark: isDark,
-                                                onTap: () {
-                                                  if (_widthInCm) {
-                                                    final v = _parseVal(_widthCtrl);
-                                                    if (v > 0) _widthCtrl.text = (v / 100).toString();
-                                                    setState(() => _widthInCm = false);
-                                                  }
-                                                },
-                                              ),
-                                            ],
-                                          ),
-                                        ],
+                                      Text(
+                                        'Eni (m):',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: context.mutedColor,
+                                        ),
                                       ),
                                       const SizedBox(height: 4),
                                       TextField(
@@ -850,7 +778,8 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                           filled: true,
                                           fillColor: context.cardColor,
                                           isDense: true,
-                                          suffixText: _widthInCm ? 'sm' : 'm',
+                                          hintText: '0.6',
+                                          suffixText: 'm',
                                           suffixStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
                                           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
@@ -1015,12 +944,10 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                   Expanded(
                                     child: Builder(
                                       builder: (context) {
-                                        final lenStr = _lengthInCm
-                                            ? '${_parseVal(_lengthCtrl).toStringAsFixed(_parseVal(_lengthCtrl) % 1 == 0 ? 0 : 1)} sm'
-                                            : '${_effectiveLengthM.toStringAsFixed(2)} m';
-                                        final widStr = _widthInCm
-                                            ? '${_parseVal(_widthCtrl).toStringAsFixed(_parseVal(_widthCtrl) % 1 == 0 ? 0 : 1)} sm'
-                                            : '${_effectiveWidthM.toStringAsFixed(2)} m';
+                                        final lenVal = _parseVal(_lengthCtrl);
+                                        final widVal = _parseVal(_widthCtrl);
+                                        final lenStr = '${lenVal % 1 == 0 ? lenVal.toInt() : lenVal} sm';
+                                        final widStr = '${widVal % 1 == 0 ? widVal.toInt() : widVal} m';
                                         return Text(
                                           _cutMode == 'manual'
                                               ? 'Jami kesish: $_calculatedTotalMeters metr'
