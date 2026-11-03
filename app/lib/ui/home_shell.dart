@@ -999,109 +999,122 @@ class _VaultHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(28, 20, 28, 14),
       color: Theme.of(context).scaffoldBackgroundColor,
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Sahifa nomi
+          // Chap tomon: Sahifa nomi va Valyuta kursi
           Flexible(
-            child: Text(
-              title,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w900,
-                color: isDark ? Colors.white : AppColors.ink,
-                letterSpacing: -0.6,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    title,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? Colors.white : AppColors.ink,
+                      letterSpacing: -0.6,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const CurrencyBadge(),
+              ],
             ),
           ),
 
-          const SizedBox(width: 12),
-
-          // Valyuta kursi vidjeti (AQSH dollari va so'm)
-          const CurrencyBadge(),
-
           if (isDashboard) ...[
-            const Spacer(),
-
-            // Qidiruv paneli (Vault oval shape - faqat Dashboardda tizim bo‘yicha qidiruv)
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 240, minWidth: 140),
-              child: InkWell(
-                onTap: onSearchPressed,
-                borderRadius: BorderRadius.circular(30),
-                child: Container(
-                  height: 42,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(
-                        color:
-                            isDark ? const Color(0xFF282D34) : AppColors.border),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.search_rounded,
-                          size: 18, color: AppColors.muted),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Qidirish...',
-                          style: TextStyle(fontSize: 12.5, color: AppColors.muted),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      _SearchKeyBadge(),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-
-            // Bildirishnoma (qo'ng'iroqcha)
-            Stack(
-              clipBehavior: Clip.none,
+            const SizedBox(width: 16),
+            // O'ng tomon: Qidiruv paneli, Bildirishnoma va Sozlamalar
+            Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                _HeaderIconBtn(
-                  icon: Icons.notifications_none_rounded,
-                  onTap: onNotificationPressed,
-                ),
-                if (unreadCount > 0)
-                  Positioned(
-                    top: 2,
-                    right: 2,
+                // Qidiruv paneli (Vault oval shape)
+                SizedBox(
+                  width: 220,
+                  child: InkWell(
+                    onTap: onSearchPressed,
+                    borderRadius: BorderRadius.circular(30),
                     child: Container(
-                      padding: const EdgeInsets.all(4),
+                      height: 42,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444),
-                        shape: BoxShape.circle,
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(30),
                         border: Border.all(
-                            color: Theme.of(context).scaffoldBackgroundColor,
-                            width: 1.5),
+                            color: isDark
+                                ? const Color(0xFF282D34)
+                                : AppColors.border),
                       ),
-                      constraints:
-                          const BoxConstraints(minWidth: 18, minHeight: 18),
-                      child: Text(
-                        unreadCount > 9 ? '9+' : '$unreadCount',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                          height: 1,
-                        ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.search_rounded,
+                              size: 18, color: AppColors.muted),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Qidirish...',
+                              style: TextStyle(
+                                  fontSize: 12.5, color: AppColors.muted),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          _SearchKeyBadge(),
+                        ],
                       ),
                     ),
                   ),
+                ),
+                const SizedBox(width: 10),
+
+                // Bildirishnoma (qo'ng'iroqcha)
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    _HeaderIconBtn(
+                      icon: Icons.notifications_none_rounded,
+                      onTap: onNotificationPressed,
+                    ),
+                    if (unreadCount > 0)
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEF4444),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color:
+                                    Theme.of(context).scaffoldBackgroundColor,
+                                width: 1.5),
+                          ),
+                          constraints: const BoxConstraints(
+                              minWidth: 18, minHeight: 18),
+                          child: Text(
+                            unreadCount > 9 ? '9+' : '$unreadCount',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+
+                const SizedBox(width: 10),
+
+                // Sozlamalar tugmasi
+                _HeaderIconBtn(
+                  icon: Icons.settings_outlined,
+                  onTap: onSettingsPressed,
+                ),
               ],
-            ),
-
-            const SizedBox(width: 10),
-
-            // Sozlamalar tugmasi
-            _HeaderIconBtn(
-              icon: Icons.settings_outlined,
-              onTap: onSettingsPressed,
             ),
           ],
         ],
