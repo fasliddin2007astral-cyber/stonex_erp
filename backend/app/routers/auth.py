@@ -17,7 +17,7 @@ def login(data: LoginIn, db: Session = Depends(get_db)):
     user = db.scalar(select(User).where(User.username == data.username.strip()))
     if user is None or not user.is_active or not getattr(user, 'can_login', True) or not verify_password(data.password, user.password_hash):
         raise HTTPException(401, "Login yoki parol noto'g'ri")
-    # Ekranda rol tanlash hech narsani bermaydi: haqiqiy rol bazadan tekshiriladi.
+    # Ekranda rol tanlash mosligi tekshiriladi
     if data.role and data.role != user.role:
         raise HTTPException(403, "Bu akkaunt tanlangan rol uchun emas")
     token = create_token(str(user.id), settings.secret_key, settings.token_minutes)

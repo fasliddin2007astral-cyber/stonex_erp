@@ -122,7 +122,7 @@ List<_Dest> _destinationsFor(Role role,
     case Role.kassir:
       return [pos, orders, deliveries, salesHistory, customers, debts, products];
     case Role.ishBoshqaruvchi:
-      return [prod, staff, products, stock];
+      return [prod, stock];
     case Role.ishchi:
       return [prod];
     case Role.haydovchi:
@@ -1716,7 +1716,7 @@ class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
           repos.sales.listSales(limit: 50).catchError((_) => <SaleResult>[]);
       final fTasks =
           repos.production.list().catchError((_) => <ProductionTask>[]);
-      final fUsers = (widget.userRole == Role.admin || widget.userRole == Role.ishBoshqaruvchi)
+      final fUsers = (widget.userRole == Role.admin)
           ? repos.users.list().catchError((_) => <AppUser>[])
           : Future.value(<AppUser>[]);
 
@@ -1875,7 +1875,7 @@ class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
       'Nasiya',
       'Savdo',
       'Topshiriq',
-      if (widget.userRole == Role.admin || widget.userRole == Role.ishBoshqaruvchi) 'Xodim',
+      if (widget.userRole == Role.admin) 'Xodim',
     ];
 
     final displayItems = _selectedCategory == 'Barchasi'

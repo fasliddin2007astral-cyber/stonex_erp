@@ -684,11 +684,10 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Ish boshqaruvchiga xos bo'limlar ko'rinishi kerak
+    // Ish boshqaruvchiga faqat Ishlab chiqarish va Ombor bo'limlari ko'rinadi (Xodimlar ko'rinmaydi)
     expect(find.text('Ishlab chiqarish'), findsWidgets);
-    expect(find.text('Xodimlar'), findsWidgets);
-    expect(find.text('Mahsulotlar'), findsWidgets);
     expect(find.text('Ombor'), findsWidgets);
+    expect(find.text('Xodimlar'), findsNothing);
 
     // Ish boshqaruvchiga topshiriq tugmasi chiqishi kerak
     expect(find.text('Topshiriq'), findsOneWidget);
