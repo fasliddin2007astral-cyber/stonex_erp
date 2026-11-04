@@ -157,6 +157,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
   // Qayta ishlanayotgan tosh yoki kafel mahsuloti
   Product? _selectedProduct;
   List<Product> _availableProducts = [];
+  bool _includeStoneInCart = true;
 
   // Kesish va o'lchamlar uchun controllerlar
   // Bo'yi faqat santimetrda (sm), Eni esa metrda (m) kiritiladi va hisoblanadi
@@ -236,6 +237,14 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
       _polishStoneType = 'ceramics';
     } else {
       _polishStoneType = 'granite';
+    }
+
+    try {
+      final cart = context.read<CartController>();
+      final alreadyInCart = cart.lines.any((l) => l.product.id == p.id);
+      _includeStoneInCart = !alreadyInCart;
+    } catch (_) {
+      _includeStoneInCart = true;
     }
 
     if (!initial && mounted) {
@@ -351,6 +360,31 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
     return _calculatedTotalMeters * _activeUnitPrice;
   }
 
+  /// Qayta ishlanayotgan toshning o'zi uchun talab qilinadigan miqdor
+  double get _stoneQtyNeeded {
+    if (_selectedProduct == null) return 0.0;
+    final pieces = _parsePieces();
+    if (_selectedProduct!.unit == 'dona') {
+      return pieces.toDouble();
+    }
+    // Agar m2 bo'lsa: bo'yi (sm / 100) * eni (m) * dona
+    final l = _effectiveLengthM;
+    final w = _effectiveWidthM;
+    final area = l * w * pieces;
+    return double.parse((area > 0 ? area : 1.0).toStringAsFixed(3));
+  }
+
+  /// Qayta ishlanayotgan toshning o'z qiymati
+  double get _calculatedStonePrice {
+    if (_selectedProduct == null || !_includeStoneInCart) return 0.0;
+    return _stoneQtyNeeded * _selectedProduct!.price;
+  }
+
+  /// Umumiy jami to'lov: Tosh qiymati (agar ombordan bo'lsa) + Xizmat narxi
+  double get _calculatedGrandTotal {
+    return _calculatedTotalPrice + _calculatedStonePrice;
+  }
+
   void _adjustPieces(int delta) {
     final cur = _parsePieces();
     final next = (cur + delta).clamp(1, 9999);
@@ -446,6 +480,22 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
       specText = '$specText — $note';
     }
 
+    // 1. Agar tosh ombordan olinib, tosh narxi ham kiritilgan bo'lsa, avval toshni savatga qo'shamiz
+    if (_selectedProduct != null && _includeStoneInCart) {
+      final sQty = _stoneQtyNeeded;
+      if (sQty > 0) {
+        cart.add(
+          _selectedProduct!,
+          quantity: sQty,
+          cutLength: l > 0 ? l : null,
+          cutWidth: w > 0 ? w : null,
+          cutPieces: pieces > 0 ? pieces : null,
+          cutSpec: 'Kesishga berildi ($lenStr × $widStr)',
+        );
+      }
+    }
+
+    // 2. Toshga ishlov berish xizmatini savatga qo'shamiz
     cart.add(
       targetProduct,
       quantity: qty,
@@ -464,7 +514,10 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
     }
 
     if (mounted) {
-      Navigator.pop(context, '$serviceDisplayName ($qty ${def.unit}) savatga qo‘shildi');
+      final stoneMsg = (_selectedProduct != null && _includeStoneInCart)
+          ? '${_selectedProduct!.name} va '
+          : '';
+      Navigator.pop(context, '$stoneMsg$serviceDisplayName ($qty ${def.unit}) savatga qo‘shildi');
     }
   }
 
@@ -1322,37 +1375,63 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Jami: $_calculatedTotalMeters metr · ',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: context.mutedColor,
-                              fontWeight: FontWeight.w600,
+                      if (_selectedProduct != null && _includeStoneInCart) ...[
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '🪨 Tosh: ${money(_calculatedStonePrice)}  +  ✂️ Xizmat: ${money(total)}',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: context.mutedColor,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                          Text(
-                            '${money(curPrice)} / ${_selectedServiceIdx == 0 && _cutUnit == 'm2' ? 'm²' : 'm'}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: context.mutedColor,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        money(total),
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          color: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
-                          letterSpacing: -0.5,
+                          ],
                         ),
-                      ),
+                        const SizedBox(height: 2),
+                        Text(
+                          money(_calculatedGrandTotal),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ] else ...[
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Jami: $_calculatedTotalMeters metr · ',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: context.mutedColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              '${money(curPrice)} / ${_selectedServiceIdx == 0 && _cutUnit == 'm2' ? 'm²' : 'm'}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: context.mutedColor,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          money(total),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   Row(
@@ -1480,104 +1559,165 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
             width: 1.2,
           ),
         ),
-        child: Row(
+        child: Column(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: isDark
-                    ? AppColors.neonLime.withValues(alpha: 0.15)
-                    : const Color(0xFFE2E8F0),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: isDark
-                      ? AppColors.neonLime.withValues(alpha: 0.4)
-                      : AppColors.border,
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.neonLime.withValues(alpha: 0.15)
+                        : const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isDark
+                          ? AppColors.neonLime.withValues(alpha: 0.4)
+                          : AppColors.border,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.layers_rounded,
+                    color: isDark ? AppColors.neonLime : AppColors.ink,
+                    size: 20,
+                  ),
                 ),
-              ),
-              child: Icon(
-                Icons.layers_rounded,
-                color: isDark ? AppColors.neonLime : AppColors.ink,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Flexible(
-                        child: Text(
-                          p.name,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: context.inkColor,
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              p.name,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: context.inkColor,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF2B3642) : const Color(0xFFE2E8F0),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              p.category ?? 'Tosh',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: context.inkColor,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF2B3642) : const Color(0xFFE2E8F0),
-                          borderRadius: BorderRadius.circular(6),
+                      const SizedBox(height: 3),
+                      Text(
+                        'O‘lcham: ${_effectiveProductDimText(p)}  •  Narxi: ${money(p.price)} / ${p.unit}  •  Omborda: ${qty(p.stock)} ${p.unit}',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: context.mutedColor,
+                          fontWeight: FontWeight.w500,
                         ),
-                        child: Text(
-                          p.category ?? 'Tosh',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: context.inkColor,
-                          ),
-                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    'O‘lcham: ${_effectiveProductDimText(p)}  •  Omborda: ${qty(p.stock)} ${p.unit}',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: context.mutedColor,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: () => _openProductPicker(context),
+                  icon: const Icon(Icons.swap_horiz_rounded, size: 14),
+                  label: const Text(
+                    'Almashtirish',
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
                   ),
-                ],
-              ),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 16),
+                  tooltip: 'Mijoz toshiga qaytarish',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () {
+                    setState(() {
+                      _selectedProduct = null;
+                      _includeStoneInCart = false;
+                    });
+                  },
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            OutlinedButton.icon(
-              onPressed: () => _openProductPicker(context),
-              icon: const Icon(Icons.swap_horiz_rounded, size: 14),
-              label: const Text(
-                'Almashtirish',
-                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
-              ),
-              style: OutlinedButton.styleFrom(
-                visualDensity: VisualDensity.compact,
+            const SizedBox(height: 8),
+            // Tosh narxini ham savatga qo'shish tanlovi
+            InkWell(
+              onTap: () => setState(() => _includeStoneInCart = !_includeStoneInCart),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(
+                  color: _includeStoneInCart
+                      ? (isDark ? AppColors.neonLime.withValues(alpha: 0.12) : const Color(0xFFF0FDF4))
+                      : (isDark ? const Color(0xFF222831) : const Color(0xFFF1F5F9)),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: _includeStoneInCart
+                        ? (isDark ? AppColors.neonLime : const Color(0xFF16A34A))
+                        : context.borderColor,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _includeStoneInCart ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
+                      size: 18,
+                      color: _includeStoneInCart
+                          ? (isDark ? AppColors.neonLime : const Color(0xFF16A34A))
+                          : context.mutedColor,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Toshning o‘zini ham savatga qo‘shish (ombordan chiqim qilinadi)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: context.inkColor,
+                            ),
+                          ),
+                          Text(
+                            _includeStoneInCart
+                                ? 'Tosh miqdori: ${qty(_stoneQtyNeeded)} ${p.unit} · Qiymati: ${money(_calculatedStonePrice)}'
+                                : 'Faqat xizmat narxi olinadi (tosh allaqachon savatda yoki mijozniki)',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: context.mutedColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 4),
-            IconButton(
-              icon: const Icon(Icons.close_rounded, size: 16),
-              tooltip: 'Mijoz toshiga qaytarish',
-              visualDensity: VisualDensity.compact,
-              onPressed: () {
-                setState(() {
-                  _selectedProduct = null;
-                });
-              },
             ),
           ],
         ),
