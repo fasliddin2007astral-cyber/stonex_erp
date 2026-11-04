@@ -359,12 +359,93 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
   }
 
+  Widget _buildFilterSegment({
+    required String label,
+    required int count,
+    required Color? dotColor,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(100),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6.5),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(100),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(context.isDark ? 0.25 : 0.08),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!isSelected && dotColor != null && count > 0) ...[
+              Container(
+                width: 6.5,
+                height: 6.5,
+                decoration: BoxDecoration(
+                  color: dotColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected
+                    ? (context.isDark ? AppColors.ink : Colors.white)
+                    : (context.isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? (context.isDark
+                        ? AppColors.ink.withOpacity(0.15)
+                        : Colors.white.withOpacity(0.2))
+                    : (context.isDark ? const Color(0xFF262C36) : const Color(0xFFE2E8F0)),
+                borderRadius: BorderRadius.circular(100),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  color: isSelected
+                      ? (context.isDark ? AppColors.ink : Colors.white)
+                      : context.inkColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final filtered = _filteredOrders;
     final totalOrders = _orders.length;
     final activeOrders = _orders.where((o) => o.status == 'order').length;
     final completedOrders = _orders.where((o) => o.status == 'completed').length;
+    final cancelledOrders = _orders.where((o) => o.status == 'cancelled').length;
     final totalAdvances = _orders.fold<double>(0, (a, o) => a + o.paid);
 
     return Scaffold(
@@ -418,55 +499,105 @@ class _OrdersScreenState extends State<OrdersScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Qidiruv va Filterlar
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: context.cardBg,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: context.borderColor),
-              ),
-              child: Column(
-                children: [
-                  TextField(
+            // Qidiruv va Filterlar (Zamonaviy burchaksiz kapsulalar)
+            LayoutBuilder(
+              builder: (context, c) {
+                final isWide = c.maxWidth > 820;
+
+                final searchField = SizedBox(
+                  height: 42,
+                  child: TextField(
                     controller: _searchCtrl,
+                    style: const TextStyle(fontSize: 13),
                     decoration: InputDecoration(
                       hintText: 'Mijoz ismi, telefon, buyurtma # yoki mahsulot nomi...',
-                      prefixIcon: const Icon(Icons.search_rounded),
+                      hintStyle: TextStyle(
+                        fontSize: 12.5,
+                        color: context.subtextColor.withOpacity(0.8),
+                      ),
+                      prefixIcon: const Icon(Icons.search_rounded, size: 19),
                       suffixIcon: _searchCtrl.text.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear_rounded),
+                              icon: const Icon(Icons.clear_rounded, size: 16),
                               onPressed: () {
                                 _searchCtrl.clear();
                                 setState(() {});
                               },
                             )
                           : null,
-                      isDense: true,
+                      filled: true,
+                      fillColor: context.cardBg,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(100),
+                        borderSide: BorderSide(color: context.borderColor),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(100),
+                        borderSide: BorderSide(color: context.borderColor),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(100),
+                        borderSide: BorderSide(
+                          color: context.isDark ? AppColors.neonLime : const Color(0xFF3B82F6),
+                          width: 1.4,
+                        ),
+                      ),
                     ),
                     onChanged: (_) => setState(() {}),
                   ),
-                  const SizedBox(height: 10),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
+                );
+
+                final filterCapsule = SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Container(
+                    padding: const EdgeInsets.all(3.5),
+                    decoration: BoxDecoration(
+                      color: context.isDark ? AppColors.darkCard : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(color: context.borderColor.withOpacity(0.6)),
+                    ),
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        for (final s in ['Faol (Kutilmoqda)', 'Barchasi', 'Topshirilgan', 'Bekor qilingan'])
-                          Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: ChoiceChip(
-                              label: Text(s, style: const TextStyle(fontSize: 12)),
-                              selected: _statusFilter == s,
-                              onSelected: (sel) {
-                                if (sel) setState(() => _statusFilter = s);
-                              },
-                            ),
+                        for (final item in [
+                          ('Faol (Kutilmoqda)', activeOrders, const Color(0xFFF59E0B)),
+                          ('Barchasi', totalOrders, null),
+                          ('Topshirilgan', completedOrders, const Color(0xFF10B981)),
+                          ('Bekor qilingan', cancelledOrders, const Color(0xFFEF4444)),
+                        ])
+                          _buildFilterSegment(
+                            label: item.$1,
+                            count: item.$2,
+                            dotColor: item.$3,
+                            isSelected: _statusFilter == item.$1,
+                            onTap: () => setState(() => _statusFilter = item.$1),
                           ),
                       ],
                     ),
                   ),
-                ],
-              ),
+                );
+
+                if (isWide) {
+                  return Row(
+                    children: [
+                      Expanded(child: searchField),
+                      const SizedBox(width: 12),
+                      filterCapsule,
+                    ],
+                  );
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    searchField,
+                    const SizedBox(height: 10),
+                    filterCapsule,
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 16),
 
