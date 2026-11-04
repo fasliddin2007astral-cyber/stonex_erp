@@ -172,6 +172,15 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
   // Silliqlash uchun tosh turi: 'granite' (Granit) yoki 'ceramics' (Keramogranit)
   String _polishStoneType = 'granite';
 
+  // Kesgandan so'ng qo'shimcha ishlov berish (Silliqlash, Faska, Chizish)
+  bool _addPolishAfterCut = false;
+  bool _addChamferAfterCut = false;
+  bool _addGrooveAfterCut = false;
+
+  final _polishMetersCtrl = TextEditingController(text: '1.2');
+  final _chamferMetersCtrl = TextEditingController(text: '1.2');
+  final _grooveMetersCtrl = TextEditingController(text: '1.2');
+
   final _noteCtrl = TextEditingController();
   bool _syncing = false;
 
@@ -234,6 +243,11 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
 
     if (len != null && len > 0) {
       _lengthCtrl.text = len % 1 == 0 ? len.toInt().toString() : len.toString();
+      final lenM = len / 100.0;
+      final lenMStr = lenM % 1 == 0 ? lenM.toInt().toString() : lenM.toString();
+      _polishMetersCtrl.text = lenMStr;
+      _chamferMetersCtrl.text = lenMStr;
+      _grooveMetersCtrl.text = lenMStr;
     }
     if (wid != null && wid > 0) {
       final widM = wid / 100.0;
@@ -301,6 +315,9 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
     _widthCtrl.dispose();
     _piecesCtrl.dispose();
     _manualMetersCtrl.dispose();
+    _polishMetersCtrl.dispose();
+    _chamferMetersCtrl.dispose();
+    _grooveMetersCtrl.dispose();
     _noteCtrl.dispose();
     super.dispose();
   }
@@ -389,9 +406,49 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
     return _stoneQtyNeeded * _selectedProduct!.price;
   }
 
-  /// Umumiy jami to'lov: Tosh qiymati (agar ombordan bo'lsa) + Xizmat narxi
+  double get _addPolishMeters {
+    final v = parseInput(_polishMetersCtrl.text);
+    return (v != null && v > 0) ? v : _effectiveLengthM;
+  }
+
+  double get _addChamferMeters {
+    final v = parseInput(_chamferMetersCtrl.text);
+    return (v != null && v > 0) ? v : _effectiveLengthM;
+  }
+
+  double get _addGrooveMeters {
+    final v = parseInput(_grooveMetersCtrl.text);
+    return (v != null && v > 0) ? v : _effectiveLengthM;
+  }
+
+  double get _calculatedAddPolishPrice {
+    final def = kStoneServices[_selectedServiceIdx];
+    if (def.key != 'cut' || !_addPolishAfterCut) return 0.0;
+    final unitPrice = _polishStoneType == 'granite'
+        ? StoneServicesStore.getPrice('polish_granite')
+        : StoneServicesStore.getPrice('polish_ceramics');
+    return _addPolishMeters * unitPrice;
+  }
+
+  double get _calculatedAddChamferPrice {
+    final def = kStoneServices[_selectedServiceIdx];
+    if (def.key != 'cut' || !_addChamferAfterCut) return 0.0;
+    return _addChamferMeters * StoneServicesStore.getPrice('chamfer');
+  }
+
+  double get _calculatedAddGroovePrice {
+    final def = kStoneServices[_selectedServiceIdx];
+    if (def.key != 'cut' || !_addGrooveAfterCut) return 0.0;
+    return _addGrooveMeters * StoneServicesStore.getPrice('groove');
+  }
+
+  double get _allAdditionalServicesPrice {
+    return _calculatedAddPolishPrice + _calculatedAddChamferPrice + _calculatedAddGroovePrice;
+  }
+
+  /// Umumiy jami to'lov: Tosh qiymati + Asosiy xizmat + Qo'shimcha ishlovlar
   double get _calculatedGrandTotal {
-    return _calculatedTotalPrice + _calculatedStonePrice;
+    return _calculatedTotalPrice + _calculatedStonePrice + _allAdditionalServicesPrice;
   }
 
   void _adjustPieces(int delta) {
@@ -507,7 +564,115 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
       }
     }
 
-    // 2. Agar tosh ombordan yangi qo'shilishi kerak bo'lsa (ombordan chiqim)
+    // 2. Agar Kesish tanlangan bo'lsa va SILLIQLASH ham belgilangan bo'lsa:
+    if (def.key == 'cut' && _addPolishAfterCut) {
+      final pMeters = _addPolishMeters;
+      final polishName = _polishStoneType == 'granite' ? 'Silliqlash (Granit)' : 'Silliqlash (Keramogranit)';
+      final polishPrice = _polishStoneType == 'granite'
+          ? StoneServicesStore.getPrice('polish_granite')
+          : StoneServicesStore.getPrice('polish_ceramics');
+      Product? polishProd;
+      try {
+        final prods = await repos.products.list();
+        polishProd = prods.where((p) => p.name.trim().toLowerCase() == polishName.toLowerCase()).firstOrNull;
+      } catch (_) {}
+      polishProd ??= Product(
+        id: _polishStoneType == 'granite' ? 21 : 23,
+        name: polishName,
+        category: 'Xizmat',
+        unit: 'metr',
+        price: polishPrice,
+        costPrice: 0,
+        stock: 999999,
+        minStock: 0,
+      );
+      cart.add(
+        polishProd,
+        quantity: pMeters,
+        cutLength: l > 0 ? l : null,
+        cutWidth: w > 0 ? w : null,
+        cutPieces: pieces > 0 ? pieces : null,
+        cutSpec: ' metr silliqlash ()',
+      );
+      if (cart.lines.isNotEmpty) {
+        final line = cart.lines.last;
+        if (line.product.id == polishProd.id && line.unitPrice != polishPrice) {
+          cart.update(line, unitPriceOverride: polishPrice);
+        }
+      }
+    }
+
+    // 3. Agar Kesish tanlangan bo'lsa va FASKA belgilangan bo'lsa:
+    if (def.key == 'cut' && _addChamferAfterCut) {
+      final cMeters = _addChamferMeters;
+      final chamferPrice = StoneServicesStore.getPrice('chamfer');
+      Product? chamferProd;
+      try {
+        final prods = await repos.products.list();
+        chamferProd = prods.where((p) => p.name.trim().toLowerCase() == 'faska ochish').firstOrNull;
+      } catch (_) {}
+      chamferProd ??= Product(
+        id: 20,
+        name: 'Faska ochish',
+        category: 'Xizmat',
+        unit: 'metr',
+        price: chamferPrice,
+        costPrice: 0,
+        stock: 999999,
+        minStock: 0,
+      );
+      cart.add(
+        chamferProd,
+        quantity: cMeters,
+        cutLength: l > 0 ? l : null,
+        cutWidth: w > 0 ? w : null,
+        cutPieces: pieces > 0 ? pieces : null,
+        cutSpec: ' metr faska ochish',
+      );
+      if (cart.lines.isNotEmpty) {
+        final line = cart.lines.last;
+        if (line.product.id == chamferProd.id && line.unitPrice != chamferPrice) {
+          cart.update(line, unitPriceOverride: chamferPrice);
+        }
+      }
+    }
+
+    // 4. Agar Kesish tanlangan bo'lsa va CHIZISH belgilangan bo'lsa:
+    if (def.key == 'cut' && _addGrooveAfterCut) {
+      final gMeters = _addGrooveMeters;
+      final groovePrice = StoneServicesStore.getPrice('groove');
+      Product? grooveProd;
+      try {
+        final prods = await repos.products.list();
+        grooveProd = prods.where((p) => p.name.trim().toLowerCase() == 'chizish').firstOrNull;
+      } catch (_) {}
+      grooveProd ??= Product(
+        id: 22,
+        name: 'Chizish',
+        category: 'Xizmat',
+        unit: 'metr',
+        price: groovePrice,
+        costPrice: 0,
+        stock: 999999,
+        minStock: 0,
+      );
+      cart.add(
+        grooveProd,
+        quantity: gMeters,
+        cutLength: l > 0 ? l : null,
+        cutWidth: w > 0 ? w : null,
+        cutPieces: pieces > 0 ? pieces : null,
+        cutSpec: ' metr chizish (sirpanishga qarshi)',
+      );
+      if (cart.lines.isNotEmpty) {
+        final line = cart.lines.last;
+        if (line.product.id == grooveProd.id && line.unitPrice != groovePrice) {
+          cart.update(line, unitPriceOverride: groovePrice);
+        }
+      }
+    }
+
+    // 5. Agar tosh ombordan yangi qo'shilishi kerak bo'lsa (ombordan chiqim)
     if (_selectedProduct != null && _includeStoneInCart) {
       final sQty = _stoneQtyNeeded;
       if (sQty > 0) {
@@ -1135,6 +1300,8 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 14),
+                      _buildAdditionalServicesSection(context, isDark),
                       const SizedBox(height: 16),
                     ] else ...[
                       // SILLIQLASH, FASKA VA BOSHQA XIZMATLAR: Hajm (metrda) kiritish
@@ -1385,18 +1552,17 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (_selectedProduct != null && _includeStoneInCart) ...[
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '🪨 Tosh: ${money(_calculatedStonePrice)}  +  ✂️ Xizmat: ${money(total)}',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: context.mutedColor,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                        Text(
+                          _allAdditionalServicesPrice > 0
+                              ? 'Tosh:  · Kesish:  · Ishlov: '
+                              : 'Tosh:  · Xizmat: ',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: context.mutedColor,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -1409,30 +1575,21 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                           ),
                         ),
                       ] else ...[
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Jami: $_calculatedTotalMeters metr · ',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: context.mutedColor,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              '${money(curPrice)} / ${_selectedServiceIdx == 0 && _cutUnit == 'm2' ? 'm²' : 'm'}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: context.mutedColor,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
+                        Text(
+                          _allAdditionalServicesPrice > 0
+                              ? 'Kesish:  · Ishlov: '
+                              : 'Jami:  metr ·  / ',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: context.mutedColor,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          money(total),
+                          money(_calculatedGrandTotal),
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
@@ -1799,6 +1956,271 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdditionalServicesSection(BuildContext context, bool isDark) {
+    final polishUnitPrice = _polishStoneType == 'granite'
+        ? StoneServicesStore.getPrice('polish_granite')
+        : StoneServicesStore.getPrice('polish_ceramics');
+    final chamferUnitPrice = StoneServicesStore.getPrice('chamfer');
+    final grooveUnitPrice = StoneServicesStore.getPrice('groove');
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1B2028) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: (_addPolishAfterCut || _addChamferAfterCut || _addGrooveAfterCut)
+              ? (isDark ? AppColors.neonLime.withValues(alpha: 0.35) : AppColors.greenSoft)
+              : context.borderColor,
+          width: (_addPolishAfterCut || _addChamferAfterCut || _addGrooveAfterCut) ? 1.4 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.auto_awesome_rounded,
+                size: 17,
+                color: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Kesgandan so‘ng qo‘shimcha ishlov berish (ixtiyoriy):',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: context.inkColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // 1. SILLIQLASH QO'SHISH
+          _buildExtraServiceItem(
+            isDark: isDark,
+            title: 'Silliqlash (Jilolash)',
+            icon: Icons.auto_awesome_rounded,
+            unitPrice: polishUnitPrice,
+            enabled: _addPolishAfterCut,
+            onToggle: (v) => setState(() => _addPolishAfterCut = v),
+            metersCtrl: _polishMetersCtrl,
+            onAdjustMeters: (delta) {
+              final cur = parseInput(_polishMetersCtrl.text) ?? _effectiveLengthM;
+              final next = (cur + delta).clamp(0.1, 999.0);
+              _polishMetersCtrl.text = next == next.roundToDouble() ? next.toInt().toString() : next.toStringAsFixed(1);
+              setState(() {});
+            },
+            extraWidget: _addPolishAfterCut
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      children: [
+                        Text('Turi: ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.mutedColor)),
+                        const SizedBox(width: 4),
+                        ChoiceChip(
+                          label: const Text('Granit', style: TextStyle(fontSize: 11)),
+                          selected: _polishStoneType == 'granite',
+                          visualDensity: VisualDensity.compact,
+                          onSelected: (s) => setState(() => _polishStoneType = 'granite'),
+                        ),
+                        const SizedBox(width: 6),
+                        ChoiceChip(
+                          label: const Text('Keramogranit', style: TextStyle(fontSize: 11)),
+                          selected: _polishStoneType == 'ceramics',
+                          visualDensity: VisualDensity.compact,
+                          onSelected: (s) => setState(() => _polishStoneType = 'ceramics'),
+                        ),
+                      ],
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(height: 8),
+
+          // 2. FASKA OCHISH QO'SHISH
+          _buildExtraServiceItem(
+            isDark: isDark,
+            title: 'Faska ochish (Qirra berish)',
+            icon: Icons.architecture_rounded,
+            unitPrice: chamferUnitPrice,
+            enabled: _addChamferAfterCut,
+            onToggle: (v) => setState(() => _addChamferAfterCut = v),
+            metersCtrl: _chamferMetersCtrl,
+            onAdjustMeters: (delta) {
+              final cur = parseInput(_chamferMetersCtrl.text) ?? _effectiveLengthM;
+              final next = (cur + delta).clamp(0.1, 999.0);
+              _chamferMetersCtrl.text = next == next.roundToDouble() ? next.toInt().toString() : next.toStringAsFixed(1);
+              setState(() {});
+            },
+          ),
+          const SizedBox(height: 8),
+
+          // 3. CHIZISH QO'SHISH
+          _buildExtraServiceItem(
+            isDark: isDark,
+            title: 'Chizish (Sirpanishga qarshi yo‘llar)',
+            icon: Icons.line_weight_rounded,
+            unitPrice: grooveUnitPrice,
+            enabled: _addGrooveAfterCut,
+            onToggle: (v) => setState(() => _addGrooveAfterCut = v),
+            metersCtrl: _grooveMetersCtrl,
+            onAdjustMeters: (delta) {
+              final cur = parseInput(_grooveMetersCtrl.text) ?? _effectiveLengthM;
+              final next = (cur + delta).clamp(0.1, 999.0);
+              _grooveMetersCtrl.text = next == next.roundToDouble() ? next.toInt().toString() : next.toStringAsFixed(1);
+              setState(() {});
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExtraServiceItem({
+    required bool isDark,
+    required String title,
+    required IconData icon,
+    required double unitPrice,
+    required bool enabled,
+    required ValueChanged<bool> onToggle,
+    required TextEditingController metersCtrl,
+    required ValueChanged<double> onAdjustMeters,
+    Widget? extraWidget,
+  }) {
+    final m = parseInput(metersCtrl.text) ?? _effectiveLengthM;
+    final cost = m * unitPrice;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: enabled
+            ? (isDark ? AppColors.neonLime.withValues(alpha: 0.1) : const Color(0xFFF0FDF4))
+            : (isDark ? const Color(0xFF161A20) : const Color(0xFFF1F5F9)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: enabled
+              ? (isDark ? AppColors.neonLime : const Color(0xFF16A34A))
+              : context.borderColor,
+          width: enabled ? 1.2 : 0.8,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Checkbox(
+                value: enabled,
+                visualDensity: VisualDensity.compact,
+                activeColor: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
+                checkColor: isDark ? AppColors.ink : Colors.white,
+                onChanged: (v) => onToggle(v ?? false),
+              ),
+              Icon(icon, size: 16, color: enabled ? (isDark ? AppColors.neonLime : const Color(0xFF16A34A)) : context.mutedColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: context.inkColor,
+                      ),
+                    ),
+                    Text(
+                      ' / metr',
+                      style: TextStyle(fontSize: 11, color: context.mutedColor),
+                    ),
+                  ],
+                ),
+              ),
+              if (enabled) ...[
+                // Metr kiritish va stepper
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    InkWell(
+                      onTap: () => onAdjustMeters(-0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF222831) : Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: context.borderColor),
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(Icons.remove_rounded, size: 13, color: context.inkColor),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 42,
+                      child: TextField(
+                        controller: metersCtrl,
+                        textAlign: TextAlign.center,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: context.inkColor),
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(vertical: 2),
+                          border: InputBorder.none,
+                        ),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () => onAdjustMeters(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF222831) : Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: context.borderColor),
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(Icons.add_rounded, size: 13, color: context.inkColor),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text('m', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: context.mutedColor)),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF232D38) : const Color(0xFFE2E8F0),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        money(cost),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+          if (extraWidget != null) extraWidget,
         ],
       ),
     );

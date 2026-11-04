@@ -173,5 +173,72 @@ void main() {
       await tester.tap(find.text('Saqlash'));
       await tester.pumpAndSettle();
     });
+
+    testWidgets('Kesish bilan birga silliqlash va faska ochish (combo) savatga to\'g\'ri qo\'shiladi', (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      final adminUser = const AppUser(
+        id: 1,
+        username: 'admin',
+        fullName: 'Admin Boshliq',
+        role: Role.admin,
+      );
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            Provider<AppRepositories>.value(value: repos),
+            ChangeNotifierProvider(create: (_) => AuthController(repos.auth)),
+            ChangeNotifierProvider.value(value: cart),
+            ChangeNotifierProvider(create: (_) => CurrencyController()),
+            ChangeNotifierProvider(create: (_) => ThemeController()),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (ctx) => Center(
+                  child: ElevatedButton(
+                    onPressed: () => StoneServicesDialog.show(ctx, user: adminUser),
+                    child: const Text('Ochish'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Ochish'));
+      await tester.pumpAndSettle();
+
+      // Kesgandan so'ng qo'shimcha ishlov berish bo'limi ko'rinishi kerak
+      expect(find.textContaining('Kesgandan so‘ng qo‘shimcha ishlov berish'), findsOneWidget);
+      expect(find.textContaining('Silliqlash (Jilolash)'), findsOneWidget);
+      expect(find.textContaining('Faska ochish (Qirra berish)'), findsOneWidget);
+      expect(find.textContaining('Chizish (Sirpanishga qarshi yo‘llar)'), findsOneWidget);
+
+      // Silliqlash checkboxini yoqamiz
+      final silliqlashCheckbox = find.byWidgetPredicate(
+        (w) => w is Checkbox && w.value == false,
+      ).first;
+      await tester.ensureVisible(silliqlashCheckbox);
+      await tester.tap(silliqlashCheckbox);
+      await tester.pumpAndSettle();
+
+      // Savatga qo'shish tugmasi
+      final addToCartBtn = find.text('Savatga qo‘shish');
+      await tester.ensureVisible(addToCartBtn);
+      await tester.tap(addToCartBtn);
+      await tester.pumpAndSettle();
+
+      // Savatda endi kamida 2 ta element (Kesish + Silliqlash) bo'lishi kerak
+      expect(cart.lines.length, greaterThanOrEqualTo(2));
+      final hasCut = cart.lines.any((item) => item.product.name.contains('Kesish') || item.product.name.contains('kesish'));
+      final hasPolish = cart.lines.any((item) => item.product.name.contains('Silliqlash'));
+      expect(hasCut, isTrue);
+      expect(hasPolish, isTrue);
+    });
   });
 }
