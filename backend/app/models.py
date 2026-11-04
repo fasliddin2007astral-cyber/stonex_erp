@@ -6,7 +6,7 @@ Savdo, xarid, ishlab chiqarish, tuzatish — hammasi bitta harakatlar tizimi orq
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -204,6 +204,10 @@ class Notification(Base):
 
 class Delivery(Base):
     __tablename__ = "deliveries"
+    __table_args__ = (
+        Index("ix_deliveries_driver_status", "driver_id", "status"),
+        Index("ix_deliveries_sale_status", "sale_id", "status"),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     sale_id: Mapped[int | None] = mapped_column(ForeignKey("sales.id"), nullable=True)
     driver_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)

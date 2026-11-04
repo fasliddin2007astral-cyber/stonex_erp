@@ -4,6 +4,7 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from .. import models as m
+from .. import roles
 from ..database import get_db
 from ..deps import get_current_user
 from ..schemas import DeliveryCreate, DeliveryOut, DeliveryStatusUpdate, DeliveryUpdate
@@ -26,16 +27,14 @@ def list_deliveries(
         .order_by(m.Delivery.id.desc())
         .limit(min(limit, 200))
     )
-    # Agar haydovchi kirgan bo'lsa, o'zining buyurtmalari va barchaga ochiq (hali olinmagan) buyurtmalar chiqadi
+    # Agar haydovchi kirgan bo'lsa:
+    # 1) O'ziga biriktirilgan buyurtmalarni
+    # 2) Barchaga ochiq (driver_id IS NULL va status == 'loading') buyurtmalarni ko'radi
     if current_user.role == "haydovchi":
         stmt = stmt.where(
             or_(
                 m.Delivery.driver_id == current_user.id,
-                m.Delivery.driver_name.ilike(f"%{current_user.full_name}%"),
-                (m.Delivery.driver_phone == current_user.username) if current_user.username else False,
-                # Ochiq buyurtmalar (barcha haydovchilar olishi mumkin)
                 and_(m.Delivery.driver_id.is_(None), m.Delivery.status == "loading"),
-                and_(m.Delivery.driver_name.ilike("%Ochiq%"), m.Delivery.status == "loading"),
             )
         )
     elif driver_id:
@@ -241,24 +240,31 @@ def accept_delivery(
     db: Session = Depends(get_db),
     current_user: m.User = Depends(get_current_user),
 ):
+    # Race condition'ni bartaraf etish uchun qatorni qulflash (Pessimistic Locking)
     stmt = (
         select(m.Delivery)
         .options(selectinload(m.Delivery.items))
         .where(m.Delivery.id == delivery_id)
+        .with_for_update()
     )
     delivery = db.scalars(stmt).first()
     if delivery is None:
         raise HTTPException(404, "Yetkazib berish yozuvi topilmadi")
 
     if current_user.role == "haydovchi" and not current_user.is_on_shift:
-        raise HTTPException(400, "Buyurtma olishdan oldin smenani oching (Ishlamoqda)")
+        raise HTTPException(400, "Buyurtma qabul qilishdan oldin smenani oching (Ishlamoqda)")
 
-    if delivery.driver_id and delivery.driver_id != current_user.id:
-        raise HTTPException(400, "Bu buyurtma allaqachon boshqa haydovchi tomonidan olingan")
+    # Agar buyurtma allaqachon boshqa haydovchi tomonidan olingan bo'lsa
+    if delivery.driver_id is not None and delivery.driver_id != current_user.id:
+        raise HTTPException(400, "Bu buyurtma allaqachon boshqa haydovchi tomonidan qabul qilingan")
+
+    # Buyurtma holati faqat 'loading' yoki o'ziniki bo'lgan 'on_the_way' bo'lishi mumkin
+    if delivery.status not in ("loading", "on_the_way"):
+        raise HTTPException(400, f"Ushbu buyurtmani qabul qilib bo'lmaydi (holati: {delivery.status})")
 
     delivery.driver_id = current_user.id
     delivery.driver_name = current_user.full_name
-    if current_user.username and current_user.username.isdigit():
+    if current_user.username and not current_user.username.startswith("worker_"):
         delivery.driver_phone = current_user.username
     delivery.status = "on_the_way"
     if not delivery.dispatch_time:
@@ -275,19 +281,28 @@ def reject_delivery(
     db: Session = Depends(get_db),
     current_user: m.User = Depends(get_current_user),
 ):
+    # Race condition'ni bartaraf etish uchun qatorni qulflash (Pessimistic Locking)
     stmt = (
         select(m.Delivery)
         .options(selectinload(m.Delivery.items))
         .where(m.Delivery.id == delivery_id)
+        .with_for_update()
     )
     delivery = db.scalars(stmt).first()
     if delivery is None:
         raise HTTPException(404, "Yetkazib berish yozuvi topilmadi")
 
+    # Faqat buyurtma biriktirilgan haydovchi yoki admin/kassir rad eta oladi
+    if current_user.role not in (roles.ADMIN, roles.CASHIER) and delivery.driver_id != current_user.id:
+        raise HTTPException(403, "Sizga biriktirilmagan buyurtmani rad eta olmaysiz")
+
+    # Buyurtmani umumiy ochiq hovuzga qaytarish
     delivery.driver_id = None
     delivery.driver_name = "Ochiq (barchaga)"
     delivery.driver_phone = None
     delivery.status = "loading"
+    delivery.dispatch_time = None
+
     rejection_tag = f"[{current_user.full_name} rad etdi]"
     if delivery.note:
         if rejection_tag not in delivery.note:

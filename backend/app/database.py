@@ -128,4 +128,9 @@ def ensure_migrations():
         with engine.begin() as conn:
             if "driver_id" not in del_columns:
                 conn.execute(text("ALTER TABLE deliveries ADD COLUMN driver_id INTEGER NULL REFERENCES users(id)"))
+            try:
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_deliveries_driver_status ON deliveries (driver_id, status)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_deliveries_sale_status ON deliveries (sale_id, status)"))
+            except Exception:
+                pass
 
