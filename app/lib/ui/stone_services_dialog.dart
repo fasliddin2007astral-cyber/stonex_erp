@@ -128,14 +128,19 @@ class StoneServicesStore {
 
 /// Kassada xizmatlarni tanlash va savatga qo'shish oynasi
 class StoneServicesDialog extends StatefulWidget {
-  const StoneServicesDialog({super.key, required this.user});
+  const StoneServicesDialog({super.key, required this.user, this.product});
   final AppUser user;
+  final Product? product;
 
-  static Future<void> show(BuildContext context, {required AppUser user}) async {
+  static Future<void> show(
+    BuildContext context, {
+    required AppUser user,
+    Product? product,
+  }) async {
     final msg = await showDialog<String>(
       context: context,
       barrierDismissible: true,
-      builder: (_) => StoneServicesDialog(user: user),
+      builder: (_) => StoneServicesDialog(user: user, product: product),
     );
     if (msg != null && context.mounted) {
       showMessage(context, msg);
@@ -148,6 +153,10 @@ class StoneServicesDialog extends StatefulWidget {
 
 class _StoneServicesDialogState extends State<StoneServicesDialog> {
   int _selectedServiceIdx = 0;
+
+  // Qayta ishlanayotgan tosh yoki kafel mahsuloti
+  Product? _selectedProduct;
+  List<Product> _availableProducts = [];
 
   // Kesish va o'lchamlar uchun controllerlar
   // Bo'yi faqat santimetrda (sm), Eni esa metrda (m) kiritiladi va hisoblanadi
@@ -168,14 +177,104 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
   @override
   void initState() {
     super.initState();
-    _loadPrices();
+    if (widget.product != null) {
+      _applyProduct(widget.product!, initial: true);
+    }
+    _loadPricesAndProducts();
   }
 
-  Future<void> _loadPrices() async {
+  Future<void> _loadPricesAndProducts() async {
     setState(() => _syncing = true);
-    final repo = context.read<AppRepositories>().products;
-    await StoneServicesStore.syncFromRepo(repo);
+    try {
+      final repo = context.read<AppRepositories>().products;
+      await StoneServicesStore.syncFromRepo(repo);
+      final prods = await repo.list();
+      if (mounted) {
+        setState(() {
+          _availableProducts = prods.where((p) => p.category != 'Xizmat').toList();
+        });
+      }
+    } catch (_) {}
     if (mounted) setState(() => _syncing = false);
+  }
+
+  void _applyProduct(Product p, {bool initial = false}) {
+    _selectedProduct = p;
+
+    double? len = p.tileLength;
+    double? wid = p.tileWidth;
+
+    // Nomidan razmer aniqlashga harakat (masalan: 60x120, 60*60, 30x60)
+    if (len == null || wid == null) {
+      final match = RegExp(r'(\d+)\s*[*xX×]\s*(\d+)').firstMatch(p.name);
+      if (match != null) {
+        final v1 = double.tryParse(match.group(1)!);
+        final v2 = double.tryParse(match.group(2)!);
+        if (v1 != null && v2 != null) {
+          if (v1 > v2) {
+            len ??= v1;
+            wid ??= v2;
+          } else {
+            len ??= v2;
+            wid ??= v1;
+          }
+        }
+      }
+    }
+
+    if (len != null && len > 0) {
+      _lengthCtrl.text = len % 1 == 0 ? len.toInt().toString() : len.toString();
+    }
+    if (wid != null && wid > 0) {
+      final widM = wid / 100.0;
+      _widthCtrl.text = widM % 1 == 0 ? widM.toInt().toString() : widM.toStringAsFixed(2).replaceAll(RegExp(r'\.?0+$'), '');
+    }
+
+    final cat = (p.category ?? '').toLowerCase();
+    final nm = p.name.toLowerCase();
+    if (cat.contains('keram') || nm.contains('keram') || cat.contains('kafel') || nm.contains('kafel')) {
+      _polishStoneType = 'ceramics';
+    } else {
+      _polishStoneType = 'granite';
+    }
+
+    if (!initial && mounted) {
+      setState(() {});
+    }
+  }
+
+  String _effectiveProductDimText(Product p) {
+    if (p.tileLength != null && p.tileWidth != null && p.tileLength! > 0 && p.tileWidth! > 0) {
+      final l = p.tileLength! % 1 == 0 ? p.tileLength!.toInt() : p.tileLength!;
+      final w = p.tileWidth! % 1 == 0 ? p.tileWidth!.toInt() : p.tileWidth!;
+      return '$l × $w sm';
+    }
+    final match = RegExp(r'(\d+)\s*[*xX×]\s*(\d+)').firstMatch(p.name);
+    if (match != null) {
+      return '${match.group(1)} × ${match.group(2)} sm';
+    }
+    return p.unit;
+  }
+
+  Future<void> _openProductPicker(BuildContext context) async {
+    final prods = _availableProducts.isNotEmpty
+        ? _availableProducts
+        : await context.read<AppRepositories>().products.list();
+    if (!mounted) return;
+
+    final picked = await showDialog<Product?>(
+      context: context,
+      builder: (ctx) => _ProductPickerDialog(
+        products: prods.where((p) => p.category != 'Xizmat').toList(),
+        currentProduct: _selectedProduct,
+      ),
+    );
+
+    if (mounted) {
+      if (picked != null) {
+        _applyProduct(picked);
+      }
+    }
   }
 
   @override
@@ -337,6 +436,12 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
       specText = '$qty ${def.unit}';
     }
 
+    // Tosh yoki kafel nomi spetsifikatsiyaga qo'shiladi
+    final stonePrefix = _selectedProduct != null
+        ? '[${_selectedProduct!.name}] '
+        : '[Mijoz toshi] ';
+    specText = '$stonePrefix$specText';
+
     if (note.isNotEmpty) {
       specText = '$specText — $note';
     }
@@ -390,7 +495,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
         width: 680,
-        constraints: const BoxConstraints(maxHeight: 680),
+        constraints: const BoxConstraints(maxHeight: 740),
         decoration: BoxDecoration(
           color: context.dialogBg,
           borderRadius: BorderRadius.circular(24),
@@ -503,6 +608,10 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // Ishlov beriladigan tosh / kafel tanlovi
+                    _buildProductSelector(context, isDark),
+                    const SizedBox(height: 16),
+
                     // 4 ta Xizmat tanlash kartalari
                     Text(
                       'Xizmat turini tanlang:',
@@ -1343,6 +1452,215 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
       ),
     );
   }
+
+  Widget _buildProductSelector(BuildContext context, bool isDark) {
+    final cart = context.watch<CartController>();
+    final cartStones = cart.lines
+        .where((l) {
+          final cat = (l.product.category ?? '').toLowerCase();
+          return l.product.category != 'Xizmat' &&
+              (l.product.unit == 'm2' ||
+                  l.product.tileLength != null ||
+                  cat.contains('granit') ||
+                  cat.contains('marmar') ||
+                  cat.contains('kafel') ||
+                  cat.contains('keram'));
+        })
+        .toList();
+
+    if (_selectedProduct != null) {
+      final p = _selectedProduct!;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1B2228) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? AppColors.neonLime.withValues(alpha: 0.35) : AppColors.greenSoft,
+            width: 1.2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppColors.neonLime.withValues(alpha: 0.15)
+                    : const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isDark
+                      ? AppColors.neonLime.withValues(alpha: 0.4)
+                      : AppColors.border,
+                ),
+              ),
+              child: Icon(
+                Icons.layers_rounded,
+                color: isDark ? AppColors.neonLime : AppColors.ink,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          p.name,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: context.inkColor,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF2B3642) : const Color(0xFFE2E8F0),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          p.category ?? 'Tosh',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: context.inkColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'O‘lcham: ${_effectiveProductDimText(p)}  •  Omborda: ${qty(p.stock)} ${p.unit}',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: context.mutedColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: () => _openProductPicker(context),
+              icon: const Icon(Icons.swap_horiz_rounded, size: 14),
+              label: const Text(
+                'Almashtirish',
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+              ),
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            const SizedBox(width: 4),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, size: 16),
+              tooltip: 'Mijoz toshiga qaytarish',
+              visualDensity: VisualDensity.compact,
+              onPressed: () {
+                setState(() {
+                  _selectedProduct = null;
+                });
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Hech qaysi tosh tanlanmagan holat: "Mijozning o'z toshi"
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF171B20) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.person_pin_circle_outlined, size: 18, color: context.mutedColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Qayta ishlanadigan tosh yoki kafel:',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: context.mutedColor,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF26303A) : const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '👤 Mijozning o‘z toshi',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? AppColors.neonLime : AppColors.ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              for (final cl in cartStones.take(2))
+                ActionChip(
+                  avatar: const Icon(Icons.shopping_cart_outlined, size: 14),
+                  label: Text(
+                    cl.product.name,
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                  onPressed: () => _applyProduct(cl.product),
+                  visualDensity: VisualDensity.compact,
+                ),
+              FilledButton.tonalIcon(
+                onPressed: () => _openProductPicker(context),
+                icon: const Icon(Icons.search_rounded, size: 14),
+                label: const Text(
+                  'Ombordan tosh / kafel tanlash',
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+                ),
+                style: FilledButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Admin uchun xizmatlar narxini sozlash va belgilash oynasi
@@ -1783,6 +2101,322 @@ class _UnitChoicePill extends StatelessWidget {
                 ? (isDark ? AppColors.ink : Colors.white)
                 : context.mutedColor,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Ombordan tosh yoki kafel tanlash oynasi
+class _ProductPickerDialog extends StatefulWidget {
+  const _ProductPickerDialog({
+    required this.products,
+    this.currentProduct,
+  });
+
+  final List<Product> products;
+  final Product? currentProduct;
+
+  @override
+  State<_ProductPickerDialog> createState() => _ProductPickerDialogState();
+}
+
+class _ProductPickerDialogState extends State<_ProductPickerDialog> {
+  final _searchCtrl = TextEditingController();
+  String _categoryFilter = 'Barchasi';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = context.isDark;
+    final query = _searchCtrl.text.trim().toLowerCase();
+
+    final categories = ['Barchasi', 'Granit', 'Marmar', 'Keramogranit', 'Kafel', 'Travertin'];
+
+    final filtered = widget.products.where((p) {
+      if (_categoryFilter != 'Barchasi') {
+        final cat = (p.category ?? '').toLowerCase();
+        final filterLow = _categoryFilter.toLowerCase();
+        if (!cat.contains(filterLow) && !p.name.toLowerCase().contains(filterLow)) {
+          return false;
+        }
+      }
+      if (query.isNotEmpty) {
+        final nameMatch = p.name.toLowerCase().contains(query);
+        final catMatch = (p.category ?? '').toLowerCase().contains(query);
+        final skuMatch = p.sku.toLowerCase().contains(query);
+        final qrMatch = p.qrCode.toLowerCase().contains(query);
+        return nameMatch || catMatch || skuMatch || qrMatch;
+      }
+      return true;
+    }).toList();
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        width: 560,
+        constraints: const BoxConstraints(maxHeight: 620),
+        decoration: BoxDecoration(
+          color: context.dialogBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: context.borderColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 14, 12),
+              child: Row(
+                children: [
+                  const Icon(Icons.layers_outlined, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Tosh yoki kafel mahsulotini tanlang',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: context.inkColor,
+                          ),
+                        ),
+                        Text(
+                          'Kesish yoki silliqlash uchun o‘lchamlari avtomatik to‘ldiriladi',
+                          style: TextStyle(fontSize: 11.5, color: context.mutedColor),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, thickness: 1),
+
+            // Search bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: TextField(
+                controller: _searchCtrl,
+                autofocus: true,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: 'Qidirish... (nomi, kodi, razmeri)',
+                  hintStyle: TextStyle(fontSize: 13, color: context.mutedColor),
+                  prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                  suffixIcon: _searchCtrl.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded, size: 18),
+                          onPressed: () {
+                            _searchCtrl.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF1B2228) : const Color(0xFFF1F5F9),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: context.borderColor),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: context.borderColor),
+                  ),
+                ),
+              ),
+            ),
+
+            // Category filter chips
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Row(
+                children: [
+                  for (final cat in categories)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: ChoiceChip(
+                        label: Text(cat, style: const TextStyle(fontSize: 11.5)),
+                        selected: _categoryFilter == cat,
+                        onSelected: (sel) {
+                          if (sel) setState(() => _categoryFilter = cat);
+                        },
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+
+            // Products list
+            Expanded(
+              child: filtered.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.inbox_outlined, size: 36, color: context.mutedColor),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Mahsulot topilmadi',
+                            style: TextStyle(fontSize: 13, color: context.mutedColor),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 6),
+                      itemBuilder: (ctx, idx) {
+                        final p = filtered[idx];
+                        final isSel = widget.currentProduct?.id == p.id;
+                        final dimStr = (p.tileLength != null && p.tileWidth != null && p.tileLength! > 0 && p.tileWidth! > 0)
+                            ? '${p.tileLength!.toInt()} × ${p.tileWidth!.toInt()} sm'
+                            : '';
+
+                        return InkWell(
+                          onTap: () => Navigator.pop(context, p),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: isSel
+                                  ? (isDark
+                                      ? AppColors.neonLime.withValues(alpha: 0.12)
+                                      : const Color(0xFFF0FDF4))
+                                  : (isDark ? const Color(0xFF1B2228) : const Color(0xFFFAFAFA)),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSel
+                                    ? (isDark ? AppColors.neonLime : const Color(0xFF16A34A))
+                                    : context.borderColor,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF26303A) : const Color(0xFFE2E8F0),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    Icons.layers_rounded,
+                                    size: 18,
+                                    color: isDark ? AppColors.neonLime : AppColors.ink,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        p.name,
+                                        style: TextStyle(
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: context.inkColor,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                            decoration: BoxDecoration(
+                                              color: isDark ? const Color(0xFF2E3842) : const Color(0xFFE2E8F0),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              p.category ?? 'Tosh',
+                                              style: TextStyle(fontSize: 10, color: context.inkColor),
+                                            ),
+                                          ),
+                                          if (dimStr.isNotEmpty) ...[
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              '📐 $dimStr',
+                                              style: TextStyle(fontSize: 11, color: context.mutedColor, fontWeight: FontWeight.w600),
+                                            ),
+                                          ],
+                                          const Spacer(),
+                                          Text(
+                                            'Qoldiq: ${qty(p.stock)} ${p.unit}',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: p.stock > 0
+                                                  ? (isDark ? AppColors.neonLime : const Color(0xFF16A34A))
+                                                  : Colors.redAccent,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Icon(
+                                  isSel ? Icons.check_circle_rounded : Icons.chevron_right_rounded,
+                                  size: 20,
+                                  color: isSel
+                                      ? (isDark ? AppColors.neonLime : const Color(0xFF16A34A))
+                                      : context.mutedColor,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+
+            const Divider(height: 1, thickness: 1),
+            // Bottom bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  Text(
+                    'Jami: ${filtered.length} ta tosh / kafel',
+                    style: TextStyle(fontSize: 12, color: context.mutedColor),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Bekor qilish'),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

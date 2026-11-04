@@ -51,3 +51,4 @@ def notify_new_delivery(delivery_id: int, driver_name: str, vehicle: str, recipi
         f"<i>StoneX ERP Logistika tizimi</i>"
     )
     send_telegram_notification(msg)
+

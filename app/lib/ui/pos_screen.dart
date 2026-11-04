@@ -1007,6 +1007,15 @@ class _CartPanel extends StatelessWidget {
                   icon: const Icon(Icons.straighten_rounded, size: 16),
                   label: const Text('📐 Razmer kalkulyatorini ochish'),
                 ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx, false);
+                    _openStoneService(context, l.product);
+                  },
+                  icon: const Icon(Icons.design_services_rounded, size: 16),
+                  label: const Text('✂️ Toshga ishlov berish xizmatlari'),
+                ),
               ],
             ]),
           ),
@@ -1257,6 +1266,13 @@ class _CartPanel extends StatelessWidget {
     }
   }
 
+  Future<void> _openStoneService(BuildContext context, Product p) async {
+    final user = context.read<AuthController>().user;
+    if (user != null) {
+      await StoneServicesDialog.show(context, user: user, product: p);
+    }
+  }
+
   Future<void> _checkout(BuildContext context) async {
     final cart = context.read<CartController>();
     final result = await showDialog<_CheckoutInput>(context: context, builder: (_) => _CheckoutDialog(total: cart.total));
@@ -1455,6 +1471,7 @@ class _CartPanel extends StatelessWidget {
                       line: l,
                       onEdit: () => _editQty(context, l),
                       onCutCalculator: () => _openCutCalculator(context, l),
+                      onStoneService: () => _openStoneService(context, l.product),
                     ),
                 ]),
         ),
@@ -1522,10 +1539,17 @@ class _CartPanel extends StatelessWidget {
 }
 
 class _CartLineTile extends StatelessWidget {
-  const _CartLineTile({super.key, required this.line, required this.onEdit, this.onCutCalculator});
+  const _CartLineTile({
+    super.key,
+    required this.line,
+    required this.onEdit,
+    this.onCutCalculator,
+    this.onStoneService,
+  });
   final CartLine line;
   final VoidCallback onEdit;
   final VoidCallback? onCutCalculator;
+  final VoidCallback? onStoneService;
 
   @override
   Widget build(BuildContext context) {
@@ -1738,6 +1762,41 @@ class _CartLineTile extends StatelessWidget {
                       tooltip: 'Razmerni tozalash',
                       onPressed: () => cart.update(l, cutSpec: '', cutLength: null, cutWidth: null, cutThickness: null, cutPieces: null),
                     ),
+                ],
+
+                // 3. Toshga ishlov berish xizmatlari (kesish, faska, silliqlash)
+                if (onStoneService != null && p.category != 'Xizmat') ...[
+                  InkWell(
+                    onTap: onStoneService,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: context.borderColor.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: context.borderColor),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.design_services_rounded,
+                            size: 13,
+                            color: context.subtextColor,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '✂️ Toshga ishlov',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: context.subtextColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ],
             ),
