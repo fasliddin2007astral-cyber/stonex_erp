@@ -46,6 +46,10 @@ def to_out(p: m.Product, stock) -> ProductOut:
         price_sort1_5=getattr(p, 'price_sort1_5', None),
         price_sort2=getattr(p, 'price_sort2', None),
         image_url=p.image_url,
+        reserved_qty=getattr(p, 'reserved_qty', Decimal(0)) or Decimal(0),
+        raw_material_id=getattr(p, 'raw_material_id', None),
+        waste_ratio=getattr(p, 'waste_ratio', None),
+        cutting_rate=getattr(p, 'cutting_rate', None),
         is_active=p.is_active,
         stock=stock,
     )
@@ -129,6 +133,9 @@ def create_product(data: ProductIn, db: Session = Depends(get_db),
         price_sort1=data.price_sort1,
         price_sort1_5=data.price_sort1_5,
         price_sort2=data.price_sort2,
+        raw_material_id=data.raw_material_id,
+        waste_ratio=data.waste_ratio,
+        cutting_rate=data.cutting_rate,
         image_url=data.image_url,
     )
     db.add(p)

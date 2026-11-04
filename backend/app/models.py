@@ -19,6 +19,8 @@ MV_OPENING = "opening"
 MV_PURCHASE = "purchase"
 MV_SALE = "sale"
 MV_PRODUCTION = "production"
+MV_RAW = "raw_consumption"
+MV_WASTE = "waste"
 MV_RETURN = "return"
 MV_ADJUST = "adjustment"
 
@@ -80,6 +82,10 @@ class Product(Base):
     price_sort1: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)  # 1-sort narxi
     price_sort1_5: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)  # 1.5-sort narxi
     price_sort2: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)  # 2-sort narxi
+    reserved_qty: Mapped[Decimal] = mapped_column(QTY, default=Decimal(0))  # buyurtmalar uchun band qilingan zaxira
+    raw_material_id: Mapped[int | None] = mapped_column(ForeignKey("products.id"), nullable=True)  # xomashyo (blok/plita)
+    waste_ratio: Mapped[Decimal | None] = mapped_column(QTY, default=Decimal("1.15"), nullable=True)  # sarf koeffitsiyenti
+    cutting_rate: Mapped[Decimal | None] = mapped_column(MONEY, default=Decimal(0), nullable=True)  # 1 m2 ishbay haq
     image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
@@ -184,12 +190,15 @@ class ProductionTask(Base):
     assigned_to: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     planned_qty: Mapped[Decimal] = mapped_column(QTY)
     produced_qty: Mapped[Decimal] = mapped_column(QTY, default=0)
-    status: Mapped[str] = mapped_column(String(16), default="open")  # open | done
+    waste_qty: Mapped[Decimal] = mapped_column(QTY, default=0)  # yaroqsiz / chiqindi tosh
+    status: Mapped[str] = mapped_column(String(24), default="open")  # open | pending_approval | done
+    approved_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     note: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     product: Mapped["Product"] = relationship()
-    worker: Mapped["User"] = relationship()
+    worker: Mapped["User"] = relationship(foreign_keys=[assigned_to])
 
 
 class Notification(Base):
@@ -224,6 +233,7 @@ class Delivery(Base):
     dispatch_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     delivered_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
     items: Mapped[list["DeliveryItem"]] = relationship(cascade="all, delete-orphan", back_populates="delivery")

@@ -36,11 +36,19 @@ def create_sale(db: Session, cashier: m.User, data: SaleIn) -> m.Sale:
         qty = to_base_qty(product, it.quantity, it.unit)
         if qty <= 0:
             raise HTTPException(400, f"{product.name}: miqdor 0 dan katta bo'lishi kerak")
-        if not is_order:
-            available = get_stock(db, product.id) - reserved.get(product.id, Decimal(0))
+        product_res = getattr(product, "reserved_qty", Decimal(0)) or Decimal(0)
+        if is_order:
+            available = get_stock(db, product.id) - product_res
             if qty > available:
                 raise HTTPException(
-                    400, f"{product.name}: omborda yetarli emas (bor: {available} {product.unit})"
+                    400, f"{product.name}: buyurtma uchun yetarli zaxira yo'q (mavjud: {available} {product.unit})"
+                )
+            product.reserved_qty = product_res + qty
+        else:
+            available = get_stock(db, product.id) - product_res - reserved.get(product.id, Decimal(0))
+            if qty > available:
+                raise HTTPException(
+                    400, f"{product.name}: omborda yetarli emas (mavjud: {available} {product.unit})"
                 )
             reserved[product.id] = reserved.get(product.id, Decimal(0)) + qty
 
@@ -183,6 +191,9 @@ def fulfill_order(db: Session, user: m.User, sale_id: int, fulfill_data: SaleFul
             raise HTTPException(400, f"{it.product_name}: omborda yetarli emas (mavjud: {available})")
 
     for it in sale.items:
+        p = db.get(m.Product, it.product_id, with_for_update=True)
+        if p and getattr(p, "reserved_qty", None):
+            p.reserved_qty = max(Decimal(0), p.reserved_qty - it.quantity)
         add_movement(db, product_id=it.product_id, qty_delta=-it.quantity, kind=m.MV_SALE,
                      ref_type="sale", ref_id=sale.id, user_id=user.id)
 
@@ -227,6 +238,10 @@ def cancel_order(db: Session, user: m.User, sale_id: int) -> m.Sale:
         raise HTTPException(400, "Faqat faol buyurtmalarni bekor qilish mumkin")
 
     sale.status = "cancelled"
+    for it in sale.items:
+        p = db.get(m.Product, it.product_id, with_for_update=True)
+        if p and getattr(p, "reserved_qty", None):
+            p.reserved_qty = max(Decimal(0), p.reserved_qty - it.quantity)
     db.commit()
     db.refresh(sale)
     return sale

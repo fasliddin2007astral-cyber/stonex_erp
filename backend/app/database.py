@@ -69,6 +69,14 @@ def ensure_migrations():
                 conn.execute(text("ALTER TABLE products ADD COLUMN box_m2 DECIMAL(14, 3) NULL"))
             if "min_stock" not in columns:
                 conn.execute(text("ALTER TABLE products ADD COLUMN min_stock DECIMAL(14, 3) NULL DEFAULT 15"))
+            if "reserved_qty" not in columns:
+                conn.execute(text("ALTER TABLE products ADD COLUMN reserved_qty DECIMAL(14, 3) DEFAULT 0"))
+            if "raw_material_id" not in columns:
+                conn.execute(text("ALTER TABLE products ADD COLUMN raw_material_id INTEGER NULL REFERENCES products(id)"))
+            if "waste_ratio" not in columns:
+                conn.execute(text("ALTER TABLE products ADD COLUMN waste_ratio DECIMAL(14, 3) DEFAULT 1.15"))
+            if "cutting_rate" not in columns:
+                conn.execute(text("ALTER TABLE products ADD COLUMN cutting_rate DECIMAL(14, 2) DEFAULT 0.00"))
     if "customers" in table_names:
         c_columns = [c["name"] for c in inspector.get_columns("customers")]
         with engine.begin() as conn:
@@ -128,9 +136,20 @@ def ensure_migrations():
         with engine.begin() as conn:
             if "driver_id" not in del_columns:
                 conn.execute(text("ALTER TABLE deliveries ADD COLUMN driver_id INTEGER NULL REFERENCES users(id)"))
+            if "is_deleted" not in del_columns:
+                conn.execute(text("ALTER TABLE deliveries ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE"))
             try:
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_deliveries_driver_status ON deliveries (driver_id, status)"))
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_deliveries_sale_status ON deliveries (sale_id, status)"))
             except Exception:
                 pass
+    if "production_tasks" in table_names:
+        pt_columns = [c["name"] for c in inspector.get_columns("production_tasks")]
+        with engine.begin() as conn:
+            if "waste_qty" not in pt_columns:
+                conn.execute(text("ALTER TABLE production_tasks ADD COLUMN waste_qty DECIMAL(14, 3) DEFAULT 0"))
+            if "approved_by" not in pt_columns:
+                conn.execute(text("ALTER TABLE production_tasks ADD COLUMN approved_by INTEGER NULL REFERENCES users(id)"))
+            if "approved_at" not in pt_columns:
+                conn.execute(text("ALTER TABLE production_tasks ADD COLUMN approved_at DATETIME NULL"))
 

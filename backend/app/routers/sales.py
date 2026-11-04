@@ -115,11 +115,11 @@ def fulfill(sale_id: int, data: SaleFulfillIn | None = None, db: Session = Depen
 
 
 @router.post("/{sale_id}/cancel", response_model=SaleOut)
-def cancel(sale_id: int, db: Session = Depends(get_db), user: m.User = Depends(_sellers)):
+def cancel(sale_id: int, db: Session = Depends(get_db), user: m.User = Depends(require_roles(roles.ADMIN))):
     return to_out(svc.cancel_order(db, user, sale_id))
 
 
 @router.post("/{sale_id}/return", response_model=SaleOut)
 def return_sale(sale_id: int, data: SaleReturnIn, db: Session = Depends(get_db),
-                user: m.User = Depends(_sellers)):
+                user: m.User = Depends(require_roles(roles.ADMIN))):
     return to_out(svc.process_return(db, user, sale_id, data.items, data.reason))

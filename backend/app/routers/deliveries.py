@@ -6,10 +6,18 @@ from sqlalchemy.orm import Session, selectinload
 from .. import models as m
 from .. import roles
 from ..database import get_db
-from ..deps import get_current_user
+from ..deps import get_current_user, require_roles
 from ..schemas import DeliveryCreate, DeliveryOut, DeliveryStatusUpdate, DeliveryUpdate
+from ..utils.phone import normalize_phone
 
 router = APIRouter(prefix="/deliveries", tags=["deliveries"])
+
+VALID_TRANSITIONS = {
+    "loading": {"on_the_way", "cancelled"},
+    "on_the_way": {"delivered", "cancelled"},
+    "delivered": set(),
+    "cancelled": set(),
+}
 
 
 @router.get("", response_model=list[DeliveryOut])
@@ -24,6 +32,7 @@ def list_deliveries(
     stmt = (
         select(m.Delivery)
         .options(selectinload(m.Delivery.items))
+        .where(m.Delivery.is_deleted.is_(False))
         .order_by(m.Delivery.id.desc())
         .limit(min(limit, 200))
     )
@@ -59,16 +68,19 @@ def list_deliveries(
 def get_delivery(
     delivery_id: int,
     db: Session = Depends(get_db),
-    _: m.User = Depends(get_current_user),
+    current_user: m.User = Depends(get_current_user),
 ):
     stmt = (
         select(m.Delivery)
         .options(selectinload(m.Delivery.items))
-        .where(m.Delivery.id == delivery_id)
+        .where(m.Delivery.id == delivery_id, m.Delivery.is_deleted.is_(False))
     )
     delivery = db.scalars(stmt).first()
     if delivery is None:
         raise HTTPException(404, "Yetkazib berish yozuvi topilmadi")
+    if current_user.role == "haydovchi":
+        if delivery.driver_id != current_user.id and not (delivery.driver_id is None and delivery.status == "loading"):
+            raise HTTPException(403, "Ushbu buyurtmani ko'rishga ruxsat yo'q")
     return delivery
 
 
@@ -95,9 +107,9 @@ def create_delivery(
         vehicle_number=data.vehicle_number.strip().upper(),
         vehicle_model=data.vehicle_model.strip(),
         driver_name=data.driver_name.strip(),
-        driver_phone=data.driver_phone.strip() if data.driver_phone else None,
+        driver_phone=normalize_phone(data.driver_phone) if data.driver_phone else None,
         recipient_name=data.recipient_name.strip(),
-        recipient_phone=data.recipient_phone.strip() if data.recipient_phone else None,
+        recipient_phone=normalize_phone(data.recipient_phone) if data.recipient_phone else None,
         destination_address=data.destination_address.strip() if data.destination_address else None,
         delivery_fee=data.delivery_fee,
         fee_payer=data.fee_payer,
@@ -198,22 +210,38 @@ def update_delivery_status(
     delivery_id: int,
     data: DeliveryStatusUpdate,
     db: Session = Depends(get_db),
-    _: m.User = Depends(get_current_user),
+    current_user: m.User = Depends(get_current_user),
 ):
     stmt = (
         select(m.Delivery)
         .options(selectinload(m.Delivery.items))
-        .where(m.Delivery.id == delivery_id)
+        .where(m.Delivery.id == delivery_id, m.Delivery.is_deleted.is_(False))
     )
     delivery = db.scalars(stmt).first()
     if delivery is None:
         raise HTTPException(404, "Yetkazib berish yozuvi topilmadi")
 
+    # IDOR xavfsizlik tekshiruvi:
+    if current_user.role == "haydovchi":
+        if delivery.driver_id != current_user.id:
+            raise HTTPException(403, "Bu buyurtma sizga tegishli emas! Boshqa haydovchining reysini o'zgartira olmaysiz.")
+
+    # Holatlar ketma-ketligi (State Machine validator)
+    if delivery.status != data.status:
+        allowed = VALID_TRANSITIONS.get(delivery.status, set())
+        if data.status not in allowed:
+            raise HTTPException(400, f"Noto'g'ri holat o'tishi: '{delivery.status}' -> '{data.status}' ruxsat etilmagan")
+
     delivery.status = data.status
     if data.status == "on_the_way" and not delivery.dispatch_time:
         delivery.dispatch_time = datetime.utcnow()
-    elif data.status == "delivered":
+    elif data.status == "delivered" and not delivery.delivered_time:
         delivery.delivered_time = datetime.utcnow()
+
+    # Audit jurnali
+    ts = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+    audit_log = f"[{ts} | {current_user.full_name} -> {data.status}]"
+    delivery.note = f"{delivery.note} {audit_log}".strip() if delivery.note else audit_log
 
     db.commit()
     db.refresh(delivery)
@@ -224,12 +252,12 @@ def update_delivery_status(
 def delete_delivery(
     delivery_id: int,
     db: Session = Depends(get_db),
-    _: m.User = Depends(get_current_user),
+    _: m.User = Depends(require_roles(roles.ADMIN)),
 ):
     delivery = db.get(m.Delivery, delivery_id)
-    if delivery is None:
+    if delivery is None or delivery.is_deleted:
         raise HTTPException(404, "Yetkazib berish yozuvi topilmadi")
-    db.delete(delivery)
+    delivery.is_deleted = True
     db.commit()
     return None
 

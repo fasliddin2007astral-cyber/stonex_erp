@@ -142,6 +142,9 @@ class ProductIn(BaseModel):
     price_sort1: Decimal | None = Field(default=None, ge=0)
     price_sort1_5: Decimal | None = Field(default=None, ge=0)
     price_sort2: Decimal | None = Field(default=None, ge=0)
+    raw_material_id: int | None = None
+    waste_ratio: Decimal | None = Field(default=Decimal("1.15"), ge=1)
+    cutting_rate: Decimal | None = Field(default=Decimal(0), ge=0)
     image_url: str | None = None
     initial_stock: Decimal = Field(default=Decimal(0), ge=0)  # faqat yaratishda
 
@@ -167,6 +170,9 @@ class ProductUpdate(BaseModel):
     price_sort1: Decimal | None = Field(default=None, ge=0)
     price_sort1_5: Decimal | None = Field(default=None, ge=0)
     price_sort2: Decimal | None = Field(default=None, ge=0)
+    raw_material_id: int | None = None
+    waste_ratio: Decimal | None = Field(default=Decimal("1.15"), ge=1)
+    cutting_rate: Decimal | None = Field(default=Decimal(0), ge=0)
     image_url: str | None = None
 
 
@@ -193,6 +199,10 @@ class ProductOut(BaseModel):
     price_sort1_5: Decimal | None = None
     price_sort2: Decimal | None = None
     image_url: str | None = None
+    reserved_qty: Decimal | None = Decimal(0)
+    raw_material_id: int | None = None
+    waste_ratio: Decimal | None = None
+    cutting_rate: Decimal | None = None
     is_active: bool
     stock: Decimal
 
@@ -338,6 +348,8 @@ class TaskCreate(BaseModel):
 
 class TaskReport(BaseModel):
     produced_qty: Decimal = Field(gt=0)  # shu hisobotda qo'shilgan miqdor
+    waste_qty: Decimal | None = Field(default=Decimal(0), ge=0)  # yaroqsiz / chiqindi
+    note: str | None = None
 
 
 class TaskOut(BaseModel):
@@ -349,7 +361,10 @@ class TaskOut(BaseModel):
     worker_name: str
     planned_qty: Decimal
     produced_qty: Decimal
+    waste_qty: Decimal | None = Decimal(0)
     status: str
+    approved_by: int | None = None
+    approved_at: datetime | None = None
     note: str | None
 
 

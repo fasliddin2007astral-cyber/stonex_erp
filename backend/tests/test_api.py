@@ -303,6 +303,102 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(f_data["receiver_doc_or_car"], "01 A 777 AA")
         self.assertIsNotNone(f_data["fulfilled_at"])
 
+    def test_order_reserved_qty_prevents_oversell(self):
+        # 1. Mahsulot yaratish: 20 m2 mavjud
+        pr = self.c.post("/products", headers=self.h, json={
+            "name": "Marmar Travertin", "unit": "m2", "price": 200000, "cost_price": 120000, "initial_stock": 20
+        })
+        self.assertEqual(pr.status_code, 201)
+        pid = pr.json()["id"]
+
+        # 2. Buyurtmachi 15 m2 buyurtma beradi (avans bilan)
+        ord_res = self.c.post("/sales", headers=self.h, json={
+            "customer_name": "Sardor aka",
+            "customer_phone": "+998901112233",
+            "items": [{"product_id": pid, "quantity": 15, "unit": "base"}],
+            "status": "order",
+            "paid_amount": 500000,
+        })
+        self.assertEqual(ord_res.status_code, 201)
+        ord_id = ord_res.json()["id"]
+
+        # 3. Boshqa kassir kelib 10 m2 darhol sotmoqchi bo'ladi
+        # 20 - 15 = 5 m2 qolgan, shuning uchun 10 m2 xato berishi shart!
+        fail_sale = self.c.post("/sales", headers=self.h, json={
+            "items": [{"product_id": pid, "quantity": 10, "unit": "base"}],
+            "paid_amount": 2000000,
+        })
+        self.assertEqual(fail_sale.status_code, 400)
+        self.assertIn("yetarli emas", fail_sale.json()["detail"].lower())
+
+        # 4. 5 m2 esa muvaffaqiyatli sotiladi
+        ok_sale = self.c.post("/sales", headers=self.h, json={
+            "items": [{"product_id": pid, "quantity": 5, "unit": "base"}],
+            "paid_amount": 1000000,
+        })
+        self.assertEqual(ok_sale.status_code, 201)
+
+        # 5. Buyurtmani bekor qilish zaxirani qaytaradi
+        cancel_res = self.c.post(f"/sales/{ord_id}/cancel", headers=self.h)
+        self.assertEqual(cancel_res.status_code, 200)
+
+        # Endi o'sha 15 m2 yana bo'shadi va sotilishi mumkin
+        ok_sale2 = self.c.post("/sales", headers=self.h, json={
+            "items": [{"product_id": pid, "quantity": 15, "unit": "base"}],
+            "paid_amount": 3000000,
+        })
+        self.assertEqual(ok_sale2.status_code, 201)
+
+    def test_production_bom_and_otk_approval(self):
+        # 1. Xomashyo bloki yaratish: 100 m2
+        raw_res = self.c.post("/products", headers=self.h, json={
+            "name": "Qora Granit Bloki (Xomashyo)", "unit": "m2", "price": 100000, "cost_price": 50000, "initial_stock": 100
+        })
+        raw_id = raw_res.json()["id"]
+
+        # 2. Tayyor tosh yaratish: BOM bog'langan (raw_material_id, waste_ratio=1.20, cutting_rate=10000)
+        prod_res = self.c.post("/products", headers=self.h, json={
+            "name": "Black Crystal 60x60 (Tayyor)", "unit": "m2", "price": 250000, "cost_price": 120000,
+            "raw_material_id": raw_id, "waste_ratio": 1.20, "cutting_rate": 10000, "initial_stock": 0
+        })
+        prod_id = prod_res.json()["id"]
+
+        # 3. Ishchini topish
+        users_res = self.c.get("/users", headers=self.h)
+        worker = next(u for u in users_res.json() if u["role"] == "ishchi")
+        wid = worker["id"]
+
+        # 4. Topshiriq yaratish
+        task_res = self.c.post("/production", headers=self.h, json={
+            "product_id": prod_id, "assigned_to": wid, "planned_qty": 50
+        })
+        self.assertEqual(task_res.status_code, 201)
+        tid = task_res.json()["id"]
+
+        # 5. Ishchi hisoboti topshiradi (20 m2 chiqqan, 2 m2 chiqindi)
+        # Ishchi tokeni bilan kirish
+        w_token_res = self.c.post("/auth/login", json={"username": "ishchi", "password": "ishchi123"})
+        w_headers = {"Authorization": f"Bearer {w_token_res.json()['access_token']}"}
+
+        rep_res = self.c.post(f"/production/{tid}/report", headers=w_headers, json={
+            "produced_qty": 20, "waste_qty": 2
+        })
+        self.assertEqual(rep_res.status_code, 200)
+        self.assertEqual(rep_res.json()["status"], "pending_approval")
+
+        # 6. Brigadir / Admin OTK tasdig'ini o'tkazadi
+        appr_res = self.c.post(f"/production/{tid}/approve", headers=self.h)
+        self.assertEqual(appr_res.status_code, 200)
+        self.assertEqual(appr_res.json()["status"], "done")
+
+        # 7. Ombor tekshiruvi:
+        # Tayyor tosh: 20 m2 kirim bo'lgan
+        p_check = self.c.get(f"/products/by-code/{prod_res.json().get('sku') or prod_id}", headers=self.h)
+        # Xomashyo: (20 + 2) * 1.2 = 26.4 m2 sarflangan (100 - 26.4 = 73.6 m2 qolgan)
+        raw_check = self.c.get("/products", headers=self.h)
+        raw_prod = next(p for p in raw_check.json() if p["id"] == raw_id)
+        self.assertEqual(float(raw_prod["stock"]), 73.6)
+
 
 if __name__ == "__main__":
     unittest.main()
