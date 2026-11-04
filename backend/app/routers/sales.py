@@ -10,7 +10,7 @@ from ..schemas import PaymentIn, SaleIn, SaleOut, SaleReturnIn, SaleFulfillIn
 from ..services import sales as svc
 
 router = APIRouter(prefix="/sales", tags=["sales"])
-_sellers = require_roles(roles.ADMIN, roles.CASHIER, roles.DRIVER)
+_sellers = require_roles(roles.ADMIN, roles.CASHIER, roles.DRIVER, roles.FOREMAN)
 
 
 def to_out(s: m.Sale) -> SaleOut:
@@ -63,7 +63,7 @@ def list_sales(limit: int = 200, status: str | None = None, db: Session = Depend
     )
     if status is not None:
         stmt = stmt.where(m.Sale.status == status)
-    if user.role != roles.ADMIN:  # kassir faqat o'z savdolarini ko'radi
+    if user.role == roles.CASHIER:  # faqat kassir o'z savdolarini ko'radi (boshqaruvchi, haydovchi va admin buyurtmalarni ko'radi)
         stmt = stmt.where(m.Sale.cashier_id == user.id)
     return [to_out(s) for s in db.scalars(stmt).all()]
 

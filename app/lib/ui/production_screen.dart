@@ -17,7 +17,10 @@ class ProductionScreen extends StatefulWidget {
 
 class _ProductionScreenState extends State<ProductionScreen> {
   late Future<List<ProductionTask>> _future;
+  late Future<List<SaleResult>> _ordersFuture;
+  late Future<List<dynamic>> _combinedFuture;
   String _selectedFilter = 'Barchasi';
+  String _activeTab = 'tasks'; // 'tasks' (Sex topshiriqlari) yoki 'orders' (Buyurtmalardan kesish)
   final _searchCtrl = TextEditingController();
 
   ProductionRepository get _repo => context.read<AppRepositories>().production;
@@ -26,6 +29,8 @@ class _ProductionScreenState extends State<ProductionScreen> {
   void initState() {
     super.initState();
     _future = _repo.list();
+    _ordersFuture = context.read<AppRepositories>().sales.listSales(limit: 60).catchError((_) => <SaleResult>[]);
+    _combinedFuture = Future.wait([_future, _ordersFuture]);
   }
 
   @override
@@ -36,10 +41,22 @@ class _ProductionScreenState extends State<ProductionScreen> {
 
   void _reload() {
     if (!mounted) return;
-    final nextFuture = _repo.list();
     setState(() {
-      _future = nextFuture;
+      _future = _repo.list();
+      _ordersFuture = context.read<AppRepositories>().sales.listSales(limit: 60).catchError((_) => <SaleResult>[]);
+      _combinedFuture = Future.wait([_future, _ordersFuture]);
     });
+  }
+
+  bool _isCuttingItem(SaleItemRecord item) {
+    final name = item.productName.toLowerCase();
+    return item.isCut ||
+        name.contains('kesish') ||
+        name.contains('silliqlash') ||
+        name.contains('faska') ||
+        name.contains('chizish') ||
+        name.contains('ishlov') ||
+        item.productName.contains('[');
   }
 
   Future<void> _report(ProductionTask t) async {
@@ -66,17 +83,29 @@ class _ProductionScreenState extends State<ProductionScreen> {
     }
   }
 
-  Future<void> _create() async {
+  Future<void> _create({
+    int? prefillProductId,
+    double? prefillQty,
+    String? prefillNote,
+    int? prefillWorkerId,
+    List<SaleResult>? availableOrders,
+  }) async {
     final repos = context.read<AppRepositories>();
+    final orders = availableOrders ?? (await _ordersFuture.catchError((_) => <SaleResult>[]));
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => TaskCreateDialog(
         productionRepo: repos.production,
         productRepo: repos.products,
+        initialProductId: prefillProductId,
+        initialPlanned: prefillQty,
+        initialNote: prefillNote,
+        initialWorkerId: prefillWorkerId,
+        availableOrders: orders.where((o) => o.status == 'order').toList(),
       ),
     );
     if (ok == true && mounted) {
-      showMessage(context, 'Topshiriq muvaffaqiyatli biriktirildi');
+      showMessage(context, 'Topshiriq ishchiga muvaffaqiyatli biriktirildi');
       _reload();
     }
   }
@@ -91,13 +120,13 @@ class _ProductionScreenState extends State<ProductionScreen> {
       backgroundColor: context.scaffoldBg,
       floatingActionButton: isManager
           ? FloatingActionButton.extended(
-              onPressed: _create,
+              onPressed: () => _create(),
               icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.neonLime),
               label: const Text('Yangi topshiriq'),
             )
           : null,
-      body: FutureBuilder<List<ProductionTask>>(
-        future: _future,
+      body: FutureBuilder<List<dynamic>>(
+        future: _combinedFuture,
         builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
@@ -106,7 +135,14 @@ class _ProductionScreenState extends State<ProductionScreen> {
             return ErrorView(message: snap.error.toString(), onRetry: _reload);
           }
 
-          final allTasks = snap.data ?? [];
+          final allTasks = (snap.data?[0] as List<ProductionTask>?) ?? [];
+          final allOrders = (snap.data?[1] as List<SaleResult>?) ?? [];
+
+          // Kesish va toshga ishlov berish talab qilingan faol buyurtmalar
+          final cuttingOrders = allOrders.where((o) =>
+              o.status == 'order' && o.items.any((it) => _isCuttingItem(it))
+          ).toList();
+
           var displayTasks = List<ProductionTask>.from(allTasks);
 
           if (_selectedFilter == 'Kutilmoqda (OTK)') {
@@ -120,341 +156,547 @@ class _ProductionScreenState extends State<ProductionScreen> {
           final q = _searchCtrl.text.trim().toLowerCase();
           if (q.isNotEmpty) {
             displayTasks = displayTasks.where((t) {
-              final pName = t.productName.toLowerCase();
-              final wName = t.workerName.toLowerCase();
-              return pName.contains(q) || wName.contains(q) || t.id.toString() == q;
+              return t.productName.toLowerCase().contains(q) ||
+                  t.workerName.toLowerCase().contains(q) ||
+                  t.id.toString().contains(q) ||
+                  (t.note ?? '').toLowerCase().contains(q);
             }).toList();
           }
 
           final total = allTasks.length;
-          final inProgress = allTasks.where((t) => t.status != 'done').length;
+          final inProgress = allTasks.where((t) => t.status != 'done' && !t.isPendingApproval).length;
+          final pendingOtk = allTasks.where((t) => t.isPendingApproval).length;
           final done = allTasks.where((t) => t.status == 'done').length;
-          final totalPlanned = allTasks.fold<double>(0, (a, b) => a + b.planned);
-          final totalProduced = allTasks.fold<double>(0, (a, b) => a + b.produced);
-          final completionRate = totalPlanned > 0 ? (totalProduced / totalPlanned * 100).clamp(0, 100) : 0.0;
+          final completionRate = total > 0 ? (done / total * 100) : 0.0;
 
           return RefreshIndicator(
-            onRefresh: () async {
-              _reload();
-              await _future;
-            },
+            onRefresh: () async => _reload(),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final isDesktop = constraints.maxWidth >= 720;
+                final isDesktop = constraints.maxWidth >= 900;
 
                 return ListView(
-                  padding: EdgeInsets.fromLTRB(isDesktop ? 28.0 : 12.0, 8, isDesktop ? 28.0 : 12.0, 80),
+                  padding: EdgeInsets.fromLTRB(isDesktop ? 28.0 : 12.0, 12, isDesktop ? 28.0 : 12.0, 80),
                   children: [
-                    // Yuqori statistika paneli
-                    if (isDesktop)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildStat(
-                              context,
-                              'Jami Topshiriqlar',
-                              '$total ta',
-                              Icons.precision_manufacturing_rounded,
-                              AppColors.neonLime,
-                              true,
+                    // Ish boshqaruvchi va Admin uchun Bo'lim Tanlagich (Topshiriqlar vs Buyurtmalardan kesish)
+                    if (isManager) ...[
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: context.cardColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: context.borderColor),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _buildTabPill(
+                                label: 'Sex topshiriqlari ($total)',
+                                icon: Icons.precision_manufacturing_rounded,
+                                active: _activeTab == 'tasks',
+                                onTap: () => setState(() => _activeTab = 'tasks'),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: _buildStat(
-                              context,
-                              'Jarayondagi Ishlar',
-                              '$inProgress ta',
-                              Icons.pending_actions_rounded,
-                              const Color(0xFFC77700),
-                              false,
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: _buildTabPill(
+                                label: 'Buyurtmalardan kesish (${cuttingOrders.length})',
+                                icon: Icons.content_cut_rounded,
+                                active: _activeTab == 'orders',
+                                onTap: () => setState(() => _activeTab = 'orders'),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: _buildStat(
-                              context,
-                              'Bajarilgan Ishlar',
-                              '$done ta',
-                              Icons.check_circle_rounded,
-                              AppColors.green,
-                              false,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: _buildStat(
-                              context,
-                              'Umumiy Ish Quvvati',
-                              '${completionRate.toStringAsFixed(1)}%',
-                              Icons.speed_rounded,
-                              const Color(0xFF3B82F6),
-                              false,
-                            ),
-                          ),
-                        ],
-                      )
-                    else ...[
-                      _buildStat(context, 'Jami Topshiriqlar', '$total ta', Icons.precision_manufacturing_rounded, AppColors.neonLime, true),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(child: _buildStat(context, 'Jarayonda', '$inProgress ta', Icons.pending_actions_rounded, const Color(0xFFC77700), false)),
-                          const SizedBox(width: 10),
-                          Expanded(child: _buildStat(context, 'Yakunlandi', '$done ta', Icons.check_circle_rounded, AppColors.green, false)),
-                        ],
+                          ],
+                        ),
                       ),
+                      const SizedBox(height: 16),
                     ],
 
-                    const SizedBox(height: 18),
-
-                    // Qidiruv paneli
-                    SizedBox(
-                      height: 44,
-                      child: TextField(
-                        controller: _searchCtrl,
-                        style: TextStyle(fontSize: 13, color: context.inkColor, fontWeight: FontWeight.w500),
-                        textAlignVertical: TextAlignVertical.center,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: context.cardColor,
-                          isDense: true,
-                          hintText: 'Mahsulot nomi, ishchi ismi yoki ID bo‘yicha qidirish...',
-                          hintStyle: const TextStyle(fontSize: 13, color: AppColors.muted, fontWeight: FontWeight.normal),
-                          prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.muted),
-                          suffixIcon: _searchCtrl.text.isEmpty
-                              ? null
-                              : IconButton(
-                                  icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.muted),
-                                  onPressed: () {
-                                    _searchCtrl.clear();
-                                    setState(() {});
-                                  },
-                                  splashRadius: 18,
-                                  padding: EdgeInsets.zero,
+                    if (_activeTab == 'orders' && isManager) ...[
+                      // Buyurtmalardan kesish topshiriqlari ko'rinishi
+                      if (cuttingOrders.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(48),
+                          decoration: BoxDecoration(
+                            color: context.cardColor,
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(color: context.borderColor),
+                          ),
+                          child: const Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle_outline_rounded, size: 48, color: AppColors.green),
+                                SizedBox(height: 12),
+                                Text(
+                                  'Kesish yoki ishlov berish talab qilingan faol buyurtmalar yo‘q',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                                 ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30),
-                            borderSide: BorderSide(color: context.borderColor),
+                                SizedBox(height: 6),
+                                Text(
+                                  'Kassadan yangi tosh kesish xizmati bilan buyurtma olinganda bu yerda avtomatik ko‘rinadi',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: AppColors.muted, fontSize: 13),
+                                ),
+                              ],
+                            ),
                           ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30),
-                            borderSide: BorderSide(color: context.borderColor),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30),
-                            borderSide: BorderSide(color: context.isDark ? AppColors.neonLime : AppColors.ink, width: 1.5),
-                          ),
+                        )
+                      else ...[
+                        Row(
+                          children: [
+                            const Icon(Icons.content_cut_rounded, size: 18, color: Color(0xFFF59E0B)),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Kesish / Ishlov berish kutilayotgan buyurtmalar (${cuttingOrders.length} ta):',
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                            ),
+                          ],
                         ),
-                        onChanged: (_) => setState(() {}),
-                      ),
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    // Filtrlar va Boshqaruv
-                    Row(
-                      children: [
-                        Expanded(
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
+                        const SizedBox(height: 12),
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: cuttingOrders.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          itemBuilder: (_, i) => _buildOrderCuttingCard(context, cuttingOrders[i], cuttingOrders),
+                        ),
+                      ],
+                    ] else ...[
+                      // Sex topshiriqlari ko'rinishi
+                      if (isManager && cuttingOrders.isNotEmpty) ...[
+                        InkWell(
+                          onTap: () => setState(() => _activeTab = 'orders'),
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                            ),
                             child: Row(
                               children: [
-                                for (final f in filters) ...[
-                                  GestureDetector(
-                                    onTap: () => setState(() {
-                                      _selectedFilter = f;
-                                    }),
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 200),
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: _selectedFilter == f
-                                            ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
-                                            : context.cardColor,
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: _selectedFilter == f
-                                              ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
-                                              : context.borderColor,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        f,
-                                        style: TextStyle(
-                                          color: _selectedFilter == f
-                                              ? (context.isDark ? AppColors.ink : Colors.white)
-                                              : context.inkColor,
-                                          fontSize: 12,
-                                          fontWeight: _selectedFilter == f ? FontWeight.w700 : FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
+                                const Icon(Icons.content_cut_rounded, color: Color(0xFFF59E0B), size: 20),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    '${cuttingOrders.length} ta buyurtmada tosh kesish kutilmoqda. Ishchilarga biriktirish uchun bosing →',
+                                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFFF59E0B)),
                                   ),
-                                  const SizedBox(width: 8),
-                                ],
+                                ),
+                                const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFFF59E0B)),
                               ],
                             ),
                           ),
                         ),
-                        if (isManager && isDesktop) ...[
-                          const SizedBox(width: 12),
-                          FilledButton.icon(
-                            onPressed: _create,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
-                              foregroundColor: context.isDark ? AppColors.ink : Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                            ),
-                            icon: Icon(Icons.add, size: 18, color: context.isDark ? AppColors.ink : AppColors.neonLime),
-                            label: const Text('Topshiriq', style: TextStyle(fontWeight: FontWeight.w700)),
-                          ),
-                        ],
+                        const SizedBox(height: 16),
                       ],
-                    ),
 
-                    const SizedBox(height: 18),
-
-                    // Topshiriqlar ro'yxati
-                    if (displayTasks.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(48),
-                        decoration: BoxDecoration(
-                          color: context.cardColor,
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(color: context.borderColor),
+                      // Yuqori statistika paneli
+                      if (isDesktop)
+                        Row(
+                          children: [
+                            Expanded(child: _buildStat(context, 'Jami Topshiriqlar', '$total ta', Icons.precision_manufacturing_rounded, AppColors.neonLime, true)),
+                            const SizedBox(width: 14),
+                            Expanded(child: _buildStat(context, 'Kutilmoqda (OTK)', '$pendingOtk ta', Icons.verified_rounded, const Color(0xFFF59E0B), false)),
+                            const SizedBox(width: 14),
+                            Expanded(child: _buildStat(context, 'Jarayondagi Ishlar', '$inProgress ta', Icons.pending_actions_rounded, const Color(0xFF3B82F6), false)),
+                            const SizedBox(width: 14),
+                            Expanded(child: _buildStat(context, 'Bajarilgan Ishlar', '$done ta', Icons.check_circle_rounded, AppColors.green, false)),
+                          ],
+                        )
+                      else ...[
+                        _buildStat(context, 'Jami Topshiriqlar', '$total ta', Icons.precision_manufacturing_rounded, AppColors.neonLime, true),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(child: _buildStat(context, 'OTK kutilmoqda', '$pendingOtk ta', Icons.verified_rounded, const Color(0xFFF59E0B), false)),
+                            const SizedBox(width: 10),
+                            Expanded(child: _buildStat(context, 'Jarayonda', '$inProgress ta', Icons.pending_actions_rounded, const Color(0xFF3B82F6), false)),
+                          ],
                         ),
-                        child: const Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.assignment_turned_in_outlined, size: 48, color: AppColors.muted),
-                              SizedBox(height: 12),
-                              Text('Topshiriqlar mavjud emas', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                            ],
-                          ),
-                        ),
-                      )
-                    else
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: displayTasks.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (_, i) {
-                          final t = displayTasks[i];
-                          final isDone = t.status == 'done';
-                          final progress = (t.planned > 0 ? (t.produced / t.planned) : 0.0).clamp(0.0, 1.0);
-                          final percent = (progress * 100).toStringAsFixed(0);
+                      ],
 
-                          return Container(
-                            padding: const EdgeInsets.all(18),
-                            decoration: BoxDecoration(
-                              color: context.cardColor,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: context.borderColor),
+                      const SizedBox(height: 18),
+
+                      // Qidiruv paneli
+                      SizedBox(
+                        height: 44,
+                        child: TextField(
+                          controller: _searchCtrl,
+                          style: TextStyle(fontSize: 13, color: context.inkColor, fontWeight: FontWeight.w500),
+                          textAlignVertical: TextAlignVertical.center,
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: context.cardColor,
+                            isDense: true,
+                            hintText: 'Mahsulot nomi, izoh yoki ishchi ismi bo‘yicha qidirish...',
+                            hintStyle: const TextStyle(fontSize: 13, color: AppColors.muted, fontWeight: FontWeight.normal),
+                            prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.muted),
+                            suffixIcon: _searchCtrl.text.isEmpty
+                                ? null
+                                : IconButton(
+                                    icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.muted),
+                                    onPressed: () {
+                                      _searchCtrl.clear();
+                                      setState(() {});
+                                    },
+                                    splashRadius: 18,
+                                    padding: EdgeInsets.zero,
+                                  ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(30),
+                              borderSide: BorderSide(color: context.borderColor),
                             ),
-                            child: isDesktop
-                                ? Row(
-                                    children: [
-                                      // Icon badge
-                                      Container(
-                                        width: 44,
-                                        height: 44,
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(30),
+                              borderSide: BorderSide(color: context.borderColor),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(30),
+                              borderSide: BorderSide(color: context.isDark ? AppColors.neonLime : AppColors.ink, width: 1.5),
+                            ),
+                          ),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // Filtrlar va Boshqaruv
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  for (final f in filters) ...[
+                                    GestureDetector(
+                                      onTap: () => setState(() => _selectedFilter = f),
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 200),
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                         decoration: BoxDecoration(
-                                          color: isDone
-                                              ? (context.isDark ? const Color(0xFF132D21) : AppColors.greenSoft)
-                                              : (context.isDark ? const Color(0xFF262C18) : AppColors.neonLimeSoft),
-                                          borderRadius: BorderRadius.circular(14),
+                                          color: _selectedFilter == f
+                                              ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+                                              : context.cardColor,
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(
+                                            color: _selectedFilter == f
+                                                ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+                                                : context.borderColor,
+                                          ),
                                         ),
-                                        child: Icon(
-                                          isDone ? Icons.check_circle_rounded : Icons.precision_manufacturing_rounded,
-                                          color: isDone ? AppColors.green : (context.isDark ? AppColors.neonLime : AppColors.ink),
-                                          size: 22,
+                                        child: Text(
+                                          f,
+                                          style: TextStyle(
+                                            color: _selectedFilter == f
+                                                ? (context.isDark ? AppColors.ink : Colors.white)
+                                                : context.inkColor,
+                                            fontSize: 12,
+                                            fontWeight: _selectedFilter == f ? FontWeight.w700 : FontWeight.w500,
+                                          ),
                                         ),
                                       ),
-                                      const SizedBox(width: 14),
+                                    ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (isManager && isDesktop) ...[
+                            const SizedBox(width: 12),
+                            FilledButton.icon(
+                              onPressed: () => _create(),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                                foregroundColor: context.isDark ? AppColors.ink : Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                              ),
+                              icon: Icon(Icons.add, size: 18, color: context.isDark ? AppColors.ink : AppColors.neonLime),
+                              label: const Text('Topshiriq', style: TextStyle(fontWeight: FontWeight.w700)),
+                            ),
+                          ],
+                        ],
+                      ),
 
-                                      // Mahsulot va Ishchi
+                      const SizedBox(height: 18),
+
+                      // Topshiriqlar ro'yxati
+                      if (displayTasks.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(48),
+                          decoration: BoxDecoration(
+                            color: context.cardColor,
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(color: context.borderColor),
+                          ),
+                          child: const Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.assignment_turned_in_outlined, size: 48, color: AppColors.muted),
+                                SizedBox(height: 12),
+                                Text('Topshiriqlar mavjud emas', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: displayTasks.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          itemBuilder: (_, i) {
+                            final t = displayTasks[i];
+                            final isDone = t.status == 'done';
+                            final progress = (t.planned > 0 ? (t.produced / t.planned) : 0.0).clamp(0.0, 1.0);
+                            final percent = (progress * 100).toStringAsFixed(0);
+
+                            if (isDesktop) {
+                              return Container(
+                                padding: const EdgeInsets.all(18),
+                                decoration: BoxDecoration(
+                                  color: context.cardColor,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: context.borderColor),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 44,
+                                      height: 44,
+                                      decoration: BoxDecoration(
+                                        color: isDone
+                                            ? AppColors.green.withValues(alpha: 0.12)
+                                            : (t.isPendingApproval
+                                                ? const Color(0xFFF59E0B).withValues(alpha: 0.12)
+                                                : AppColors.neonLime.withValues(alpha: 0.14)),
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: Icon(
+                                        isDone
+                                            ? Icons.check_circle_rounded
+                                            : (t.isPendingApproval ? Icons.verified_rounded : Icons.precision_manufacturing_rounded),
+                                        color: isDone
+                                            ? AppColors.green
+                                            : (t.isPendingApproval ? const Color(0xFFF59E0B) : (context.isDark ? AppColors.neonLime : AppColors.ink)),
+                                        size: 22,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+
+                                    // Mahsulot va Ishchi
+                                    Expanded(
+                                      flex: 3,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            t.productName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.person_outline_rounded, size: 14, color: AppColors.muted),
+                                              const SizedBox(width: 4),
+                                              Expanded(
+                                                child: Text(
+                                                  t.workerName,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          if (t.note != null && t.note!.isNotEmpty) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              t.note!,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: context.isDark ? AppColors.neonLime : const Color(0xFF0F766E),
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+
+                                    // Progress bari va miqdor
+                                    Expanded(
+                                      flex: 3,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  '${qty(t.produced)} / ${qty(t.planned)} ${t.unit}',
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '$percent%',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 12,
+                                                  color: isDone ? AppColors.green : context.inkColor,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: LinearProgressIndicator(
+                                              value: progress,
+                                              minHeight: 7,
+                                              backgroundColor: context.pillColor,
+                                              color: isDone ? AppColors.green : AppColors.neonLime,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    const SizedBox(width: 16),
+
+                                    // Status va Hisobot / OTK tugmasi
+                                    if (isDone)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: context.isDark ? const Color(0xFF132D21) : AppColors.greenSoft,
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Text('Yakunlandi',
+                                            style: TextStyle(
+                                              color: context.isDark ? AppColors.greenBright : const Color(0xFF065F46),
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 12,
+                                            )),
+                                      )
+                                    else if (t.isPendingApproval && isManager) ...[
+                                      FilledButton.icon(
+                                        onPressed: () => _approve(t),
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: AppColors.green,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                        ),
+                                        icon: const Icon(Icons.verified_rounded, size: 16),
+                                        label: const Text('OTK Tasdiqlash', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                                      ),
+                                    ] else if (t.isPendingApproval) ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFD97706).withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.4)),
+                                        ),
+                                        child: const Text('OTK tekshiruvida',
+                                            style: TextStyle(color: Color(0xFFD97706), fontWeight: FontWeight.w700, fontSize: 12)),
+                                      ),
+                                    ] else
+                                      FilledButton(
+                                        onPressed: () => _report(t),
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                                          foregroundColor: context.isDark ? AppColors.ink : Colors.white,
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                        ),
+                                        child: const Text('Hisobot', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            // Mobile ko'rinishi
+                            return Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: context.cardColor,
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(color: context.borderColor),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          color: isDone
+                                              ? AppColors.green.withValues(alpha: 0.12)
+                                              : (t.isPendingApproval
+                                                  ? const Color(0xFFF59E0B).withValues(alpha: 0.12)
+                                                  : AppColors.neonLime.withValues(alpha: 0.14)),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Icon(
+                                          isDone
+                                              ? Icons.check_circle_rounded
+                                              : (t.isPendingApproval ? Icons.verified_rounded : Icons.precision_manufacturing_rounded),
+                                          color: isDone
+                                              ? AppColors.green
+                                              : (t.isPendingApproval ? const Color(0xFFF59E0B) : (context.isDark ? AppColors.neonLime : AppColors.ink)),
+                                          size: 20,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
                                       Expanded(
-                                        flex: 3,
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               t.productName,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
                                               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
                                             ),
-                                            const SizedBox(height: 4),
-                                            Row(
-                                              children: [
-                                                const Icon(Icons.person_outline_rounded, size: 14, color: AppColors.muted),
-                                                const SizedBox(width: 4),
-                                                Expanded(
-                                                  child: Text(
-                                                    t.workerName,
-                                                    maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis,
-                                                    style: const TextStyle(color: AppColors.muted, fontSize: 12),
-                                                  ),
-                                                ),
-                                              ],
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              t.workerName,
+                                              style: const TextStyle(color: AppColors.muted, fontSize: 12),
                                             ),
-                                          ],
-                                        ),
-                                      ),
-
-                                      // Progress bari va miqdor
-                                      Expanded(
-                                        flex: 3,
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Flexible(
-                                                  child: Text(
-                                                    '${qty(t.produced)} / ${qty(t.planned)} ${t.unit}',
-                                                    maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis,
-                                                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                                                  ),
+                                            if (t.note != null && t.note!.isNotEmpty) ...[
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                t.note!,
+                                                style: TextStyle(
+                                                  color: context.isDark ? AppColors.neonLime : const Color(0xFF0F766E),
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
                                                 ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  '$percent%',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.w800,
-                                                    fontSize: 12,
-                                                    color: isDone ? AppColors.green : context.inkColor,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 6),
-                                            ClipRRect(
-                                              borderRadius: BorderRadius.circular(6),
-                                              child: LinearProgressIndicator(
-                                                value: progress,
-                                                minHeight: 7,
-                                                backgroundColor: context.pillColor,
-                                                color: isDone ? AppColors.green : AppColors.neonLime,
                                               ),
-                                            ),
+                                            ],
                                           ],
                                         ),
                                       ),
-
-                                      const SizedBox(width: 16),
-
-                                      // Status va Hisobot / OTK tugmasi
                                       if (isDone)
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                           decoration: BoxDecoration(
                                             color: context.isDark ? const Color(0xFF132D21) : AppColors.greenSoft,
                                             borderRadius: BorderRadius.circular(20),
@@ -465,175 +707,269 @@ class _ProductionScreenState extends State<ProductionScreen> {
                                                 fontWeight: FontWeight.w700,
                                                 fontSize: 11,
                                               )),
-                                        )
-                                      else if (t.isPendingApproval && isManager)
-                                        FilledButton.icon(
-                                          onPressed: () => _approve(t),
-                                          style: FilledButton.styleFrom(
-                                            backgroundColor: const Color(0xFF059669),
-                                            foregroundColor: Colors.white,
-                                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                          ),
-                                          icon: const Icon(Icons.verified_rounded, size: 16, color: Colors.white),
-                                          label: const Text('OTK Tasdiqlash', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                                        )
-                                      else if (t.isPendingApproval)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFD97706).withOpacity(0.15),
-                                            borderRadius: BorderRadius.circular(20),
-                                            border: Border.all(color: const Color(0xFFD97706).withOpacity(0.4)),
-                                          ),
-                                          child: const Text('🟡 Tekshiruvda',
-                                              style: TextStyle(
-                                                color: Color(0xFFD97706),
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 11,
-                                              )),
-                                        )
-                                      else
-                                        FilledButton.icon(
-                                          onPressed: () => _report(t),
-                                          style: FilledButton.styleFrom(
-                                            backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
-                                            foregroundColor: context.isDark ? AppColors.ink : Colors.white,
-                                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                          ),
-                                          icon: Icon(Icons.add_task_rounded, size: 16, color: context.isDark ? AppColors.ink : AppColors.neonLime),
-                                          label: const Text('Hisobot', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
                                         ),
-                                    ],
-                                  )
-                                : Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Container(
-                                            width: 40,
-                                            height: 40,
-                                            decoration: BoxDecoration(
-                                              color: isDone
-                                                  ? (context.isDark ? const Color(0xFF132D21) : AppColors.greenSoft)
-                                                  : (context.isDark ? const Color(0xFF262C18) : AppColors.neonLimeSoft),
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                            child: Icon(
-                                              isDone ? Icons.check_circle_rounded : Icons.precision_manufacturing_rounded,
-                                              color: isDone ? AppColors.green : (context.isDark ? AppColors.neonLime : AppColors.ink),
-                                              size: 20,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  t.productName,
-                                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                                                ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  'Ishchi: ${t.workerName}',
-                                                  style: const TextStyle(color: AppColors.muted, fontSize: 12),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          if (isDone)
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                              decoration: BoxDecoration(
-                                                color: context.isDark ? const Color(0xFF132D21) : AppColors.greenSoft,
-                                                borderRadius: BorderRadius.circular(20),
-                                              ),
-                                              child: Text('Yakunlandi',
-                                                  style: TextStyle(
-                                                    color: context.isDark ? AppColors.greenBright : const Color(0xFF065F46),
-                                                    fontWeight: FontWeight.w700,
-                                                    fontSize: 11,
-                                                  )),
-                                            )
-                                          else if (t.isPendingApproval && isManager)
-                                            FilledButton.icon(
-                                              onPressed: () => _approve(t),
-                                              style: FilledButton.styleFrom(
-                                                backgroundColor: const Color(0xFF059669),
-                                                foregroundColor: Colors.white,
-                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                              ),
-                                              icon: const Icon(Icons.verified_rounded, size: 14, color: Colors.white),
-                                              label: const Text('OTK Tasdiqlash', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11)),
-                                            )
-                                          else if (t.isPendingApproval)
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFD97706).withOpacity(0.15),
-                                                borderRadius: BorderRadius.circular(16),
-                                                border: Border.all(color: const Color(0xFFD97706).withOpacity(0.4)),
-                                              ),
-                                              child: const Text('🟡 Tekshiruvda',
-                                                  style: TextStyle(
-                                                    color: Color(0xFFD97706),
-                                                    fontWeight: FontWeight.w700,
-                                                    fontSize: 11,
-                                                  )),
-                                            )
-                                          else
-                                            FilledButton.icon(
-                                              onPressed: () => _report(t),
-                                              style: FilledButton.styleFrom(
-                                                backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
-                                                foregroundColor: context.isDark ? AppColors.ink : Colors.white,
-                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                              ),
-                                              icon: Icon(Icons.add_task_rounded, size: 15, color: context.isDark ? AppColors.ink : AppColors.neonLime),
-                                              label: const Text('Hisobot', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11)),
-                                            ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            '${qty(t.produced)} / ${qty(t.planned)} ${t.unit}',
-                                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                                          ),
-                                          Text(
-                                            '$percent%',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 12,
-                                              color: isDone ? AppColors.green : context.inkColor,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 6),
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(6),
-                                        child: LinearProgressIndicator(
-                                          value: progress,
-                                          minHeight: 7,
-                                          backgroundColor: context.pillColor,
-                                          color: isDone ? AppColors.green : AppColors.neonLime,
-                                        ),
-                                      ),
                                     ],
                                   ),
-                          );
-                        },
-                      ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text('${qty(t.produced)} / ${qty(t.planned)} ${t.unit}',
+                                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                                      Text('$percent%',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w800, fontSize: 12, color: isDone ? AppColors.green : context.inkColor)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: LinearProgressIndicator(
+                                      value: progress,
+                                      minHeight: 6,
+                                      backgroundColor: context.pillColor,
+                                      color: isDone ? AppColors.green : AppColors.neonLime,
+                                    ),
+                                  ),
+                                  if (!isDone) ...[
+                                    const SizedBox(height: 12),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: t.isPendingApproval && isManager
+                                          ? FilledButton.icon(
+                                              onPressed: () => _approve(t),
+                                              style: FilledButton.styleFrom(backgroundColor: AppColors.green),
+                                              icon: const Icon(Icons.verified_rounded, size: 16),
+                                              label: const Text('OTK Tasdiqlash', style: TextStyle(fontWeight: FontWeight.w700)),
+                                            )
+                                          : (t.isPendingApproval
+                                              ? Container(
+                                                  padding: const EdgeInsets.all(10),
+                                                  alignment: Alignment.center,
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFFD97706).withValues(alpha: 0.15),
+                                                    borderRadius: BorderRadius.circular(16),
+                                                    border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.4)),
+                                                  ),
+                                                  child: const Text('OTK tekshiruvida',
+                                                      style: TextStyle(color: Color(0xFFD97706), fontWeight: FontWeight.w700)),
+                                                )
+                                              : FilledButton(
+                                                  onPressed: () => _report(t),
+                                                  style: FilledButton.styleFrom(
+                                                    backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                                                    foregroundColor: context.isDark ? AppColors.ink : Colors.white,
+                                                  ),
+                                                  child: const Text('Hisobot', style: TextStyle(fontWeight: FontWeight.w700)),
+                                                )),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                    ],
                   ],
                 );
               },
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildTabPill({
+    required String label,
+    required IconData icon,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: active
+              ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: active
+                  ? (context.isDark ? AppColors.ink : Colors.white)
+                  : context.mutedColor,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                  color: active
+                      ? (context.isDark ? AppColors.ink : Colors.white)
+                      : context.mutedColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrderCuttingCard(BuildContext context, SaleResult order, List<SaleResult> allCuttingOrders) {
+    final cutItems = order.items.where(_isCuttingItem).toList();
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: context.cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.35), width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.receipt_long_rounded, color: Color(0xFFF59E0B), size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Buyurtma #${order.id}',
+                          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF59E0B).withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text('Kesish kutilmoqda',
+                              style: TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.w800, fontSize: 10.5)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Mijoz: ${order.customerName ?? 'Noma’lum'} ${order.customerPhone != null && order.customerPhone!.isNotEmpty ? '· ${order.customerPhone}' : ''}',
+                      style: TextStyle(color: context.mutedColor, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (order.note != null && order.note!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: context.isDark ? const Color(0xFF1B2228) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded, size: 14, color: AppColors.muted),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Izoh: ${order.note!}',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          const Divider(height: 1, thickness: 1),
+          const SizedBox(height: 12),
+          Text(
+            'Kesilishi va ishlov berilishi kerak bo‘lgan toshlar:',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
+          ),
+          const SizedBox(height: 8),
+          for (final item in cutItems) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: context.isDark ? const Color(0xFF1B2228) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: context.borderColor),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.content_cut_rounded, size: 18, color: Color(0xFF38BDF8)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.productName,
+                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Miqdor: ${qty(item.quantity)}',
+                          style: TextStyle(color: context.mutedColor, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  FilledButton.icon(
+                    onPressed: () {
+                      _create(
+                        prefillProductId: item.productId > 0 ? item.productId : null,
+                        prefillQty: item.quantity > 0 ? item.quantity : null,
+                        prefillNote: 'Buyurtma #${order.id} (${order.customerName ?? 'Mijoz'}): ${item.productName}${order.note != null && order.note!.isNotEmpty ? ' — ${order.note}' : ''}',
+                        availableOrders: allCuttingOrders,
+                      );
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                      foregroundColor: context.isDark ? AppColors.ink : Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    icon: Icon(Icons.person_add_alt_1_rounded, size: 15, color: context.isDark ? AppColors.ink : AppColors.neonLime),
+                    label: const Text('Ishchiga biriktirish', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -689,13 +1025,27 @@ class _ProductionScreenState extends State<ProductionScreen> {
 }
 
 // ---------------------------------------------------------------------------
-// Ishlab chiqarish topshirig'ini yaratish dialogi (Vault uslubida)
+// Yangi topshiriq biriktirish dialogi (Buyurtmaga bog'lash imkoniyati bilan)
 // ---------------------------------------------------------------------------
 
 class TaskCreateDialog extends StatefulWidget {
-  const TaskCreateDialog({super.key, required this.productionRepo, required this.productRepo});
+  const TaskCreateDialog({
+    super.key,
+    required this.productionRepo,
+    required this.productRepo,
+    this.initialProductId,
+    this.initialPlanned,
+    this.initialNote,
+    this.initialWorkerId,
+    this.availableOrders = const [],
+  });
   final ProductionRepository productionRepo;
   final ProductRepository productRepo;
+  final int? initialProductId;
+  final double? initialPlanned;
+  final String? initialNote;
+  final int? initialWorkerId;
+  final List<SaleResult> availableOrders;
 
   @override
   State<TaskCreateDialog> createState() => _TaskCreateDialogState();
@@ -706,12 +1056,17 @@ class _TaskCreateDialogState extends State<TaskCreateDialog> {
   int? _selectedProductId;
   int? _selectedWorkerId;
   final _planCtrl = TextEditingController();
+  final _noteCtrl = TextEditingController();
   String? _error;
   bool _busy = false;
 
   @override
   void initState() {
     super.initState();
+    if (widget.initialProductId != null) _selectedProductId = widget.initialProductId;
+    if (widget.initialWorkerId != null) _selectedWorkerId = widget.initialWorkerId;
+    if (widget.initialPlanned != null) _planCtrl.text = qty(widget.initialPlanned!);
+    if (widget.initialNote != null) _noteCtrl.text = widget.initialNote!;
     _loadFuture = _loadData();
   }
 
@@ -719,18 +1074,19 @@ class _TaskCreateDialogState extends State<TaskCreateDialog> {
     final p = await widget.productRepo.list();
     var w = await widget.productionRepo.workers();
     if (w.isEmpty && mounted) {
-      // Fallback: Agar maxsus ishchi topilmasa, tizimdagi faol xodimlarni olamiz
       final all = await context.read<AppRepositories>().users.list();
-      w = all.where((u) => u.isActive).toList();
+      w = all.where((u) => u.isActive && u.role == Role.ishchi).toList();
+      if (w.isEmpty) w = all.where((u) => u.isActive).toList();
     }
-    if (p.isNotEmpty) _selectedProductId = p.first.id;
-    if (w.isNotEmpty) _selectedWorkerId = w.first.id;
+    if (_selectedProductId == null && p.isNotEmpty) _selectedProductId = p.first.id;
+    if (_selectedWorkerId == null && w.isNotEmpty) _selectedWorkerId = w.first.id;
     return (products: p, workers: w);
   }
 
   @override
   void dispose() {
     _planCtrl.dispose();
+    _noteCtrl.dispose();
     super.dispose();
   }
 
@@ -759,6 +1115,7 @@ class _TaskCreateDialogState extends State<TaskCreateDialog> {
         productId: _selectedProductId!,
         workerId: _selectedWorkerId!,
         plannedQty: planned,
+        note: _noteCtrl.text.trim().isNotEmpty ? _noteCtrl.text.trim() : null,
       );
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -818,28 +1175,70 @@ class _TaskCreateDialogState extends State<TaskCreateDialog> {
         return AlertDialog(
           backgroundColor: context.dialogBg,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          title: const Text('Yangi Ishlab Chiqarish Topshirig‘i', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+          title: const Row(
+            children: [
+              Icon(Icons.assignment_add, color: AppColors.neonLime, size: 22),
+              SizedBox(width: 10),
+              Text('Yangi Ishlab Chiqarish Topshirig‘i', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+            ],
+          ),
           content: SizedBox(
-            width: 380,
+            width: 440,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  DropdownButtonFormField<int>(
-                    value: _selectedProductId,
-                    decoration: const InputDecoration(labelText: 'Ishlab chiqariladigan mahsulot'),
-                    items: [for (final p in products) DropdownMenuItem(value: p.id, child: Text(p.name))],
-                    onChanged: (v) {
-                      setState(() {
-                        _selectedProductId = v;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 12),
+                  // Buyurtmadan to'ldirish (agar mavjud bo'lsa)
+                  if (widget.availableOrders.isNotEmpty) ...[
+                    DropdownButtonFormField<SaleResult?>(
+                      decoration: InputDecoration(
+                        labelText: '📥 Buyurtmadan avtomatik to‘ldirish',
+                        filled: true,
+                        fillColor: context.isDark ? const Color(0xFF1B2228) : const Color(0xFFF1F5F9),
+                        prefixIcon: const Icon(Icons.receipt_long_rounded, color: Color(0xFFF59E0B), size: 18),
+                      ),
+                      items: [
+                        const DropdownMenuItem<SaleResult?>(
+                          value: null,
+                          child: Text('Maxsus / mustaqil topshiriq', style: TextStyle(fontSize: 12.5)),
+                        ),
+                        for (final ord in widget.availableOrders)
+                          DropdownMenuItem<SaleResult?>(
+                            value: ord,
+                            child: Text(
+                              'Buyurtma #${ord.id} · ${ord.customerName ?? 'Mijoz'}',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                      ],
+                      onChanged: (ord) {
+                        if (ord == null) return;
+                        final cutItem = ord.items.firstWhere(
+                          (it) => it.isCut || it.productName.toLowerCase().contains('kesish') || it.productName.toLowerCase().contains('ishlov'),
+                          orElse: () => ord.items.first,
+                        );
+                        final matching = products.where((p) => p.id == cutItem.productId || p.name.toLowerCase() == cutItem.productName.toLowerCase()).firstOrNull;
+                        setState(() {
+                          if (matching != null) {
+                            _selectedProductId = matching.id;
+                          }
+                          _planCtrl.text = qty(cutItem.quantity);
+                          _noteCtrl.text = 'Buyurtma #${ord.id} (${ord.customerName ?? 'Mijoz'}${ord.customerPhone != null ? ', ${ord.customerPhone}' : ''}): ${cutItem.productName}${ord.note != null && ord.note!.isNotEmpty ? ' — ${ord.note}' : ''}';
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
+                  // Ishchi tanlash
                   DropdownButtonFormField<int>(
                     value: _selectedWorkerId,
-                    decoration: const InputDecoration(labelText: 'Biriktirilgan ishchi'),
+                    decoration: const InputDecoration(
+                      labelText: 'Biriktirilgan ishchi (usta)',
+                      prefixIcon: Icon(Icons.engineering_rounded, size: 20),
+                    ),
                     items: [for (final w in workers) DropdownMenuItem(value: w.id, child: Text(w.fullName))],
                     onChanged: (v) {
                       setState(() {
@@ -848,14 +1247,46 @@ class _TaskCreateDialogState extends State<TaskCreateDialog> {
                     },
                   ),
                   const SizedBox(height: 12),
+
+                  // Mahsulot tanlash
+                  DropdownButtonFormField<int>(
+                    value: _selectedProductId,
+                    decoration: const InputDecoration(
+                      labelText: 'Ishlov beriladigan tosh / mahsulot',
+                      prefixIcon: Icon(Icons.layers_rounded, size: 20),
+                    ),
+                    items: [for (final p in products) DropdownMenuItem(value: p.id, child: Text(p.name))],
+                    onChanged: (v) {
+                      setState(() {
+                        _selectedProductId = v;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Miqdor
                   TextField(
                     controller: _planCtrl,
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
                       labelText: 'Rejadagi miqdor (${selProd.unit})',
                       hintText: 'masalan: 120',
+                      prefixIcon: const Icon(Icons.straighten_rounded, size: 20),
                     ),
                   ),
+                  const SizedBox(height: 12),
+
+                  // Izoh va texnik parametrlar
+                  TextField(
+                    controller: _noteCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Buyurtma tafsiloti / Kesish o‘lchami',
+                      hintText: 'Masalan: 120 × 60 sm kesish, 3-etaj pillapoyaga',
+                      prefixIcon: Icon(Icons.edit_note_rounded, size: 20),
+                    ),
+                  ),
+
                   if (_error != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
@@ -887,10 +1318,6 @@ class _TaskCreateDialogState extends State<TaskCreateDialog> {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Ish hisoboti kiritish dialogi
-// ---------------------------------------------------------------------------
 
 class _ProductionReportDialog extends StatefulWidget {
   const _ProductionReportDialog({required this.task, required this.repo});

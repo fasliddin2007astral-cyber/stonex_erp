@@ -415,6 +415,10 @@ class ApiTest(unittest.TestCase):
         self.assertTrue(len(workers) > 0)
         wid = workers[0]["id"]
 
+        # 2.1 Ish boshqaruvchi buyurtmalarni (sales) ko'ra olishi (kesish topshiriqlarini olish uchun)
+        s_res = self.c.get("/sales", headers=f_headers)
+        self.assertEqual(s_res.status_code, 200)
+
         # 3. Ish boshqaruvchi ishchini ishga biriktirishi (topshiriq yaratishi)
         prods = self.c.get("/products", headers=f_headers).json()
         pid = prods[0]["id"]
