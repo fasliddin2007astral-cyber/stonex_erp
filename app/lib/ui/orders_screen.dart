@@ -1472,7 +1472,19 @@ class _OrderFulfillDialogState extends State<OrderFulfillDialog> {
                                 return Padding(
                                   padding: const EdgeInsets.only(right: 6),
                                   child: ActionChip(
-                                    label: Text(drv.fullName, style: TextStyle(fontSize: 11, fontWeight: isSel ? FontWeight.w800 : FontWeight.w500)),
+                                    avatar: Icon(
+                                      drv.isOnShift ? Icons.check_circle_rounded : Icons.pause_circle_rounded,
+                                      size: 13,
+                                      color: drv.isOnShift ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                    ),
+                                    label: Text(
+                                      drv.isOnShift ? drv.fullName : '${drv.fullName} (Dam olmoqda)',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: isSel ? FontWeight.w800 : FontWeight.w500,
+                                        color: drv.isOnShift ? null : Colors.grey,
+                                      ),
+                                    ),
                                     backgroundColor: isSel ? const Color(0xFF0284C7).withOpacity(0.2) : Colors.transparent,
                                     side: BorderSide(color: isSel ? const Color(0xFF0284C7) : context.borderColor),
                                     onPressed: () {

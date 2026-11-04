@@ -111,6 +111,9 @@ def ensure_migrations():
             if "can_login" not in u_columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN can_login BOOLEAN DEFAULT TRUE"))
                 conn.execute(text("UPDATE users SET can_login = TRUE WHERE can_login IS NULL"))
+            if "is_on_shift" not in u_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN is_on_shift BOOLEAN DEFAULT TRUE"))
+                conn.execute(text("UPDATE users SET is_on_shift = TRUE WHERE is_on_shift IS NULL"))
     if "attendance" in table_names:
         att_columns = [c["name"] for c in inspector.get_columns("attendance")]
         with engine.begin() as conn:

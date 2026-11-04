@@ -25,6 +25,7 @@ class UserOut(ORM):
     salary_type: str = "monthly"
     is_active: bool
     can_login: bool = True
+    is_on_shift: bool = True
 
 
 class LoginOut(BaseModel):
@@ -52,6 +53,7 @@ class UserUpdate(BaseModel):
     salary: Decimal | None = Field(default=None, ge=0)
     salary_type: Literal["monthly", "daily", "hourly", "trip"] | None = None
     is_active: bool | None = None
+    is_on_shift: bool | None = None
 
 
 # ---------- attendance & payroll ----------

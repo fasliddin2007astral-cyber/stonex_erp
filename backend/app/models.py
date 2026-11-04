@@ -38,6 +38,7 @@ class User(Base):
     salary_type: Mapped[str] = mapped_column(String(16), default="monthly")  # monthly, daily, hourly, trip
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     can_login: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_on_shift: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 

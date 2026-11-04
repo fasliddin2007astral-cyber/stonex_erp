@@ -1058,6 +1058,7 @@ class MockUserRepository implements UserRepository {
     double? salary,
     String? salaryType,
     bool? isActive,
+    bool? isOnShift,
   }) async {
     final entry = _s.users.entries.firstWhere(
       (e) => e.value.user.id == id,
@@ -1078,12 +1079,23 @@ class MockUserRepository implements UserRepository {
       salaryType: salaryType ?? oldUser.salaryType,
       isActive: isActive ?? oldUser.isActive,
       canLogin: effectiveCanLogin,
+      isOnShift: isOnShift ?? oldUser.isOnShift,
     );
     _s.users[entry.key] = (
       password: (effectiveCanLogin && password != null && password.isNotEmpty) ? password : entry.value.password,
       user: updated,
     );
     return updated;
+  }
+
+  @override
+  Future<void> toggleShift(int id, bool onShift) async {
+    final entry = _s.users.entries.firstWhere(
+      (e) => e.value.user.id == id,
+      orElse: () => throw ApiException('Foydalanuvchi topilmadi', 404),
+    );
+    final updated = entry.value.user.copyWith(isOnShift: onShift);
+    _s.users[entry.key] = (password: entry.value.password, user: updated);
   }
 }
 
@@ -1500,6 +1512,34 @@ class MockDeliveryRepository implements DeliveryRepository {
       status: status,
       dispatchTime: status == 'on_the_way' && cur.dispatchTime == null ? DateTime.now() : cur.dispatchTime,
       deliveredTime: status == 'delivered' ? DateTime.now() : cur.deliveredTime,
+    );
+    _s.deliveries[idx] = updated;
+    return updated;
+  }
+
+  @override
+  Future<Delivery> accept(int id) async {
+    final idx = _s.deliveries.indexWhere((x) => x.id == id);
+    if (idx < 0) throw ApiException('Yetkazib berish yozuvi topilmadi', 404);
+    final cur = _s.deliveries[idx];
+    final updated = cur.copyWith(
+      status: 'on_the_way',
+      dispatchTime: cur.dispatchTime ?? DateTime.now(),
+    );
+    _s.deliveries[idx] = updated;
+    return updated;
+  }
+
+  @override
+  Future<Delivery> reject(int id) async {
+    final idx = _s.deliveries.indexWhere((x) => x.id == id);
+    if (idx < 0) throw ApiException('Yetkazib berish yozuvi topilmadi', 404);
+    final cur = _s.deliveries[idx];
+    final updated = cur.copyWith(
+      driverId: null,
+      driverName: 'Ochiq (barchaga)',
+      status: 'loading',
+      note: cur.note != null ? '${cur.note} | [Rad etildi]' : '[Rad etildi]',
     );
     _s.deliveries[idx] = updated;
     return updated;

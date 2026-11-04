@@ -18,16 +18,18 @@ class DeliveriesScreen extends StatefulWidget {
 
 class DeliveriesScreenState extends State<DeliveriesScreen> {
   final _searchCtrl = TextEditingController();
-  String _statusFilter = 'all'; // 'all', 'on_the_way', 'loading', 'delivered', 'cancelled'
+  String _statusFilter = 'all'; // 'all', 'open_pool', 'on_the_way', 'loading', 'delivered', 'cancelled'
   List<Delivery> _deliveries = [];
   bool _loading = true;
   String? _error;
+  late bool _isOnShift;
 
   bool get isDriver => widget.currentUser?.role == Role.haydovchi;
 
   @override
   void initState() {
     super.initState();
+    _isOnShift = widget.currentUser?.isOnShift ?? true;
     _loadDeliveries();
   }
 
@@ -37,6 +39,26 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
     super.dispose();
   }
 
+  Future<void> _toggleShift(bool val) async {
+    if (widget.currentUser == null) return;
+    setState(() => _isOnShift = val);
+    try {
+      final repos = context.read<AppRepositories>();
+      await repos.users.toggleShift(widget.currentUser!.id, val);
+      if (mounted) {
+        showMessage(
+          context,
+          val ? '🟢 Smena ochildi! Buyurtmalarni qabul qilishingiz mumkin.' : '🔴 Smena yopildi. Dam olish rejimi.',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isOnShift = !val);
+        showMessage(context, 'Xatolik: $e', error: true);
+      }
+    }
+  }
+
   Future<void> _loadDeliveries() async {
     setState(() {
       _loading = true;
@@ -44,16 +66,16 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
     });
     try {
       final repos = context.read<AppRepositories>();
-      final list = await repos.deliveries.list(
-        driverId: isDriver ? widget.currentUser!.id : null,
-      );
+      final list = await repos.deliveries.list();
       if (!mounted) return;
-      // Agar haydovchi bo'lsa, faqat unga biriktirilgan yetkazmalar chiqadi
+      // Agar haydovchi bo'lsa: unga biriktirilgan va barchaga ochiq buyurtmalar ko'rinadi
       final resultList = isDriver
           ? list.where((d) =>
               (widget.currentUser != null && d.driverId == widget.currentUser!.id) ||
               d.driverName.toLowerCase().contains(widget.currentUser!.fullName.toLowerCase()) ||
-              (d.driverPhone != null && d.driverPhone == widget.currentUser!.username)).toList()
+              (d.driverPhone != null && d.driverPhone == widget.currentUser!.username) ||
+              d.driverId == null ||
+              d.driverName.toLowerCase().contains('ochiq')).toList()
           : list;
       setState(() {
         _deliveries = resultList;
@@ -70,7 +92,9 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
 
   List<Delivery> get _filteredDeliveries {
     var list = _deliveries;
-    if (_statusFilter != 'all') {
+    if (_statusFilter == 'open_pool') {
+      list = list.where((d) => (d.driverId == null || d.driverName.toLowerCase().contains('ochiq')) && d.status == 'loading').toList();
+    } else if (_statusFilter != 'all') {
       list = list.where((d) => d.status == _statusFilter).toList();
     }
     final q = _searchCtrl.text.trim().toLowerCase();
@@ -136,6 +160,71 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
     }
   }
 
+  Future<void> _acceptDelivery(Delivery delivery) async {
+    if (isDriver && !_isOnShift) {
+      showMessage(context, 'Buyurtma olishdan oldin smenani oching! (Smena ochiq bo‘lishi kerak)', error: true);
+      return;
+    }
+    final repos = context.read<AppRepositories>();
+    try {
+      await repos.deliveries.accept(delivery.id);
+      if (mounted) {
+        showMessage(context, '✓ Buyurtma qabul qilindi va yo‘lga chiqildi! Mijoz ma’lumotlari ochildi.');
+        _loadDeliveries();
+      }
+    } catch (e) {
+      if (mounted) showMessage(context, 'Xatolik: $e', error: true);
+    }
+  }
+
+  Future<void> _rejectDelivery(Delivery delivery) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
+            SizedBox(width: 8),
+            Text('Buyurtmani rad etish', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          ],
+        ),
+        content: Text(
+          'Haqiqatan ham "${delivery.vehicleNumber}" buyurtmasini qabul qilmoqchi emasmisiz?\n\nBuyurtma umumiy ochiq bo‘limga qaytariladi va boshqa haydovchilar olishi mumkin bo‘ladi.',
+          style: const TextStyle(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Bekor qilish'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+            ),
+            child: const Text('Qabul qilmayman'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    final repos = context.read<AppRepositories>();
+    try {
+      await repos.deliveries.reject(delivery.id);
+      if (mounted) {
+        showMessage(context, '✓ Buyurtma rad etildi va barcha haydovchilar uchun ochiq qilib qaytarildi.');
+        _loadDeliveries();
+      }
+    } catch (e) {
+      if (mounted) showMessage(context, 'Xatolik: $e', error: true);
+    }
+  }
+
   Future<void> _changeStatus(Delivery delivery, String newStatus) async {
     final repos = context.read<AppRepositories>();
     try {
@@ -163,6 +252,7 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
   Widget build(BuildContext context) {
     final filtered = _filteredDeliveries;
     final totalCount = _deliveries.length;
+    final openPoolCount = _deliveries.where((d) => (d.driverId == null || d.driverName.toLowerCase().contains('ochiq')) && d.status == 'loading').length;
     final onTheWayCount = _deliveries.where((d) => d.status == 'on_the_way').length;
     final loadingCount = _deliveries.where((d) => d.status == 'loading').length;
     final deliveredCount = _deliveries.where((d) => d.status == 'delivered').length;
@@ -179,7 +269,7 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Haydovchi uchun xush kelibsiz profili
+            // Haydovchi uchun xush kelibsiz profili va smena statusi
             if (isDriver) ...[
               Container(
                 margin: const EdgeInsets.only(bottom: 14),
@@ -208,13 +298,15 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Text(
                                 widget.currentUser?.fullName ?? 'Haydovchi',
                                 style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14.5, color: context.inkColor),
                               ),
-                              const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
@@ -228,12 +320,67 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 3),
                           Text(
-                            'Sizga berilgan buyurtmalar ro‘yxati. Buyurtmani qabul qilganingizdan so‘ng mijoz ma’lumotlari va yetkazish manzili to‘liq ochiladi.',
+                            _isOnShift
+                                ? '🟢 Smena ochiq — Siz yangi buyurtmalarni qabul qilishingiz va yo‘lga chiqishingiz mumkin.'
+                                : '🔴 Smena yopiq (Dam olmoqda) — Buyurtma olishdan oldin smenani yoqing.',
                             style: TextStyle(fontSize: 11.5, color: context.subtextColor),
                           ),
                         ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Smena ochish / yopish switch
+                    InkWell(
+                      onTap: () => _toggleShift(!_isOnShift),
+                      borderRadius: BorderRadius.circular(100),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _isOnShift
+                              ? const Color(0xFF10B981).withOpacity(0.15)
+                              : const Color(0xFFEF4444).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(100),
+                          border: Border.all(
+                            color: _isOnShift ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                            width: 1.3,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _isOnShift ? Icons.check_circle_rounded : Icons.pause_circle_rounded,
+                              size: 14,
+                              color: _isOnShift ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              _isOnShift ? 'Smena ochiq' : 'Smena yopiq',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                                color: _isOnShift ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            SizedBox(
+                              height: 18,
+                              width: 30,
+                              child: Transform.scale(
+                                scale: 0.7,
+                                child: Switch.adaptive(
+                                  value: _isOnShift,
+                                  activeColor: const Color(0xFF10B981),
+                                  onChanged: _toggleShift,
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     IconButton(
@@ -353,6 +500,8 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
                       children: [
                         for (final item in [
                           ('Barchasi', 'all', totalCount, null),
+                          if (openPoolCount > 0)
+                            ('Barchaga ochiq', 'open_pool', openPoolCount, const Color(0xFF8B5CF6)),
                           if (isDriver) ...[
                             ('Qabul qilish kerak', 'loading', loadingCount, const Color(0xFFF59E0B)),
                             ('Yo‘lda', 'on_the_way', onTheWayCount, const Color(0xFF0284C7)),
@@ -498,7 +647,10 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
                   child: _DeliveryCard(
                     delivery: delivery,
                     isDriver: isDriver,
+                    isOnShift: _isOnShift,
                     onStatusChange: (status) => _changeStatus(delivery, status),
+                    onAccept: () => _acceptDelivery(delivery),
+                    onReject: () => _rejectDelivery(delivery),
                     onEdit: () => _editDelivery(delivery),
                     onWaybill: () => DeliveryWaybillDialog.show(context, delivery),
                   ),
@@ -658,16 +810,26 @@ class _DeliveryCard extends StatelessWidget {
   const _DeliveryCard({
     required this.delivery,
     this.isDriver = false,
+    this.isOnShift = true,
     required this.onStatusChange,
+    this.onAccept,
+    this.onReject,
     required this.onEdit,
     required this.onWaybill,
   });
 
   final Delivery delivery;
   final bool isDriver;
+  final bool isOnShift;
   final void Function(String status) onStatusChange;
+  final VoidCallback? onAccept;
+  final VoidCallback? onReject;
   final VoidCallback onEdit;
   final VoidCallback onWaybill;
+
+  bool get isOpenPool =>
+      (delivery.driverId == null || delivery.driverName.toLowerCase().contains('ochiq')) &&
+      delivery.isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -771,6 +933,32 @@ class _DeliveryCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (isOpenPool) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B5CF6).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.35)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.public_rounded, size: 11, color: Color(0xFF8B5CF6)),
+                        SizedBox(width: 4),
+                        Text(
+                          'Barchaga ochiq',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF8B5CF6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const Spacer(),
 
                 // Sana va vaqt
@@ -1155,21 +1343,55 @@ class _DeliveryCard extends StatelessWidget {
               children: [
                 if (isDriver) ...[
                   if (delivery.isLoading) ...[
-                    // Haydovchi uchun qabul qilish tugmasi
-                    FilledButton.icon(
-                      onPressed: () => onStatusChange('on_the_way'),
-                      icon: const Icon(Icons.check_circle_outline_rounded, size: 17),
-                      label: const Text(
-                        'Buyurtmani qabul qilish',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                    if (isOpenPool) ...[
+                      // Barchaga ochiq buyurtmani olish
+                      FilledButton.icon(
+                        onPressed: onAccept,
+                        icon: const Icon(Icons.download_rounded, size: 16),
+                        label: const Text(
+                          'Olish va Qabul qilish',
+                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF8B5CF6),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                        ),
                       ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 11),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                    ] else ...[
+                      // Haydovchiga biriktirilgan buyurtma: rad etish yoki qabul qilish
+                      OutlinedButton.icon(
+                        onPressed: onReject,
+                        icon: const Icon(Icons.close_rounded, size: 15, color: Color(0xFFEF4444)),
+                        label: const Text(
+                          'Qabul qilmayman',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFEF4444)),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFEF4444),
+                          side: BorderSide(color: const Color(0xFFEF4444).withOpacity(0.4)),
+                          backgroundColor: const Color(0xFFEF4444).withOpacity(0.06),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      FilledButton.icon(
+                        onPressed: onAccept ?? () => onStatusChange('on_the_way'),
+                        icon: const Icon(Icons.check_circle_outline_rounded, size: 17),
+                        label: const Text(
+                          'Buyurtmani qabul qilish',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                        ),
+                      ),
+                    ],
                   ] else if (delivery.isOnTheWay) ...[
                     // Yo'l varaqasi
                     OutlinedButton.icon(
@@ -1576,7 +1798,7 @@ class _DeliveryEditDialogState extends State<DeliveryEditDialog> {
                     // Tizimdagi haydovchilarni biriktirish
                     if (_systemDrivers.isNotEmpty) ...[
                       Text(
-                        'Tizimdagi haydovchini biriktirish:',
+                        'Haydovchini biriktirish:',
                         style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: context.subtextColor),
                       ),
                       const SizedBox(height: 6),
@@ -1585,12 +1807,40 @@ class _DeliveryEditDialogState extends State<DeliveryEditDialog> {
                         physics: const BouncingScrollPhysics(),
                         child: Row(
                           children: [
+                            // 🌐 Barchaga ochiq (hali tayinlanmagan)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: ChoiceChip(
+                                avatar: const Icon(Icons.public_rounded, size: 14, color: Color(0xFF8B5CF6)),
+                                label: const Text('🌐 Barchaga ochiq', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                                selected: _driverId == null && _driverNameCtrl.text.toLowerCase().contains('ochiq'),
+                                onSelected: (sel) {
+                                  setState(() {
+                                    _driverId = null;
+                                    _driverNameCtrl.text = 'Ochiq (barchaga)';
+                                    _driverPhoneCtrl.clear();
+                                  });
+                                },
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                              ),
+                            ),
                             for (final u in _systemDrivers) ...[
                               Padding(
                                 padding: const EdgeInsets.only(right: 6),
                                 child: ChoiceChip(
-                                  avatar: const Icon(Icons.person_rounded, size: 14),
-                                  label: Text(u.fullName, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                                  avatar: Icon(
+                                    u.isOnShift ? Icons.check_circle_rounded : Icons.pause_circle_rounded,
+                                    size: 14,
+                                    color: u.isOnShift ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                  ),
+                                  label: Text(
+                                    u.isOnShift ? u.fullName : '${u.fullName} (Dam olmoqda)',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: u.isOnShift ? null : Colors.grey,
+                                    ),
+                                  ),
                                   selected: _driverId == u.id || _driverNameCtrl.text.trim() == u.fullName,
                                   onSelected: (sel) {
                                     setState(() {
@@ -1599,6 +1849,12 @@ class _DeliveryEditDialogState extends State<DeliveryEditDialog> {
                                         _driverNameCtrl.text = u.fullName;
                                         if (u.username.isNotEmpty && !u.username.contains('@')) {
                                           _driverPhoneCtrl.text = u.username;
+                                        }
+                                        if (!u.isOnShift) {
+                                          showMessage(
+                                            context,
+                                            'Eslatma: ${u.fullName} hozirda dam olmoqda (smenasi yopiq)',
+                                          );
                                         }
                                       } else {
                                         _driverId = null;

@@ -78,7 +78,27 @@ def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db),
         u.salary_type = data.salary_type
     if data.is_active is not None:
         u.is_active = data.is_active
+    if data.is_on_shift is not None:
+        u.is_on_shift = data.is_on_shift
     if data.password:
         u.password_hash = hash_password(data.password)
     db.commit()
+    return u
+
+
+@router.patch("/{user_id}/shift", response_model=UserOut)
+def toggle_user_shift(
+    user_id: int,
+    on_shift: bool,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    u = db.get(User, user_id)
+    if u is None:
+        raise HTTPException(404, "Foydalanuvchi topilmadi")
+    if current_user.role != roles.ADMIN and current_user.id != user_id:
+        raise HTTPException(403, "O'zingizdan boshqa xodim smenasini o'zgartira olmaysiz")
+    u.is_on_shift = on_shift
+    db.commit()
+    db.refresh(u)
     return u

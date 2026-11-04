@@ -90,7 +90,9 @@ abstract class UserRepository {
     double? salary,
     String? salaryType,
     bool? isActive,
+    bool? isOnShift,
   });
+  Future<void> toggleShift(int id, bool onShift);
 }
 
 abstract class AttendanceRepository {
@@ -130,6 +132,8 @@ abstract class DeliveryRepository {
   Future<Delivery> create(Delivery delivery);
   Future<Delivery> update(Delivery delivery);
   Future<Delivery> updateStatus(int id, String status);
+  Future<Delivery> accept(int id);
+  Future<Delivery> reject(int id);
   Future<void> delete(int id);
 }
 

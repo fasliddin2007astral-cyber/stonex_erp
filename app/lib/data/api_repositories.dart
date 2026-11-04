@@ -321,6 +321,7 @@ class ApiUserRepository implements UserRepository {
     double? salary,
     String? salaryType,
     bool? isActive,
+    bool? isOnShift,
   }) async {
     final body = <String, dynamic>{
       if (username != null && username.isNotEmpty) 'username': username,
@@ -331,9 +332,15 @@ class ApiUserRepository implements UserRepository {
       if (salary != null) 'salary': salary,
       if (salaryType != null) 'salary_type': salaryType,
       if (isActive != null) 'is_active': isActive,
+      if (isOnShift != null) 'is_on_shift': isOnShift,
     };
     final j = await _api.patch('/users/$id', body: body);
     return AppUser.fromJson(j as Map<String, dynamic>);
+  }
+
+  @override
+  Future<void> toggleShift(int id, bool onShift) async {
+    await _api.patch('/users/$id/shift', body: {'is_on_shift': onShift});
   }
 }
 
@@ -637,6 +644,18 @@ class ApiDeliveryRepository implements DeliveryRepository {
   @override
   Future<Delivery> updateStatus(int id, String status) async {
     final j = await _api.patch('/deliveries/$id/status', body: {'status': status}) as Map<String, dynamic>;
+    return Delivery.fromJson(j);
+  }
+
+  @override
+  Future<Delivery> accept(int id) async {
+    final j = await _api.post('/deliveries/$id/accept') as Map<String, dynamic>;
+    return Delivery.fromJson(j);
+  }
+
+  @override
+  Future<Delivery> reject(int id) async {
+    final j = await _api.post('/deliveries/$id/reject') as Map<String, dynamic>;
     return Delivery.fromJson(j);
   }
 

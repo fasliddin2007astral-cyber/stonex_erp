@@ -34,6 +34,7 @@ class AppUser {
   final String salaryType; // 'monthly', 'daily', 'hourly'
   final bool isActive;
   final bool canLogin;
+  final bool isOnShift;
 
   const AppUser({
     required this.id,
@@ -44,6 +45,7 @@ class AppUser {
     this.salaryType = 'monthly',
     this.isActive = true,
     this.canLogin = true,
+    this.isOnShift = true,
   });
 
   factory AppUser.fromJson(Map<String, dynamic> j) {
@@ -62,6 +64,7 @@ class AppUser {
       salaryType: (j['salary_type'] ?? 'monthly').toString(),
       isActive: (j['is_active'] ?? true) as bool,
       canLogin: canLogin,
+      isOnShift: (j['is_on_shift'] ?? true) as bool,
     );
   }
 
@@ -74,6 +77,7 @@ class AppUser {
         'salary_type': salaryType,
         'is_active': isActive,
         'can_login': canLogin,
+        'is_on_shift': isOnShift,
       };
 
   AppUser copyWith({
@@ -85,6 +89,7 @@ class AppUser {
     String? salaryType,
     bool? isActive,
     bool? canLogin,
+    bool? isOnShift,
   }) =>
       AppUser(
         id: id ?? this.id,
@@ -95,6 +100,7 @@ class AppUser {
         salaryType: salaryType ?? this.salaryType,
         isActive: isActive ?? this.isActive,
         canLogin: canLogin ?? this.canLogin,
+        isOnShift: isOnShift ?? this.isOnShift,
       );
 
   @override
