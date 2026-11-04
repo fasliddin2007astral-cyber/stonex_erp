@@ -774,195 +774,285 @@ class _OrderCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: context.cardBg,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isOrder ? statusColor.withOpacity(0.4) : context.borderColor,
-          width: isOrder ? 1.4 : 1,
+          color: context.borderColor.withOpacity(0.75),
+          width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(context.isDark ? 0.25 : 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+          // 1. Yuqori qism (Header)
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
             child: Row(
               children: [
+                // Holat belgisi (Doiraviy zamonaviy avatar)
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.14),
-                    borderRadius: BorderRadius.circular(10),
+                    color: statusColor.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: statusColor.withOpacity(0.25), width: 1.2),
                   ),
+                  alignment: Alignment.center,
                   child: Icon(statusIcon, color: statusColor, size: 20),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
+
+                // Buyurtma raqami, holat kapsulasi va sana
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Row(
                         children: [
                           Text(
                             'Buyurtma #${order.id}',
-                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15.5,
+                              color: context.inkColor,
+                            ),
                           ),
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                             decoration: BoxDecoration(
-                              color: statusColor.withOpacity(0.14),
-                              borderRadius: BorderRadius.circular(6),
+                              color: statusColor.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(100),
+                              border: Border.all(color: statusColor.withOpacity(0.25)),
                             ),
-                            child: Text(
-                              statusText,
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w800,
-                                color: statusColor,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(statusIcon, size: 11, color: statusColor),
+                                const SizedBox(width: 4),
+                                Text(
+                                  statusText,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: statusColor,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        formatDateTime(order.createdAt ?? DateTime.now()),
-                        style: TextStyle(fontSize: 11.5, color: context.subtextColor),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_today_outlined, size: 12, color: context.subtextColor),
+                          const SizedBox(width: 4),
+                          Text(
+                            formatDateTime(order.createdAt ?? DateTime.now()),
+                            style: TextStyle(fontSize: 11.5, color: context.subtextColor),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                Text(
-                  money(order.total),
-                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
 
-          // Mijoz va Izoh
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+                // Jami summa
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.person_outline_rounded, size: 16, color: context.subtextColor),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        order.customerName?.isNotEmpty == true
-                            ? '${order.customerName} ${order.customerPhone ?? ''}'
-                            : 'Noma‘lum mijoz',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: context.inkColor,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    Text(
+                      'Jami summa',
+                      style: TextStyle(fontSize: 11, color: context.subtextColor, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      money(order.total),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16.5,
+                        color: context.inkColor,
                       ),
                     ),
                   ],
                 ),
-                if (order.note != null && order.note!.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: context.isDark ? const Color(0xFF21262D) : const Color(0xFFF1F3F5),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
+              ],
+            ),
+          ),
+
+          // 2. Mijoz va Izoh (Nozik toza karta)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              decoration: BoxDecoration(
+                color: context.isDark ? AppColors.darkCard : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: context.borderColor.withOpacity(0.5)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.person_outline_rounded, size: 16, color: context.subtextColor),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          order.customerName?.isNotEmpty == true
+                              ? '${order.customerName} ${order.customerPhone ?? ''}'
+                              : 'Noma‘lum mijoz',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: context.inkColor,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (order.note != null && order.note!.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.event_note_rounded, size: 14, color: AppColors.muted),
-                        const SizedBox(width: 6),
+                        const Icon(Icons.notes_rounded, size: 15, color: Color(0xFFF59E0B)),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'Izoh: ${order.note}',
-                            style: TextStyle(fontSize: 12, color: context.inkColor),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: context.inkColor,
+                              fontStyle: FontStyle.italic,
+                            ),
                           ),
                         ),
                       ],
                     ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // 3. Mahsulotlar ro'yxati (Toza va tartibli)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: context.isDark ? const Color(0xFF181D24) : const Color(0xFFF1F5F9).withOpacity(0.6),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              children: [
+                for (int i = 0; i < order.items.length; i++) ...[
+                  if (i > 0)
+                    Divider(height: 12, thickness: 0.5, color: context.borderColor.withOpacity(0.4)),
+                  Row(
+                    children: [
+                      Icon(Icons.inventory_2_outlined, size: 14, color: context.subtextColor),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          order.items[i].productName,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: context.inkColor,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${order.items[i].quantity.toStringAsFixed(1)} × ${money(order.items[i].unitPrice)}',
+                        style: TextStyle(fontSize: 11.5, color: context.subtextColor),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        money(order.items[i].lineTotal),
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: context.inkColor,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ],
             ),
           ),
+          const SizedBox(height: 10),
 
-          // Mahsulotlar ro'yxati
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: context.isDark ? const Color(0xFF1B2129) : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              children: [
-                for (final item in order.items)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2.5),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            item.productName,
-                            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: context.inkColor),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${item.quantity.toStringAsFixed(1)} × ${money(item.unitPrice)}',
-                          style: TextStyle(fontSize: 11.5, color: context.subtextColor),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          money(item.lineTotal),
-                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: context.inkColor),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          // To'lovlar qatori
+          // 4. To'lov holati kapsulalari (Avans va Qoldiq qarz)
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                Expanded(
-                  child: RichText(
-                    text: TextSpan(
-                      style: TextStyle(fontSize: 12, color: context.subtextColor),
-                      children: [
-                        const TextSpan(text: 'Avans: '),
-                        TextSpan(
-                          text: money(order.paid),
-                          style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF10B981)),
+                // Avans kapsulasi
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(100),
+                    border: Border.all(color: const Color(0xFF10B981).withOpacity(0.25)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.check_circle_rounded, size: 13, color: Color(0xFF10B981)),
+                      const SizedBox(width: 5),
+                      Text(
+                        'Avans: ${money(order.paid)}',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF10B981),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-                RichText(
-                  text: TextSpan(
-                    style: TextStyle(fontSize: 12, color: context.subtextColor),
+                const Spacer(),
+                // Qoldiq qarz kapsulasi
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: (order.debt > 0 ? const Color(0xFFEF4444) : const Color(0xFF10B981)).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(100),
+                    border: Border.all(
+                      color: (order.debt > 0 ? const Color(0xFFEF4444) : const Color(0xFF10B981)).withOpacity(0.25),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const TextSpan(text: 'Qoldiq: '),
-                      TextSpan(
-                        text: money(order.debt),
+                      Icon(
+                        order.debt > 0 ? Icons.error_outline_rounded : Icons.task_alt_rounded,
+                        size: 13,
+                        color: order.debt > 0 ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        order.debt > 0 ? 'Qoldiq: ${money(order.debt)}' : 'To‘liq to‘langan',
                         style: TextStyle(
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w800,
                           color: order.debt > 0 ? const Color(0xFFEF4444) : const Color(0xFF10B981),
                         ),
@@ -973,55 +1063,78 @@ class _OrderCard extends StatelessWidget {
               ],
             ),
           ),
-          const Divider(height: 1),
+          const SizedBox(height: 10),
+          Divider(height: 1, color: context.borderColor.withOpacity(0.6)),
 
-          // Harakat tugmalari
+          // 5. Harakat tugmalari (Zamonaviy burchaksiz kapsulalar)
           Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
             child: Wrap(
               spacing: 8,
               runSpacing: 8,
               alignment: WrapAlignment.end,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
+                // Chek tugmasi
                 OutlinedButton.icon(
                   onPressed: onReceipt,
-                  icon: const Icon(Icons.receipt_long_rounded, size: 16),
-                  label: const Text('Chek', style: TextStyle(fontSize: 12)),
+                  icon: const Icon(Icons.receipt_long_rounded, size: 15),
+                  label: const Text('Chek', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    foregroundColor: context.inkColor,
+                    side: BorderSide(color: context.borderColor),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
                     visualDensity: VisualDensity.compact,
                   ),
                 ),
+                // To'lov qo'shish
                 if (order.debt > 0.005 && !isCancelled)
                   OutlinedButton.icon(
                     onPressed: onPay,
-                    icon: const Icon(Icons.payment_rounded, size: 16),
-                    label: const Text('To‘lov qo‘shish', style: TextStyle(fontSize: 12)),
+                    icon: const Icon(Icons.payment_rounded, size: 15, color: Color(0xFF10B981)),
+                    label: const Text(
+                      'To‘lov qo‘shish',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF10B981)),
+                    ),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      foregroundColor: const Color(0xFF10B981),
+                      side: BorderSide(color: const Color(0xFF10B981).withOpacity(0.5)),
+                      backgroundColor: const Color(0xFF10B981).withOpacity(0.06),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
                       visualDensity: VisualDensity.compact,
                     ),
                   ),
+                // Bekor qilish
                 if (isOrder) ...[
                   OutlinedButton.icon(
                     onPressed: onCancel,
-                    icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFFEF4444)),
-                    label: const Text('Bekor qilish', style: TextStyle(fontSize: 12, color: Color(0xFFEF4444))),
+                    icon: const Icon(Icons.close_rounded, size: 15, color: Color(0xFFEF4444)),
+                    label: const Text(
+                      'Bekor qilish',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFEF4444)),
+                    ),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFFEF4444)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      foregroundColor: const Color(0xFFEF4444),
+                      side: BorderSide(color: const Color(0xFFEF4444).withOpacity(0.4)),
+                      backgroundColor: const Color(0xFFEF4444).withOpacity(0.05),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
                       visualDensity: VisualDensity.compact,
                     ),
                   ),
+                  // Topshirish (Primary)
                   FilledButton.icon(
                     onPressed: onFulfill,
                     icon: const Icon(Icons.task_alt_rounded, size: 16),
-                    label: const Text('Topshirish', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+                    label: const Text('Topshirish', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFF10B981),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
                       visualDensity: VisualDensity.compact,
                     ),
                   ),
