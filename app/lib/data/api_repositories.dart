@@ -606,8 +606,9 @@ class ApiDeliveryRepository implements DeliveryRepository {
   final ApiClient _api;
 
   @override
-  Future<List<Delivery>> list({String? status, String? query}) async {
+  Future<List<Delivery>> list({String? status, String? query, int? driverId}) async {
     final qp = <String, String>{};
+    if (driverId != null) qp['driver_id'] = driverId.toString();
     if (status != null && status.isNotEmpty && status != 'all') qp['status'] = status;
     if (query != null && query.trim().isNotEmpty) qp['query'] = query.trim();
 

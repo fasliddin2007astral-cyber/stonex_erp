@@ -15,9 +15,10 @@ router = APIRouter(prefix="/deliveries", tags=["deliveries"])
 def list_deliveries(
     status: str | None = None,
     query: str | None = None,
+    driver_id: int | None = None,
     limit: int = 100,
     db: Session = Depends(get_db),
-    _: m.User = Depends(get_current_user),
+    current_user: m.User = Depends(get_current_user),
 ):
     stmt = (
         select(m.Delivery)
@@ -25,6 +26,18 @@ def list_deliveries(
         .order_by(m.Delivery.id.desc())
         .limit(min(limit, 200))
     )
+    # Agar haydovchi kirgan bo'lsa, faqat unga biriktirilgan buyurtmalar chiqadi
+    if current_user.role == "haydovchi":
+        stmt = stmt.where(
+            or_(
+                m.Delivery.driver_id == current_user.id,
+                m.Delivery.driver_name.ilike(f"%{current_user.full_name}%"),
+                (m.Delivery.driver_phone == current_user.username) if current_user.username else False,
+            )
+        )
+    elif driver_id:
+        stmt = stmt.where(m.Delivery.driver_id == driver_id)
+
     if status and status != "all":
         stmt = stmt.where(m.Delivery.status == status)
     if query:
@@ -63,8 +76,20 @@ def create_delivery(
     db: Session = Depends(get_db),
     _: m.User = Depends(get_current_user),
 ):
+    driver_id = data.driver_id
+    if not driver_id and data.driver_name:
+        matched_driver = db.scalar(
+            select(m.User).where(
+                m.User.role == "haydovchi",
+                m.User.full_name.ilike(f"%{data.driver_name.strip()}%"),
+            )
+        )
+        if matched_driver:
+            driver_id = matched_driver.id
+
     delivery = m.Delivery(
         sale_id=data.sale_id,
+        driver_id=driver_id,
         vehicle_number=data.vehicle_number.strip().upper(),
         vehicle_model=data.vehicle_model.strip(),
         driver_name=data.driver_name.strip(),
@@ -113,6 +138,8 @@ def update_delivery(
     if delivery is None:
         raise HTTPException(404, "Yetkazib berish yozuvi topilmadi")
 
+    if data.driver_id is not None:
+        delivery.driver_id = data.driver_id
     if data.vehicle_number is not None:
         delivery.vehicle_number = data.vehicle_number.strip().upper()
     if data.vehicle_model is not None:

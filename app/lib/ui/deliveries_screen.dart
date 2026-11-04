@@ -9,7 +9,8 @@ import '../domain/models.dart';
 import 'common.dart';
 
 class DeliveriesScreen extends StatefulWidget {
-  const DeliveriesScreen({super.key});
+  const DeliveriesScreen({super.key, this.currentUser});
+  final AppUser? currentUser;
 
   @override
   State<DeliveriesScreen> createState() => DeliveriesScreenState();
@@ -21,6 +22,8 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
   List<Delivery> _deliveries = [];
   bool _loading = true;
   String? _error;
+
+  bool get isDriver => widget.currentUser?.role == Role.haydovchi;
 
   @override
   void initState() {
@@ -41,10 +44,19 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
     });
     try {
       final repos = context.read<AppRepositories>();
-      final list = await repos.deliveries.list();
+      final list = await repos.deliveries.list(
+        driverId: isDriver ? widget.currentUser!.id : null,
+      );
       if (!mounted) return;
+      // Agar haydovchi bo'lsa, faqat unga biriktirilgan yetkazmalar chiqadi
+      final resultList = isDriver
+          ? list.where((d) =>
+              (widget.currentUser != null && d.driverId == widget.currentUser!.id) ||
+              d.driverName.toLowerCase().contains(widget.currentUser!.fullName.toLowerCase()) ||
+              (d.driverPhone != null && d.driverPhone == widget.currentUser!.username)).toList()
+          : list;
       setState(() {
-        _deliveries = list;
+        _deliveries = resultList;
         _loading = false;
       });
     } catch (e) {
@@ -129,8 +141,16 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
     try {
       await repos.deliveries.updateStatus(delivery.id, newStatus);
       String statusTitle = 'holati yangilandi';
-      if (newStatus == 'on_the_way') statusTitle = 'yo‘lga chiqdi';
-      if (newStatus == 'delivered') statusTitle = 'yetkazildi deb belgilandi';
+      if (newStatus == 'on_the_way') {
+        statusTitle = isDriver
+            ? 'qabul qilindi va yo‘lga chiqildi. Mijoz ma’lumotlari ochildi!'
+            : 'yo‘lga chiqdi';
+      }
+      if (newStatus == 'delivered') {
+        statusTitle = isDriver
+            ? 'yetkazildi va mijozga topshirildi! Reys haqi hisobingizga qo‘shildi.'
+            : 'yetkazildi deb belgilandi';
+      }
       if (newStatus == 'cancelled') statusTitle = 'bekor qilindi';
       showMessage(context, '✓ ${delivery.vehicleNumber} $statusTitle');
       _loadDeliveries();
@@ -147,6 +167,9 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
     final loadingCount = _deliveries.where((d) => d.status == 'loading').length;
     final deliveredCount = _deliveries.where((d) => d.status == 'delivered').length;
     final cancelledCount = _deliveries.where((d) => d.status == 'cancelled').length;
+    final earnedFee = _deliveries
+        .where((d) => d.status == 'delivered')
+        .fold(0.0, (sum, d) => sum + d.deliveryFee);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -156,6 +179,73 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Haydovchi uchun xush kelibsiz profili
+            if (isDriver) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: context.isDark
+                        ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                        : [const Color(0xFFEFF6FF), const Color(0xFFDBEAFE)],
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3B82F6).withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.local_shipping_rounded, color: Color(0xFF2563EB), size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                widget.currentUser?.fullName ?? 'Haydovchi',
+                                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14.5, color: context.inkColor),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(100),
+                                ),
+                                child: const Text(
+                                  'Haydovchi',
+                                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF10B981)),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Sizga berilgan buyurtmalar ro‘yxati. Buyurtmani qabul qilganingizdan so‘ng mijoz ma’lumotlari va yetkazish manzili to‘liq ochiladi.',
+                            style: TextStyle(fontSize: 11.5, color: context.subtextColor),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Qayta yuklash',
+                      icon: const Icon(Icons.refresh_rounded),
+                      onPressed: _loadDeliveries,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // 1. KPI kartochkalari
             LayoutBuilder(
               builder: (context, constraints) {
@@ -166,10 +256,17 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
                   runSpacing: 12,
                   children: [
                     _DeliveryKpiCard(
-                      title: 'Jami Qatnovlar',
+                      title: isDriver ? 'Mening topshiriqlarim' : 'Jami Qatnovlar',
                       value: '$totalCount ta',
                       icon: Icons.local_shipping_rounded,
                       color: const Color(0xFF3B82F6),
+                      width: cardWidth,
+                    ),
+                    _DeliveryKpiCard(
+                      title: isDriver ? 'Qabul qilish kerak' : 'Yuklanmoqda',
+                      value: '$loadingCount ta',
+                      icon: Icons.hourglass_top_rounded,
+                      color: const Color(0xFFF59E0B),
                       width: cardWidth,
                     ),
                     _DeliveryKpiCard(
@@ -180,16 +277,9 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
                       width: cardWidth,
                     ),
                     _DeliveryKpiCard(
-                      title: 'Yuklanmoqda',
-                      value: '$loadingCount ta',
-                      icon: Icons.hourglass_top_rounded,
-                      color: const Color(0xFFF59E0B),
-                      width: cardWidth,
-                    ),
-                    _DeliveryKpiCard(
-                      title: 'Yetkazilgan',
-                      value: '$deliveredCount ta',
-                      icon: Icons.check_circle_rounded,
+                      title: isDriver ? 'Ishlab topilgan haq' : 'Yetkazilgan',
+                      value: isDriver ? money(earnedFee) : '$deliveredCount ta',
+                      icon: isDriver ? Icons.payments_rounded : Icons.check_circle_rounded,
                       color: const Color(0xFF10B981),
                       width: cardWidth,
                     ),
@@ -263,9 +353,15 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
                       children: [
                         for (final item in [
                           ('Barchasi', 'all', totalCount, null),
-                          ('Yo‘lda', 'on_the_way', onTheWayCount, const Color(0xFF0284C7)),
-                          ('Yuklanmoqda', 'loading', loadingCount, const Color(0xFFF59E0B)),
-                          ('Yetkazildi', 'delivered', deliveredCount, const Color(0xFF10B981)),
+                          if (isDriver) ...[
+                            ('Qabul qilish kerak', 'loading', loadingCount, const Color(0xFFF59E0B)),
+                            ('Yo‘lda', 'on_the_way', onTheWayCount, const Color(0xFF0284C7)),
+                            ('Yetkazildi', 'delivered', deliveredCount, const Color(0xFF10B981)),
+                          ] else ...[
+                            ('Yo‘lda', 'on_the_way', onTheWayCount, const Color(0xFF0284C7)),
+                            ('Yuklanmoqda', 'loading', loadingCount, const Color(0xFFF59E0B)),
+                            ('Yetkazildi', 'delivered', deliveredCount, const Color(0xFF10B981)),
+                          ],
                           ('Bekor qilingan', 'cancelled', cancelledCount, const Color(0xFFEF4444)),
                         ])
                           _buildFilterSegment(
@@ -281,17 +377,29 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
                   ),
                 );
 
-                final newButton = FilledButton.icon(
-                  onPressed: () => openNewDeliveryDialog(),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Yangi Yetkazish', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
-                    foregroundColor: context.isDark ? AppColors.ink : Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-                  ),
-                );
+                final actionButton = isDriver
+                    ? FilledButton.icon(
+                        onPressed: _loadDeliveries,
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text('Yangilash', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                          foregroundColor: context.isDark ? AppColors.ink : Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                        ),
+                      )
+                    : FilledButton.icon(
+                        onPressed: () => openNewDeliveryDialog(),
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: const Text('Yangi Yetkazish', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+                          foregroundColor: context.isDark ? AppColors.ink : Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                        ),
+                      );
 
                 if (isWide) {
                   return Row(
@@ -300,7 +408,7 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
                       const SizedBox(width: 10),
                       filterCapsule,
                       const SizedBox(width: 10),
-                      newButton,
+                      actionButton,
                     ],
                   );
                 }
@@ -312,7 +420,7 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
                       children: [
                         Expanded(child: searchField),
                         const SizedBox(width: 8),
-                        newButton,
+                        actionButton,
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -360,20 +468,22 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
                     Icon(Icons.local_shipping_outlined, size: 54, color: context.subtextColor.withOpacity(0.5)),
                     const SizedBox(height: 12),
                     Text(
-                      'Yetkazib berish yozuvlari topilmadi',
+                      isDriver ? 'Sizga biriktirilgan yetkazmalar yo‘q' : 'Yetkazib berish yozuvlari topilmadi',
                       style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: context.inkColor),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Yangi yetkazib berish reysini qo‘shish yoki buyurtmalarni mashinaga yuklash orqali qatnovlarni boshqaring.',
+                      isDriver
+                          ? 'Admin yoki kassir sizga yangi buyurtma biriktirganda bu yerda ko‘rinadi. Qayta tekshirish uchun yangilang.'
+                          : 'Yangi yetkazib berish reysini qo‘shish yoki buyurtmalarni mashinaga yuklash orqali qatnovlarni boshqaring.',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 12.5, color: context.subtextColor),
                     ),
                     const SizedBox(height: 16),
                     FilledButton.icon(
-                      onPressed: () => openNewDeliveryDialog(),
-                      icon: const Icon(Icons.add_rounded, size: 18),
-                      label: const Text('+ Yangi Yetkazish'),
+                      onPressed: isDriver ? _loadDeliveries : () => openNewDeliveryDialog(),
+                      icon: Icon(isDriver ? Icons.refresh_rounded : Icons.add_rounded, size: 18),
+                      label: Text(isDriver ? 'Qayta tekshirish' : '+ Yangi Yetkazish'),
                       style: FilledButton.styleFrom(
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
                       ),
@@ -387,6 +497,7 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _DeliveryCard(
                     delivery: delivery,
+                    isDriver: isDriver,
                     onStatusChange: (status) => _changeStatus(delivery, status),
                     onEdit: () => _editDelivery(delivery),
                     onWaybill: () => DeliveryWaybillDialog.show(context, delivery),
@@ -546,12 +657,14 @@ class _DeliveryKpiCard extends StatelessWidget {
 class _DeliveryCard extends StatelessWidget {
   const _DeliveryCard({
     required this.delivery,
+    this.isDriver = false,
     required this.onStatusChange,
     required this.onEdit,
     required this.onWaybill,
   });
 
   final Delivery delivery;
+  final bool isDriver;
   final void Function(String status) onStatusChange;
   final VoidCallback onEdit;
   final VoidCallback onWaybill;
@@ -580,7 +693,7 @@ class _DeliveryCard extends StatelessWidget {
         break;
       default:
         statusColor = const Color(0xFFF59E0B);
-        statusText = 'Yuklanmoqda';
+        statusText = isDriver ? 'Yangi topshiriq (Kutilmoqda)' : 'Yuklanmoqda';
         statusIcon = Icons.hourglass_top_rounded;
     }
 
@@ -676,124 +789,240 @@ class _DeliveryCard extends StatelessWidget {
             ),
           ),
 
-          // 2. Haydovchi va Mijoz ma'lumotlari (Tartibli karta)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: context.isDark ? AppColors.darkCard : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: context.borderColor.withOpacity(0.5)),
+          // 2. Haydovchi va Mijoz ma'lumotlari
+          if (isDriver && delivery.isLoading) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: context.isDark ? const Color(0xFF262014) : const Color(0xFFFEF3C7).withOpacity(0.55),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.lock_rounded, size: 20, color: Color(0xFFD97706)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Mijoz ma’lumotlari va manzil kutilmoqda',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                              color: Color(0xFFB45309),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Buyurtmani qabul qilganingizdan so‘ng mijoz ismi, telefon raqami va aniq yetkazib berish manzili to‘liq ochiladi.',
+                            style: TextStyle(fontSize: 11.5, color: context.subtextColor),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      // Haydovchi
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(5),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF3B82F6).withOpacity(0.12),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.person_rounded, size: 15, color: Color(0xFF3B82F6)),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Haydovchi: ${delivery.driverName}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 12.5,
-                                      color: context.inkColor,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  if (delivery.driverPhone != null && delivery.driverPhone!.isNotEmpty)
-                                    Text(
-                                      delivery.driverPhone!,
-                                      style: TextStyle(fontSize: 11.5, color: context.subtextColor),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(width: 1, height: 28, color: context.borderColor.withOpacity(0.6)),
-                      const SizedBox(width: 12),
-                      // Qabul qiluvchi mijoz
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(5),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF10B981).withOpacity(0.12),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.location_on_rounded, size: 15, color: Color(0xFF10B981)),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Mijoz: ${delivery.recipientName}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 12.5,
-                                      color: context.inkColor,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Text(
-                                    delivery.destinationAddress ?? (delivery.recipientPhone ?? 'Manzil ko‘rsatilmagan'),
-                                    style: TextStyle(fontSize: 11.5, color: context.subtextColor),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (delivery.note != null && delivery.note!.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Divider(height: 10, thickness: 0.5, color: context.borderColor.withOpacity(0.4)),
+            ),
+          ] else ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: context.isDark ? AppColors.darkCard : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: context.borderColor.withOpacity(0.5)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Row(
                       children: [
-                        const Icon(Icons.notes_rounded, size: 14, color: Color(0xFFF59E0B)),
-                        const SizedBox(width: 6),
+                        if (!isDriver) ...[
+                          // Haydovchi (faqat admin/kassirga)
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF3B82F6).withOpacity(0.12),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.person_rounded, size: 15, color: Color(0xFF3B82F6)),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Haydovchi: ${delivery.driverName}',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 12.5,
+                                          color: context.inkColor,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (delivery.driverPhone != null && delivery.driverPhone!.isNotEmpty)
+                                        Text(
+                                          delivery.driverPhone!,
+                                          style: TextStyle(fontSize: 11.5, color: context.subtextColor),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(width: 1, height: 28, color: context.borderColor.withOpacity(0.6)),
+                          const SizedBox(width: 12),
+                        ],
+                        // Qabul qiluvchi mijoz
                         Expanded(
-                          child: Text(
-                            'Izoh: ${delivery.note}',
-                            style: TextStyle(fontSize: 11.5, color: context.inkColor, fontStyle: FontStyle.italic),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(5),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withOpacity(0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.location_on_rounded, size: 15, color: Color(0xFF10B981)),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Mijoz: ${delivery.recipientName}',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 12.5,
+                                        color: context.inkColor,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      delivery.destinationAddress ?? (delivery.recipientPhone ?? 'Manzil ko‘rsatilmagan'),
+                                      style: TextStyle(fontSize: 11.5, color: context.subtextColor),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
+                    if (isDriver && (delivery.isOnTheWay || delivery.isDelivered)) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          if (delivery.recipientPhone != null && delivery.recipientPhone!.isNotEmpty)
+                            InkWell(
+                              onTap: () {
+                                Clipboard.setData(ClipboardData(text: delivery.recipientPhone!));
+                                showMessage(context, 'Mijoz telefon raqami nusxalandi: ${delivery.recipientPhone}');
+                              },
+                              borderRadius: BorderRadius.circular(100),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(100),
+                                  border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.phone_in_talk_rounded, size: 13, color: Color(0xFF10B981)),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'Tel: ${delivery.recipientPhone}',
+                                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF059669)),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(Icons.copy_rounded, size: 11, color: Color(0xFF059669)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          if (delivery.destinationAddress != null && delivery.destinationAddress!.isNotEmpty)
+                            InkWell(
+                              onTap: () {
+                                Clipboard.setData(ClipboardData(text: delivery.destinationAddress!));
+                                showMessage(context, 'Yetkazish manzili nusxalandi: ${delivery.destinationAddress}');
+                              },
+                              borderRadius: BorderRadius.circular(100),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0284C7).withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(100),
+                                  border: Border.all(color: const Color(0xFF0284C7).withOpacity(0.3)),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.directions_rounded, size: 13, color: Color(0xFF0284C7)),
+                                    SizedBox(width: 5),
+                                    Text(
+                                      'Manzilni nusxalash',
+                                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF0284C7)),
+                                    ),
+                                    SizedBox(width: 4),
+                                    Icon(Icons.copy_rounded, size: 11, color: Color(0xFF0284C7)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                    if (delivery.note != null && delivery.note!.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Divider(height: 10, thickness: 0.5, color: context.borderColor.withOpacity(0.4)),
+                      Row(
+                        children: [
+                          const Icon(Icons.notes_rounded, size: 14, color: Color(0xFFF59E0B)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Izoh: ${delivery.note}',
+                              style: TextStyle(fontSize: 11.5, color: context.inkColor, fontStyle: FontStyle.italic),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
-          ),
+          ],
           const SizedBox(height: 8),
 
           // 3. Olib ketilayotgan mahsulotlar (agar mavjud bo'lsa)
@@ -924,75 +1153,166 @@ class _DeliveryCard extends StatelessWidget {
               alignment: WrapAlignment.end,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                // Yo'l varaqasi (Nakladnoy / Waybill)
-                OutlinedButton.icon(
-                  onPressed: onWaybill,
-                  icon: const Icon(Icons.receipt_long_rounded, size: 15),
-                  label: const Text('Yo‘l varaqasi', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: context.inkColor,
-                    side: BorderSide(color: context.borderColor),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-                // Tahrirlash
-                OutlinedButton.icon(
-                  onPressed: onEdit,
-                  icon: const Icon(Icons.edit_note_rounded, size: 16),
-                  label: const Text('Tahrirlash', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: context.inkColor,
-                    side: BorderSide(color: context.borderColor),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-                // Holat bo'yicha tezkor amallar:
-                if (delivery.isLoading) ...[
-                  // Bekor qilish
+                if (isDriver) ...[
+                  if (delivery.isLoading) ...[
+                    // Haydovchi uchun qabul qilish tugmasi
+                    FilledButton.icon(
+                      onPressed: () => onStatusChange('on_the_way'),
+                      icon: const Icon(Icons.check_circle_outline_rounded, size: 17),
+                      label: const Text(
+                        'Buyurtmani qabul qilish',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 11),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                      ),
+                    ),
+                  ] else if (delivery.isOnTheWay) ...[
+                    // Yo'l varaqasi
+                    OutlinedButton.icon(
+                      onPressed: onWaybill,
+                      icon: const Icon(Icons.receipt_long_rounded, size: 15),
+                      label: const Text('Yo‘l varaqasi', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: context.inkColor,
+                        side: BorderSide(color: context.borderColor),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                    // Yetkaza olmadim
+                    OutlinedButton.icon(
+                      onPressed: () => onStatusChange('cancelled'),
+                      icon: const Icon(Icons.close_rounded, size: 15, color: Color(0xFFEF4444)),
+                      label: const Text('Yetkaza olmadim', style: TextStyle(fontSize: 12, color: Color(0xFFEF4444))),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFEF4444),
+                        side: BorderSide(color: const Color(0xFFEF4444).withOpacity(0.4)),
+                        backgroundColor: const Color(0xFFEF4444).withOpacity(0.05),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                    // Yetkazildi (Mijozga topshirdim)
+                    FilledButton.icon(
+                      onPressed: () => onStatusChange('delivered'),
+                      icon: const Icon(Icons.task_alt_rounded, size: 16),
+                      label: const Text(
+                        'Yetkazildi (Mijozga topshirdim)',
+                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                      ),
+                    ),
+                  ] else ...[
+                    // Topshirilgan
+                    OutlinedButton.icon(
+                      onPressed: onWaybill,
+                      icon: const Icon(Icons.receipt_long_rounded, size: 15),
+                      label: const Text('Yo‘l varaqasi', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: context.inkColor,
+                        side: BorderSide(color: context.borderColor),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(100),
+                        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF10B981)),
+                          SizedBox(width: 5),
+                          Text(
+                            'Muvaffaqiyatli topshirilgan',
+                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Color(0xFF10B981)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ] else ...[
+                  // Admin / Kassir ko'rinishi
                   OutlinedButton.icon(
-                    onPressed: () => onStatusChange('cancelled'),
-                    icon: const Icon(Icons.close_rounded, size: 15, color: Color(0xFFEF4444)),
-                    label: const Text('Bekor qilish', style: TextStyle(fontSize: 12, color: Color(0xFFEF4444))),
+                    onPressed: onWaybill,
+                    icon: const Icon(Icons.receipt_long_rounded, size: 15),
+                    label: const Text('Yo‘l varaqasi', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFEF4444),
-                      side: BorderSide(color: const Color(0xFFEF4444).withOpacity(0.4)),
-                      backgroundColor: const Color(0xFFEF4444).withOpacity(0.05),
+                      foregroundColor: context.inkColor,
+                      side: BorderSide(color: context.borderColor),
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
                       visualDensity: VisualDensity.compact,
                     ),
                   ),
-                  // Yo'lga chiqdi
-                  FilledButton.icon(
-                    onPressed: () => onStatusChange('on_the_way'),
-                    icon: const Icon(Icons.local_shipping_rounded, size: 15),
-                    label: const Text('Yo‘lga chiqdi', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF0284C7),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  OutlinedButton.icon(
+                    onPressed: onEdit,
+                    icon: const Icon(Icons.edit_note_rounded, size: 16),
+                    label: const Text('Tahrirlash', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: context.inkColor,
+                      side: BorderSide(color: context.borderColor),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
                       visualDensity: VisualDensity.compact,
                     ),
                   ),
-                ] else if (delivery.isOnTheWay) ...[
-                  // Yetkazildi
-                  FilledButton.icon(
-                    onPressed: () => onStatusChange('delivered'),
-                    icon: const Icon(Icons.check_circle_rounded, size: 15),
-                    label: const Text('Yetkazildi', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF10B981),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-                      visualDensity: VisualDensity.compact,
+                  if (delivery.isLoading) ...[
+                    OutlinedButton.icon(
+                      onPressed: () => onStatusChange('cancelled'),
+                      icon: const Icon(Icons.close_rounded, size: 15, color: Color(0xFFEF4444)),
+                      label: const Text('Bekor qilish', style: TextStyle(fontSize: 12, color: Color(0xFFEF4444))),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFEF4444),
+                        side: BorderSide(color: const Color(0xFFEF4444).withOpacity(0.4)),
+                        backgroundColor: const Color(0xFFEF4444).withOpacity(0.05),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                        visualDensity: VisualDensity.compact,
+                      ),
                     ),
-                  ),
+                    FilledButton.icon(
+                      onPressed: () => onStatusChange('on_the_way'),
+                      icon: const Icon(Icons.local_shipping_rounded, size: 15),
+                      label: const Text('Yo‘lga chiqdi', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF0284C7),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ] else if (delivery.isOnTheWay) ...[
+                    FilledButton.icon(
+                      onPressed: () => onStatusChange('delivered'),
+                      icon: const Icon(Icons.check_circle_rounded, size: 15),
+                      label: const Text('Yetkazildi', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ],
                 ],
               ],
             ),
@@ -1069,6 +1389,9 @@ class DeliveryEditDialog extends StatefulWidget {
 class _DeliveryEditDialogState extends State<DeliveryEditDialog> {
   final _formKey = GlobalKey<FormState>();
 
+  int? _driverId;
+  List<AppUser> _systemDrivers = [];
+
   late TextEditingController _vehicleNumberCtrl;
   late TextEditingController _driverNameCtrl;
   late TextEditingController _driverPhoneCtrl;
@@ -1092,6 +1415,7 @@ class _DeliveryEditDialogState extends State<DeliveryEditDialog> {
   void initState() {
     super.initState();
     final d = widget.delivery;
+    _driverId = d?.driverId;
     _vehicleNumberCtrl = TextEditingController(text: d?.vehicleNumber ?? '');
     _vehicleModel = d?.vehicleModel ?? 'Labo';
     _driverNameCtrl = TextEditingController(text: d?.driverName ?? '');
@@ -1109,6 +1433,24 @@ class _DeliveryEditDialogState extends State<DeliveryEditDialog> {
     } else if (widget.initialItems != null) {
       _items = widget.initialItems!.map((i) => (name: i.productName, quantity: i.quantity, unit: i.unit)).toList();
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadDrivers();
+  }
+
+  Future<void> _loadDrivers() async {
+    try {
+      final repos = context.read<AppRepositories>();
+      final users = await repos.users.list();
+      if (mounted) {
+        setState(() {
+          _systemDrivers = users.where((u) => u.role == Role.haydovchi && u.isActive).toList();
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -1230,6 +1572,48 @@ class _DeliveryEditDialogState extends State<DeliveryEditDialog> {
                       ],
                     ),
                     const SizedBox(height: 12),
+
+                    // Tizimdagi haydovchilarni biriktirish
+                    if (_systemDrivers.isNotEmpty) ...[
+                      Text(
+                        'Tizimdagi haydovchini biriktirish:',
+                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: context.subtextColor),
+                      ),
+                      const SizedBox(height: 6),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: [
+                            for (final u in _systemDrivers) ...[
+                              Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: ChoiceChip(
+                                  avatar: const Icon(Icons.person_rounded, size: 14),
+                                  label: Text(u.fullName, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                                  selected: _driverId == u.id || _driverNameCtrl.text.trim() == u.fullName,
+                                  onSelected: (sel) {
+                                    setState(() {
+                                      if (sel) {
+                                        _driverId = u.id;
+                                        _driverNameCtrl.text = u.fullName;
+                                        if (u.username.isNotEmpty && !u.username.contains('@')) {
+                                          _driverPhoneCtrl.text = u.username;
+                                        }
+                                      } else {
+                                        _driverId = null;
+                                      }
+                                    });
+                                  },
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
 
                     // Haydovchi
                     Row(
@@ -1398,6 +1782,7 @@ class _DeliveryEditDialogState extends State<DeliveryEditDialog> {
                       final d = Delivery(
                         id: widget.delivery?.id ?? 0,
                         saleId: widget.delivery?.saleId ?? widget.saleId,
+                        driverId: _driverId,
                         vehicleNumber: _vehicleNumberCtrl.text.trim().toUpperCase(),
                         vehicleModel: _vehicleModel,
                         driverName: _driverNameCtrl.text.trim(),

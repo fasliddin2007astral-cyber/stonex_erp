@@ -125,7 +125,7 @@ abstract class NotificationRepository {
 }
 
 abstract class DeliveryRepository {
-  Future<List<Delivery>> list({String? status, String? query});
+  Future<List<Delivery>> list({String? status, String? query, int? driverId});
   Future<Delivery> get(int id);
   Future<Delivery> create(Delivery delivery);
   Future<Delivery> update(Delivery delivery);

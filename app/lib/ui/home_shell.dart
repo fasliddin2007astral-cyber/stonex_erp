@@ -37,7 +37,7 @@ class _Dest {
 }
 
 List<_Dest> _destinationsFor(Role role,
-    {void Function(int index)? onNavigate}) {
+    {void Function(int index)? onNavigate, AppUser? currentUser}) {
   final dash = _Dest('Asosiy oyna', Icons.grid_view_rounded,
       () => DashboardScreen(onNavigate: onNavigate),
       actionLabel: '+ Yangi Savdo');
@@ -52,11 +52,11 @@ List<_Dest> _destinationsFor(Role role,
     }),
     actionLabel: '+ Yangi Buyurtma',
   );
-  const deliveries = _Dest(
-    'Yetkazib berish',
+  final deliveries = _Dest(
+    role == Role.haydovchi ? 'Mening Yetkazmalarim' : 'Yetkazib berish',
     Icons.local_shipping_rounded,
-    DeliveriesScreen.new,
-    actionLabel: '+ Yangi Yetkazish',
+    () => DeliveriesScreen(currentUser: currentUser),
+    actionLabel: role == Role.haydovchi ? 'Mening yetkazmalarim' : '+ Yangi Yetkazish',
   );
   const salesHistory = _Dest(
     'Savdolar',
@@ -207,7 +207,7 @@ class _HomeShellState extends State<HomeShell> {
       setState(() {
         _index = i;
       });
-    });
+    }, currentUser: widget.user);
     final cur = dests[_index];
     final repos = context.read<AppRepositories>();
 
@@ -745,7 +745,7 @@ class _HomeShellState extends State<HomeShell> {
       setState(() {
         _index = i;
       });
-    });
+    }, currentUser: widget.user);
 
     showDialog(
       context: context,
@@ -792,7 +792,7 @@ class _HomeShellState extends State<HomeShell> {
       setState(() {
         _index = i;
       });
-    });
+    }, currentUser: widget.user);
     if (_index >= dests.length) _index = 0;
 
     final width = MediaQuery.sizeOf(context).width;

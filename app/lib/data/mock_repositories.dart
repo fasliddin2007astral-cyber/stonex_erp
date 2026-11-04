@@ -343,6 +343,7 @@ class MockStore {
     Delivery(
       id: 1,
       saleId: 99,
+      driverId: 5,
       vehicleNumber: '01 A 777 AA',
       vehicleModel: 'Labo',
       driverName: 'Farhod Haydovchi',
@@ -363,8 +364,31 @@ class MockStore {
       ],
     ),
     Delivery(
+      id: 4,
+      saleId: 101,
+      driverId: 5,
+      vehicleNumber: '01 A 777 AA',
+      vehicleModel: 'Labo',
+      driverName: 'Farhod Haydovchi',
+      driverPhone: '+998 90 123 45 67',
+      recipientName: 'Valijon Usta',
+      recipientPhone: '+998 93 505 40 30',
+      destinationAddress: 'Toshkent sh., Yunusobod 12-mavze, 5-uy',
+      deliveryFee: 120000,
+      feePayer: 'customer',
+      status: 'loading',
+      dispatchTime: null,
+      deliveredTime: null,
+      note: 'Darvoza oldiga borganda telefon qiling',
+      createdAt: DateTime.now().subtract(const Duration(minutes: 15)),
+      items: const [
+        DeliveryItem(id: 6, productId: 1, productName: 'Volga Blue Granit', quantity: 8, unit: 'm2'),
+      ],
+    ),
+    Delivery(
       id: 2,
       saleId: 100,
+      driverId: 8,
       vehicleNumber: '10 820 BBA',
       vehicleModel: 'Gazel',
       driverName: 'Ulug‘bek Haydovchi',
@@ -386,6 +410,7 @@ class MockStore {
     Delivery(
       id: 3,
       saleId: 98,
+      driverId: 9,
       vehicleNumber: '01 543 ZZA',
       vehicleModel: 'Isuzu',
       driverName: 'Jasur Haydovchi',
@@ -1415,9 +1440,12 @@ class MockDeliveryRepository implements DeliveryRepository {
   final MockStore _s;
 
   @override
-  Future<List<Delivery>> list({String? status, String? query}) async {
+  Future<List<Delivery>> list({String? status, String? query, int? driverId}) async {
     await Future.delayed(const Duration(milliseconds: 60));
     var list = List.of(_s.deliveries);
+    if (driverId != null) {
+      list = list.where((d) => d.driverId == driverId).toList();
+    }
     if (status != null && status.isNotEmpty && status != 'all') {
       list = list.where((d) => d.status == status).toList();
     }

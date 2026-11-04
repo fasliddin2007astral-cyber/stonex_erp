@@ -407,6 +407,7 @@ class DeliveryItemOut(ORM):
 
 class DeliveryCreate(BaseModel):
     sale_id: int | None = None
+    driver_id: int | None = None
     vehicle_number: str = Field(min_length=1, max_length=32)
     vehicle_model: str = Field(default="Labo", max_length=64)
     driver_name: str = Field(min_length=1, max_length=128)
@@ -424,6 +425,7 @@ class DeliveryCreate(BaseModel):
 
 
 class DeliveryUpdate(BaseModel):
+    driver_id: int | None = None
     vehicle_number: str | None = None
     vehicle_model: str | None = None
     driver_name: str | None = None
@@ -447,6 +449,7 @@ class DeliveryStatusUpdate(BaseModel):
 class DeliveryOut(ORM):
     id: int
     sale_id: int | None = None
+    driver_id: int | None = None
     vehicle_number: str
     vehicle_model: str
     driver_name: str

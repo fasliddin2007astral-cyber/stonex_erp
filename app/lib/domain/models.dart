@@ -1080,6 +1080,7 @@ class DeliveryItem {
 class Delivery {
   final int id;
   final int? saleId;
+  final int? driverId;
   final String vehicleNumber;
   final String vehicleModel;
   final String driverName;
@@ -1099,6 +1100,7 @@ class Delivery {
   const Delivery({
     required this.id,
     this.saleId,
+    this.driverId,
     required this.vehicleNumber,
     this.vehicleModel = 'Labo',
     required this.driverName,
@@ -1148,6 +1150,7 @@ class Delivery {
   factory Delivery.fromJson(Map<String, dynamic> j) => Delivery(
         id: (j['id'] as num?)?.toInt() ?? 0,
         saleId: (j['sale_id'] as num?)?.toInt(),
+        driverId: (j['driver_id'] as num?)?.toInt(),
         vehicleNumber: (j['vehicle_number'] ?? '').toString(),
         vehicleModel: (j['vehicle_model'] ?? 'Labo').toString(),
         driverName: (j['driver_name'] ?? '').toString(),
@@ -1177,6 +1180,7 @@ class Delivery {
   Map<String, dynamic> toJson() => {
         if (id > 0) 'id': id,
         if (saleId != null) 'sale_id': saleId,
+        if (driverId != null) 'driver_id': driverId,
         'vehicle_number': vehicleNumber,
         'vehicle_model': vehicleModel,
         'driver_name': driverName,
@@ -1196,6 +1200,7 @@ class Delivery {
   Delivery copyWith({
     int? id,
     int? saleId,
+    int? driverId,
     String? vehicleNumber,
     String? vehicleModel,
     String? driverName,
@@ -1215,6 +1220,7 @@ class Delivery {
       Delivery(
         id: id ?? this.id,
         saleId: saleId ?? this.saleId,
+        driverId: driverId ?? this.driverId,
         vehicleNumber: vehicleNumber ?? this.vehicleNumber,
         vehicleModel: vehicleModel ?? this.vehicleModel,
         driverName: driverName ?? this.driverName,

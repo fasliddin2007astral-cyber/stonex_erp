@@ -205,6 +205,7 @@ class Delivery(Base):
     __tablename__ = "deliveries"
     id: Mapped[int] = mapped_column(primary_key=True)
     sale_id: Mapped[int | None] = mapped_column(ForeignKey("sales.id"), nullable=True)
+    driver_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     vehicle_number: Mapped[str] = mapped_column(String(32), index=True)
     vehicle_model: Mapped[str] = mapped_column(String(64), default="Labo")
     driver_name: Mapped[str] = mapped_column(String(128))
@@ -222,6 +223,7 @@ class Delivery(Base):
 
     items: Mapped[list["DeliveryItem"]] = relationship(cascade="all, delete-orphan", back_populates="delivery")
     sale: Mapped["Sale | None"] = relationship()
+    driver: Mapped["User | None"] = relationship(foreign_keys=[driver_id])
 
 
 class DeliveryItem(Base):

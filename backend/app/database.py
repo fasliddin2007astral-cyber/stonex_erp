@@ -120,4 +120,9 @@ def ensure_migrations():
                 conn.execute(text("ALTER TABLE attendance ADD COLUMN note TEXT NULL"))
             if "worked_hours" not in att_columns:
                 conn.execute(text("ALTER TABLE attendance ADD COLUMN worked_hours DECIMAL(14, 3) DEFAULT 0"))
+    if "deliveries" in table_names:
+        del_columns = [c["name"] for c in inspector.get_columns("deliveries")]
+        with engine.begin() as conn:
+            if "driver_id" not in del_columns:
+                conn.execute(text("ALTER TABLE deliveries ADD COLUMN driver_id INTEGER NULL REFERENCES users(id)"))
 
