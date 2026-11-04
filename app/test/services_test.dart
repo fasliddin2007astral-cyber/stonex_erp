@@ -127,7 +127,8 @@ void main() {
       expect(find.byIcon(Icons.grid_view_rounded), findsWidgets);
 
       // Keramogranit chipini tanlaymiz
-      await tester.tap(find.textContaining('Keramogranit'), warnIfMissed: false);
+      await tester.ensureVisible(find.byIcon(Icons.grid_view_rounded).first);
+      await tester.tap(find.byIcon(Icons.grid_view_rounded).first, warnIfMissed: false);
       await tester.pumpAndSettle();
 
       // Savatga qo'shish

@@ -191,8 +191,17 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
       await StoneServicesStore.syncFromRepo(repo);
       final prods = await repo.list();
       if (mounted) {
+        final stones = prods.where((p) => p.category != 'Xizmat').toList();
         setState(() {
-          _availableProducts = prods.where((p) => p.category != 'Xizmat').toList();
+          _availableProducts = stones;
+          if (_selectedProduct == null && stones.isNotEmpty) {
+            final cart = context.read<CartController>();
+            final cartStone = cart.lines
+                .where((l) => l.product.category != 'Xizmat')
+                .map((l) => l.product)
+                .firstOrNull;
+            _applyProduct(cartStone ?? stones.first, initial: true);
+          }
         });
       }
     } catch (_) {}
@@ -473,29 +482,14 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
     // Tosh yoki kafel nomi spetsifikatsiyaga qo'shiladi
     final stonePrefix = _selectedProduct != null
         ? '[${_selectedProduct!.name}] '
-        : '[Mijoz toshi] ';
+        : '';
     specText = '$stonePrefix$specText';
 
     if (note.isNotEmpty) {
       specText = '$specText — $note';
     }
 
-    // 1. Agar tosh ombordan olinib, tosh narxi ham kiritilgan bo'lsa, avval toshni savatga qo'shamiz
-    if (_selectedProduct != null && _includeStoneInCart) {
-      final sQty = _stoneQtyNeeded;
-      if (sQty > 0) {
-        cart.add(
-          _selectedProduct!,
-          quantity: sQty,
-          cutLength: l > 0 ? l : null,
-          cutWidth: w > 0 ? w : null,
-          cutPieces: pieces > 0 ? pieces : null,
-          cutSpec: 'Kesishga berildi ($lenStr × $widStr)',
-        );
-      }
-    }
-
-    // 2. Toshga ishlov berish xizmatini savatga qo'shamiz
+    // 1. Toshga ishlov berish xizmatini savatga qo'shamiz
     cart.add(
       targetProduct,
       quantity: qty,
@@ -510,6 +504,21 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
       final line = cart.lines.last;
       if (line.product.id == targetProduct.id && line.unitPrice != price) {
         cart.update(line, unitPriceOverride: price);
+      }
+    }
+
+    // 2. Agar tosh ombordan yangi qo'shilishi kerak bo'lsa (ombordan chiqim)
+    if (_selectedProduct != null && _includeStoneInCart) {
+      final sQty = _stoneQtyNeeded;
+      if (sQty > 0) {
+        cart.add(
+          _selectedProduct!,
+          quantity: sQty,
+          cutLength: l > 0 ? l : null,
+          cutWidth: w > 0 ? w : null,
+          cutPieces: pieces > 0 ? pieces : null,
+          cutSpec: 'Kesishga berildi ($lenStr × $widStr)',
+        );
       }
     }
 
@@ -1649,18 +1658,6 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
-                const SizedBox(width: 4),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 16),
-                  tooltip: 'Mijoz toshiga qaytarish',
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () {
-                    setState(() {
-                      _selectedProduct = null;
-                      _includeStoneInCart = false;
-                    });
-                  },
-                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -1706,7 +1703,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                           Text(
                             _includeStoneInCart
                                 ? 'Tosh miqdori: ${qty(_stoneQtyNeeded)} ${p.unit} · Qiymati: ${money(_calculatedStonePrice)}'
-                                : 'Faqat xizmat narxi olinadi (tosh allaqachon savatda yoki mijozniki)',
+                                : 'Faqat xizmat narxi olinadi (tosh allaqachon savatga kiritilgan)',
                             style: TextStyle(
                               fontSize: 11,
                               color: context.mutedColor,
@@ -1724,7 +1721,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
       );
     }
 
-    // Hech qaysi tosh tanlanmagan holat: "Mijozning o'z toshi"
+    // Hech qaysi tosh tanlanmagan holat: Faqat ombor toshlari qabul qilinadi
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
@@ -1737,11 +1734,11 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
         children: [
           Row(
             children: [
-              Icon(Icons.person_pin_circle_outlined, size: 18, color: context.mutedColor),
+              Icon(Icons.layers_outlined, size: 18, color: context.mutedColor),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Qayta ishlanadigan tosh yoki kafel:',
+                  'Ishlov berish uchun tosh / kafelni tanlang:',
                   style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
@@ -1756,7 +1753,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '👤 Mijozning o‘z toshi',
+                  'Ombordan tanlang',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -1765,6 +1762,11 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Do‘konda begona tosh kesilmaydi, faqat o‘zimizning toshlar kesiladi',
+            style: TextStyle(fontSize: 11, color: context.mutedColor),
           ),
           const SizedBox(height: 8),
           Wrap(
