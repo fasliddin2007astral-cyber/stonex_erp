@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -1168,7 +1170,40 @@ class _DeliveryCard extends StatelessWidget {
                                 ),
                               ),
                             ),
-                          if (delivery.destinationAddress != null && delivery.destinationAddress!.isNotEmpty)
+                          if (delivery.destinationAddress != null && delivery.destinationAddress!.isNotEmpty) ...[
+                            InkWell(
+                              onTap: () {
+                                final addr = delivery.destinationAddress!;
+                                final mapUrl = 'https://yandex.uz/maps/?text=${Uri.encodeComponent(addr)}';
+                                Clipboard.setData(ClipboardData(text: mapUrl));
+                                try {
+                                  if (Platform.isWindows) {
+                                    Process.run('cmd', ['/c', 'start', '""', mapUrl], runInShell: true);
+                                  }
+                                } catch (_) {}
+                                showMessage(context, '🗺️ Xarita havolasi ochilmoqda: $addr');
+                              },
+                              borderRadius: BorderRadius.circular(100),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF059669).withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(100),
+                                  border: Border.all(color: const Color(0xFF059669).withOpacity(0.3)),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.map_rounded, size: 13, color: Color(0xFF059669)),
+                                    SizedBox(width: 5),
+                                    Text(
+                                      'Xaritada ochish',
+                                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF059669)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                             InkWell(
                               onTap: () {
                                 Clipboard.setData(ClipboardData(text: delivery.destinationAddress!));
@@ -1197,6 +1232,7 @@ class _DeliveryCard extends StatelessWidget {
                                 ),
                               ),
                             ),
+                          ],
                         ],
                       ),
                     ],

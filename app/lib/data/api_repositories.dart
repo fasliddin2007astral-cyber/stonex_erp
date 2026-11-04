@@ -266,13 +266,26 @@ class ApiProductionRepository implements ProductionRepository {
   }
 
   @override
-  Future<void> create({required int productId, required int workerId, required double plannedQty}) async =>
+  Future<void> create({required int productId, required int workerId, required double plannedQty, String? note}) async =>
       _api.post('/production',
-          body: {'product_id': productId, 'assigned_to': workerId, 'planned_qty': plannedQty});
+          body: {
+            'product_id': productId,
+            'assigned_to': workerId,
+            'planned_qty': plannedQty,
+            if (note != null) 'note': note,
+          });
 
   @override
-  Future<void> report(int taskId, double producedQty) async =>
-      _api.post('/production/$taskId/report', body: {'produced_qty': producedQty});
+  Future<void> report(int taskId, double producedQty, {double? wasteQty, String? note}) async =>
+      _api.post('/production/$taskId/report', body: {
+        'produced_qty': producedQty,
+        if (wasteQty != null) 'waste_qty': wasteQty,
+        if (note != null) 'note': note,
+      });
+
+  @override
+  Future<void> approve(int taskId) async =>
+      _api.post('/production/$taskId/approve');
 }
 
 class ApiUserRepository implements UserRepository {

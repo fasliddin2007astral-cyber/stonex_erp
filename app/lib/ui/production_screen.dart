@@ -54,6 +54,18 @@ class _ProductionScreenState extends State<ProductionScreen> {
     }
   }
 
+  Future<void> _approve(ProductionTask t) async {
+    try {
+      await _repo.approve(t.id);
+      if (mounted) {
+        showMessage(context, '🟢 OTK tasdiqlandi: Mahsulot omborga kirdi va xomashyo sarfi hisoblandi');
+        _reload();
+      }
+    } catch (e) {
+      if (mounted) showMessage(context, 'Xatolik: $e', error: true);
+    }
+  }
+
   Future<void> _create() async {
     final repos = context.read<AppRepositories>();
     final ok = await showDialog<bool>(
@@ -436,7 +448,7 @@ class _ProductionScreenState extends State<ProductionScreen> {
 
                                       const SizedBox(width: 16),
 
-                                      // Status va Hisobot tugmasi
+                                      // Status va Hisobot / OTK tugmasi
                                       if (isDone)
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -447,6 +459,32 @@ class _ProductionScreenState extends State<ProductionScreen> {
                                           child: Text('Yakunlandi',
                                               style: TextStyle(
                                                 color: context.isDark ? AppColors.greenBright : const Color(0xFF065F46),
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 11,
+                                              )),
+                                        )
+                                      else if (t.isPendingApproval && isAdmin)
+                                        FilledButton.icon(
+                                          onPressed: () => _approve(t),
+                                          style: FilledButton.styleFrom(
+                                            backgroundColor: const Color(0xFF059669),
+                                            foregroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                          ),
+                                          icon: const Icon(Icons.verified_rounded, size: 16, color: Colors.white),
+                                          label: const Text('OTK Tasdiqlash', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                                        )
+                                      else if (t.isPendingApproval)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFD97706).withOpacity(0.15),
+                                            borderRadius: BorderRadius.circular(20),
+                                            border: Border.all(color: const Color(0xFFD97706).withOpacity(0.4)),
+                                          ),
+                                          child: const Text('🟡 Tekshiruvda',
+                                              style: TextStyle(
+                                                color: Color(0xFFD97706),
                                                 fontWeight: FontWeight.w700,
                                                 fontSize: 11,
                                               )),
@@ -511,6 +549,32 @@ class _ProductionScreenState extends State<ProductionScreen> {
                                               child: Text('Yakunlandi',
                                                   style: TextStyle(
                                                     color: context.isDark ? AppColors.greenBright : const Color(0xFF065F46),
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 11,
+                                                  )),
+                                            )
+                                          else if (t.isPendingApproval && isAdmin)
+                                            FilledButton.icon(
+                                              onPressed: () => _approve(t),
+                                              style: FilledButton.styleFrom(
+                                                backgroundColor: const Color(0xFF059669),
+                                                foregroundColor: Colors.white,
+                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                              ),
+                                              icon: const Icon(Icons.verified_rounded, size: 14, color: Colors.white),
+                                              label: const Text('OTK Tasdiqlash', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11)),
+                                            )
+                                          else if (t.isPendingApproval)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFD97706).withOpacity(0.15),
+                                                borderRadius: BorderRadius.circular(16),
+                                                border: Border.all(color: const Color(0xFFD97706).withOpacity(0.4)),
+                                              ),
+                                              child: const Text('🟡 Tekshiruvda',
+                                                  style: TextStyle(
+                                                    color: Color(0xFFD97706),
                                                     fontWeight: FontWeight.w700,
                                                     fontSize: 11,
                                                   )),
@@ -837,6 +901,7 @@ class _ProductionReportDialog extends StatefulWidget {
 class _ProductionReportDialogState extends State<_ProductionReportDialog> {
   late final double _remaining;
   late final TextEditingController _ctrl;
+  late final TextEditingController _wasteCtrl;
   String? _error;
   bool _busy = false;
 
@@ -845,11 +910,13 @@ class _ProductionReportDialogState extends State<_ProductionReportDialog> {
     super.initState();
     _remaining = (widget.task.planned - widget.task.produced).clamp(0, double.infinity).toDouble();
     _ctrl = TextEditingController(text: qty(_remaining > 0 ? _remaining : 1));
+    _wasteCtrl = TextEditingController(text: '0');
   }
 
   @override
   void dispose() {
     _ctrl.dispose();
+    _wasteCtrl.dispose();
     super.dispose();
   }
 
@@ -859,12 +926,13 @@ class _ProductionReportDialogState extends State<_ProductionReportDialog> {
       setState(() => _error = 'Miqdorni to‘g‘ri kiriting');
       return;
     }
+    final waste = parseInput(_wasteCtrl.text) ?? 0;
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      await widget.repo.report(widget.task.id, v);
+      await widget.repo.report(widget.task.id, v, wasteQty: waste);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
@@ -922,6 +990,15 @@ class _ProductionReportDialogState extends State<_ProductionReportDialog> {
               onChanged: (_) {
                 if (_error != null) setState(() => _error = null);
               },
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _wasteCtrl,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Chiqindi / Brak miqdori (${t.unit})',
+                helperText: 'Yaroqsiz yoki arralashda yo‘qolgan tosh',
+              ),
             ),
             const SizedBox(height: 10),
             Wrap(

@@ -951,7 +951,7 @@ class MockProductionRepository implements ProductionRepository {
       _s.users.values.map((e) => e.user).where((u) => u.role == Role.ishchi && u.isActive).toList();
 
   @override
-  Future<void> create({required int productId, required int workerId, required double plannedQty}) async {
+  Future<void> create({required int productId, required int workerId, required double plannedQty, String? note}) async {
     final i = _s.indexOf(productId);
     if (i < 0) throw ApiException('Mahsulot topilmadi', 404);
     final w = _s.users.values
@@ -961,7 +961,7 @@ class MockProductionRepository implements ProductionRepository {
     final p = _s.products[i];
     _s.tasks.add(ProductionTask(
       id: _s.nextId++, productId: p.id, productName: p.name, unit: p.unit, assignedTo: w.id,
-      workerName: w.fullName, planned: plannedQty, produced: 0, status: 'open',
+      workerName: w.fullName, planned: plannedQty, produced: 0, status: 'open', note: note,
     ));
     _s.notifications.add(AppNotification(
       id: _s.nextId++,
@@ -974,16 +974,18 @@ class MockProductionRepository implements ProductionRepository {
   }
 
   @override
-  Future<void> report(int taskId, double producedQty) async {
+  Future<void> report(int taskId, double producedQty, {double? wasteQty, String? note}) async {
     final ti = _s.tasks.indexWhere((t) => t.id == taskId);
     if (ti < 0) throw ApiException('Topshiriq topilmadi', 404);
     final t = _s.tasks[ti];
     if (t.status == 'done') throw ApiException('Topshiriq yopilgan', 400);
     final produced = t.produced + producedQty;
+    final waste = (t.waste + (wasteQty ?? 0));
     _s.tasks[ti] = ProductionTask(
       id: t.id, productId: t.productId, productName: t.productName, unit: t.unit,
       assignedTo: t.assignedTo, workerName: t.workerName, planned: t.planned,
-      produced: produced, status: produced >= t.planned ? 'done' : 'open',
+      produced: produced, waste: waste, status: produced >= t.planned ? 'done' : 'open',
+      note: note ?? t.note,
     );
     final pi = _s.indexOf(t.productId);
     if (pi >= 0) {
@@ -1001,6 +1003,19 @@ class MockProductionRepository implements ProductionRepository {
       isRead: false,
       createdAt: DateTime.now(),
     ));
+  }
+
+  @override
+  Future<void> approve(int taskId) async {
+    final ti = _s.tasks.indexWhere((t) => t.id == taskId);
+    if (ti < 0) throw ApiException('Topshiriq topilmadi', 404);
+    final t = _s.tasks[ti];
+    _s.tasks[ti] = ProductionTask(
+      id: t.id, productId: t.productId, productName: t.productName, unit: t.unit,
+      assignedTo: t.assignedTo, workerName: t.workerName, planned: t.planned,
+      produced: t.produced, waste: t.waste, status: 'done',
+      approvedBy: 1, approvedAt: DateTime.now(), note: t.note,
+    );
   }
 }
 

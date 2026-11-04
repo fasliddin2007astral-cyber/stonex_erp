@@ -11,3 +11,4 @@ def normalize_phone(val: str | None) -> str:
     if len(digits) == 12 and digits.startswith("998"):
         return f"+{digits}"
     return f"+{digits}" if digits else ""
+

@@ -286,6 +286,10 @@ class Product {
   final double price; // bazaviy birlik narxi
   final double costPrice;
   final double stock;
+  final double reservedQty; // buyurtmalar uchun band qilingan zaxira
+  final int? rawMaterialId; // xomashyo (blok yoki plita)
+  final double? wasteRatio; // sarf/chiqindi koeffitsiyenti (masalan: 1.15)
+  final double? cuttingRate; // ustaga 1 m2 ishbay haq
   final double
       minStock; // kamida qancha bo'lishi kerak (ogohlantirish chegarasi)
   final String? imageUrl;
@@ -312,6 +316,10 @@ class Product {
     required this.price,
     this.costPrice = 0,
     this.stock = 0,
+    this.reservedQty = 0,
+    this.rawMaterialId,
+    this.wasteRatio,
+    this.cuttingRate,
     this.minStock = 15,
     this.imageUrl,
   });
@@ -452,6 +460,10 @@ class Product {
         price: parseNum(j['price']),
         costPrice: parseNum(j['cost_price']),
         stock: parseNum(j['stock']),
+        reservedQty: parseNum(j['reserved_qty']),
+        rawMaterialId: (j['raw_material_id'] as num?)?.toInt(),
+        wasteRatio: j['waste_ratio'] == null ? null : parseNum(j['waste_ratio']),
+        cuttingRate: j['cutting_rate'] == null ? null : parseNum(j['cutting_rate']),
         minStock: j['min_stock'] == null ? 15.0 : parseNum(j['min_stock']),
         imageUrl:
             (j['image_url'] != null && j['image_url'].toString().isNotEmpty)
@@ -490,6 +502,9 @@ class Product {
         'stock': stock,
         'min_stock': minStock,
         'initial_stock': initialStock,
+        if (rawMaterialId != null) 'raw_material_id': rawMaterialId,
+        if (wasteRatio != null) 'waste_ratio': wasteRatio,
+        if (cuttingRate != null) 'cutting_rate': cuttingRate,
         'image_url': imageUrl,
       };
 }
@@ -955,7 +970,12 @@ class ProductionTask {
   final String workerName;
   final double planned;
   final double produced;
-  final String status; // open | done
+  final double waste; // chiqindi / brak
+  final String status; // open | pending_approval | done
+  final int? approvedBy;
+  final DateTime? approvedAt;
+  final String? note;
+
   const ProductionTask({
     required this.id,
     required this.productId,
@@ -965,8 +985,15 @@ class ProductionTask {
     required this.workerName,
     required this.planned,
     required this.produced,
+    this.waste = 0,
     required this.status,
+    this.approvedBy,
+    this.approvedAt,
+    this.note,
   });
+
+  bool get isDone => status == 'done';
+  bool get isPendingApproval => status == 'pending_approval';
 
   factory ProductionTask.fromJson(Map<String, dynamic> j) => ProductionTask(
         id: (j['id'] as num?)?.toInt() ?? 0,
@@ -977,7 +1004,11 @@ class ProductionTask {
         workerName: (j['worker_name'] ?? 'Ishchi').toString(),
         planned: parseNum(j['planned_qty'] ?? j['planned']),
         produced: parseNum(j['produced_qty'] ?? j['produced']),
+        waste: parseNum(j['waste_qty'] ?? j['waste']),
         status: (j['status'] ?? 'open').toString(),
+        approvedBy: (j['approved_by'] as num?)?.toInt(),
+        approvedAt: j['approved_at'] == null ? null : DateTime.tryParse(j['approved_at'].toString()),
+        note: j['note']?.toString(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -989,7 +1020,11 @@ class ProductionTask {
         'worker_name': workerName,
         'planned_qty': planned,
         'produced_qty': produced,
+        'waste_qty': waste,
         'status': status,
+        if (approvedBy != null) 'approved_by': approvedBy,
+        if (approvedAt != null) 'approved_at': approvedAt!.toIso8601String(),
+        if (note != null) 'note': note,
       };
 
   @override

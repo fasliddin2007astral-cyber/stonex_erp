@@ -8,6 +8,7 @@ from .. import roles
 from ..database import get_db
 from ..deps import get_current_user, require_roles
 from ..schemas import DeliveryCreate, DeliveryOut, DeliveryStatusUpdate, DeliveryUpdate
+from ..services.telegram import notify_new_delivery
 from ..utils.phone import normalize_phone
 
 router = APIRouter(prefix="/deliveries", tags=["deliveries"])
@@ -133,6 +134,14 @@ def create_delivery(
 
     db.commit()
     db.refresh(delivery)
+    notify_new_delivery(
+        delivery.id,
+        delivery.driver_name,
+        f"{delivery.vehicle_model} ({delivery.vehicle_number})",
+        delivery.recipient_name,
+        delivery.destination_address or "",
+        float(delivery.delivery_fee or 0),
+    )
     return delivery
 
 
