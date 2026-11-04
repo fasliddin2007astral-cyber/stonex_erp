@@ -1324,168 +1324,145 @@ class _UsersScreenState extends State<UsersScreen> {
           ),
           const SizedBox(width: 14),
 
-          // 2. Worker info and timings
+          // 2. Worker info and status
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 6,
-                  runSpacing: 4,
+                // 1-qator: Xodim ismi va roli (och, ixcham, burchaksiz yozuv)
+                Row(
                   children: [
-                    Text(
-                      u.fullName,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14.5,
-                        color: context.inkColor,
-                      ),
-                    ),
-                    // Role badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: context.pillColor,
-                        borderRadius: BorderRadius.circular(100),
-                        border: Border.all(color: context.borderColor),
-                      ),
+                    Flexible(
                       child: Text(
-                        u.role.label,
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: context.mutedColor),
+                        u.fullName,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          color: context.inkColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    // Status badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(100),
-                        border: Border.all(color: statusColor.withValues(alpha: 0.25)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(statusIcon, size: 11, color: statusColor),
-                          const SizedBox(width: 4),
-                          Text(
-                            statusText,
-                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: statusColor),
-                          ),
-                        ],
+                    const SizedBox(width: 8),
+                    Text(
+                      '• ${u.role.label}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: context.mutedColor,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
 
-                // Timings wrap
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+                // 2-qator: Yagona, ixcham va toza holat ko'rsatkichi (tiqilinchsiz)
+                Row(
                   children: [
                     if (hasCheckedIn) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                        decoration: BoxDecoration(
-                          color: context.isDark ? AppColors.darkCard : const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(100),
-                          border: Border.all(color: context.borderColor.withValues(alpha: 0.6)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.login_rounded, size: 12, color: statusColor),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Keldi: ${_formatTime(att!.checkIn!)}',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.inkColor),
-                            ),
-                          ],
-                        ),
-                      ),
                       if (hasCheckedOut) ...[
+                        // Ish yakunlangan
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
                           decoration: BoxDecoration(
-                            color: context.isDark ? AppColors.darkCard : const Color(0xFFF8FAFC),
+                            color: context.isDark ? AppColors.darkCard : const Color(0xFFF1F5F9),
                             borderRadius: BorderRadius.circular(100),
                             border: Border.all(color: context.borderColor.withValues(alpha: 0.6)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.logout_rounded, size: 12, color: context.inkColor),
-                              const SizedBox(width: 4),
+                              const Icon(Icons.check_circle_outline_rounded, size: 13, color: AppColors.green),
+                              const SizedBox(width: 5),
                               Text(
-                                'Ketdi: ${_formatTime(att.checkOut!)} (${att.workedHours.toStringAsFixed(1)} soat)',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.inkColor),
+                                '${_formatTime(att!.checkIn!)} – ${_formatTime(att.checkOut!)} (${att.workedHours.toStringAsFixed(1)} soat)',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: context.inkColor,
+                                ),
                               ),
                             ],
                           ),
                         ),
                       ] else ...[
+                        // Hozir ishlayotgan xodim
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
                           decoration: BoxDecoration(
-                            color: AppColors.green.withValues(alpha: 0.1),
+                            color: isLate
+                                ? (context.isDark
+                                    ? const Color(0xFFD97706).withValues(alpha: 0.16)
+                                    : const Color(0xFFFEF3C7))
+                                : (context.isDark
+                                    ? AppColors.green.withValues(alpha: 0.16)
+                                    : const Color(0xFFDCFCE7)),
                             borderRadius: BorderRadius.circular(100),
-                            border: Border.all(color: AppColors.green.withValues(alpha: 0.25)),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.timer_outlined, size: 12, color: AppColors.green),
-                              SizedBox(width: 4),
+                              Icon(
+                                isLate ? Icons.access_time_rounded : Icons.check_circle_rounded,
+                                size: 13,
+                                color: isLate ? const Color(0xFFD97706) : const Color(0xFF16A34A),
+                              ),
+                              const SizedBox(width: 5),
                               Text(
-                                'Ishlamoqda',
-                                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppColors.green),
+                                isLate
+                                    ? 'Kechikkan · Keldi ${_formatTime(att!.checkIn!)}'
+                                    : 'Hozir ishda · Keldi ${_formatTime(att!.checkIn!)}',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: isLate ? const Color(0xFFB45309) : const Color(0xFF15803D),
+                                ),
                               ),
                             ],
                           ),
                         ),
                       ],
                     ] else ...[
+                      // Hali kelmagan
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
                         decoration: BoxDecoration(
-                          color: AppColors.danger.withValues(alpha: 0.08),
+                          color: context.isDark
+                              ? AppColors.darkCard
+                              : const Color(0xFFFEE2E2).withValues(alpha: 0.6),
                           borderRadius: BorderRadius.circular(100),
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.info_outline_rounded, size: 12, color: AppColors.danger),
-                            const SizedBox(width: 4),
+                            Icon(Icons.schedule_rounded, size: 13, color: AppColors.danger),
+                            SizedBox(width: 5),
                             Text(
-                              'Kirish qayd etilmagan',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.danger),
+                              'Hali kelmagan',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.danger,
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ],
                     if (att?.note != null && att!.note!.isNotEmpty) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                        decoration: BoxDecoration(
-                          color: context.pillColor,
-                          borderRadius: BorderRadius.circular(100),
-                          border: Border.all(color: context.borderColor.withValues(alpha: 0.5)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.edit_note_rounded, size: 12, color: context.mutedColor),
-                            const SizedBox(width: 4),
-                            Text(
-                              att.note!,
-                              style: TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: context.mutedColor),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '📝 ${att.note}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                            color: context.mutedColor,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
