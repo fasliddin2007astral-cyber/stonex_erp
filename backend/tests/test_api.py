@@ -271,6 +271,38 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(status_res2.json()["status"], "delivered")
         self.assertIsNotNone(status_res2.json()["delivered_time"])
 
+    def test_order_fulfill_with_receiver(self):
+        p = self.product("Angola")
+        # 1. Buyurtma yaratish
+        sale_res = self.c.post("/sales", headers=self.h, json={
+            "customer_name": "Azizbek Azimov",
+            "items": [{"product_id": p["id"], "quantity": 1, "unit": "base"}],
+            "status": "order",
+            "paid_amount": 100000,
+            "note": "Topshirish testi",
+        })
+        self.assertEqual(sale_res.status_code, 201, sale_res.text)
+        sale_id = sale_res.json()["id"]
+
+        # 2. Buyurtmani qabul qiluvchi shaxs va to'lov bilan topshirish
+        fulfill_res = self.c.post(f"/sales/{sale_id}/fulfill", headers=self.h, json={
+            "received_by_name": "Azizbek Azimov",
+            "received_by_phone": "+998 90 123 45 67",
+            "delivery_type": "delivery",
+            "receiver_doc_or_car": "01 A 777 AA",
+            "note": "Mijoz xursand bo'lib qabul qildi",
+            "pay_amount": 80000,
+            "pay_method": "cash",
+        })
+        self.assertEqual(fulfill_res.status_code, 200, fulfill_res.text)
+        f_data = fulfill_res.json()
+        self.assertEqual(f_data["status"], "completed")
+        self.assertEqual(f_data["received_by_name"], "Azizbek Azimov")
+        self.assertEqual(f_data["received_by_phone"], "+998 90 123 45 67")
+        self.assertEqual(f_data["delivery_type"], "delivery")
+        self.assertEqual(f_data["receiver_doc_or_car"], "01 A 777 AA")
+        self.assertIsNotNone(f_data["fulfilled_at"])
+
 
 if __name__ == "__main__":
     unittest.main()

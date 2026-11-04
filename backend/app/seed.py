@@ -43,6 +43,10 @@ def main() -> None:
             db.add(m.User(username="ishchi", full_name="Ishchi Bobur",
                           role=roles.WORKER, password_hash=hash_password("ishchi123")))
             print("Ishchi yaratildi: ishchi")
+        if not db.scalar(select(m.User).where(m.User.username == "haydovchi")):
+            db.add(m.User(username="haydovchi", full_name="Farhod Haydovchi",
+                          role=roles.DRIVER, password_hash=hash_password("haydovchi123")))
+            print("Haydovchi yaratildi: haydovchi")
         for name, unit, dona, price, cost, stock in SAMPLE:
             if db.scalar(select(m.Product).where(m.Product.name == name)):
                 continue

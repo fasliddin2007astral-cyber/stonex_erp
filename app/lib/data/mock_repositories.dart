@@ -75,6 +75,18 @@ class MockStore {
         canLogin: true,
       ),
     ),
+    'haydovchi': (
+      password: 'haydovchi123',
+      user: const AppUser(
+        id: 5,
+        username: 'haydovchi',
+        fullName: 'Farhod Haydovchi',
+        role: Role.haydovchi,
+        salary: 5500000,
+        salaryType: 'monthly',
+        canLogin: true,
+      ),
+    ),
     'worker_4': (
       password: '',
       user: const AppUser(
@@ -685,7 +697,16 @@ class MockSalesRepository implements SalesRepository {
   }
 
   @override
-  Future<SaleResult> fulfillOrder(int saleId) async {
+  Future<SaleResult> fulfillOrder(
+    int saleId, {
+    String? receivedByName,
+    String? receivedByPhone,
+    String? deliveryType,
+    String? receiverDocOrCar,
+    String? note,
+    double? payAmount,
+    String? payMethod,
+  }) async {
     final entry = _s.sales.firstWhere(
       (e) => e.result.id == saleId,
       orElse: () => throw ApiException('Buyurtma topilmadi', 404),
@@ -719,7 +740,27 @@ class MockSalesRepository implements SalesRepository {
       ));
     }
 
-    final updated = entry.result.copyWith(status: 'completed');
+    double newPaid = entry.result.paid;
+    double newDebt = entry.result.debt;
+    if (payAmount != null && payAmount > 0) {
+      newPaid += payAmount;
+      newDebt = (entry.result.total - newPaid).clamp(0, double.infinity).toDouble();
+    }
+
+    final updated = entry.result.copyWith(
+      status: 'completed',
+      receivedByName: receivedByName,
+      receivedByPhone: receivedByPhone,
+      deliveryType: deliveryType,
+      receiverDocOrCar: receiverDocOrCar,
+      fulfilledByName: 'Admin',
+      fulfilledAt: DateTime.now(),
+      note: note != null && note.isNotEmpty
+          ? (entry.result.note != null ? '${entry.result.note} | Topshirish: $note' : note)
+          : entry.result.note,
+      paid: newPaid,
+      debt: newDebt,
+    );
     entry.result = updated;
 
     _s.notifications.add(AppNotification(

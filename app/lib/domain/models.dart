@@ -14,7 +14,8 @@ double? parseNumOrNull(dynamic v) {
 enum Role {
   admin('admin', 'Admin'),
   kassir('kassir', 'Kassir'),
-  ishchi('ishchi', 'Ishchi');
+  ishchi('ishchi', 'Ishchi'),
+  haydovchi('haydovchi', 'Haydovchi');
 
   const Role(this.code, this.label);
   final String code;
@@ -709,6 +710,12 @@ class SaleResult {
   final String? cashierName;
   final String? paymentMethod;
   final DateTime? createdAt;
+  final String? receivedByName;
+  final String? receivedByPhone;
+  final String? deliveryType; // 'pickup' | 'delivery'
+  final String? receiverDocOrCar;
+  final String? fulfilledByName;
+  final DateTime? fulfilledAt;
   final List<SaleItemRecord> items;
 
   bool get isOrder => status == 'order';
@@ -732,6 +739,12 @@ class SaleResult {
     this.cashierName,
     this.paymentMethod,
     this.createdAt,
+    this.receivedByName,
+    this.receivedByPhone,
+    this.deliveryType,
+    this.receiverDocOrCar,
+    this.fulfilledByName,
+    this.fulfilledAt,
     this.items = const [],
   });
 
@@ -754,6 +767,12 @@ class SaleResult {
     String? cashierName,
     String? paymentMethod,
     DateTime? createdAt,
+    String? receivedByName,
+    String? receivedByPhone,
+    String? deliveryType,
+    String? receiverDocOrCar,
+    String? fulfilledByName,
+    DateTime? fulfilledAt,
     List<SaleItemRecord>? items,
   }) =>
       SaleResult(
@@ -775,6 +794,12 @@ class SaleResult {
         cashierName: cashierName ?? this.cashierName,
         paymentMethod: paymentMethod ?? this.paymentMethod,
         createdAt: createdAt ?? this.createdAt,
+        receivedByName: receivedByName ?? this.receivedByName,
+        receivedByPhone: receivedByPhone ?? this.receivedByPhone,
+        deliveryType: deliveryType ?? this.deliveryType,
+        receiverDocOrCar: receiverDocOrCar ?? this.receiverDocOrCar,
+        fulfilledByName: fulfilledByName ?? this.fulfilledByName,
+        fulfilledAt: fulfilledAt ?? this.fulfilledAt,
         items: items ?? this.items,
       );
 
@@ -811,6 +836,14 @@ class SaleResult {
       paymentMethod: (j['payment_method'] as String?) ?? 'cash',
       createdAt: j['created_at'] != null
           ? DateTime.tryParse(j['created_at'].toString())
+          : null,
+      receivedByName: j['received_by_name'] as String?,
+      receivedByPhone: j['received_by_phone'] as String?,
+      deliveryType: j['delivery_type'] as String?,
+      receiverDocOrCar: j['receiver_doc_or_car'] as String?,
+      fulfilledByName: j['fulfilled_by_name'] as String?,
+      fulfilledAt: j['fulfilled_at'] != null
+          ? DateTime.tryParse(j['fulfilled_at'].toString())
           : null,
       items: itemsRaw != null
           ? itemsRaw

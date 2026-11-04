@@ -6,11 +6,11 @@ from .. import models as m
 from .. import roles
 from ..database import get_db
 from ..deps import require_roles
-from ..schemas import PaymentIn, SaleIn, SaleOut, SaleReturnIn
+from ..schemas import PaymentIn, SaleIn, SaleOut, SaleReturnIn, SaleFulfillIn
 from ..services import sales as svc
 
 router = APIRouter(prefix="/sales", tags=["sales"])
-_sellers = require_roles(roles.ADMIN, roles.CASHIER)
+_sellers = require_roles(roles.ADMIN, roles.CASHIER, roles.DRIVER)
 
 
 def to_out(s: m.Sale) -> SaleOut:
@@ -29,6 +29,12 @@ def to_out(s: m.Sale) -> SaleOut:
         paid_usd=getattr(s, 'paid_usd', None),
         status=getattr(s, 'status', 'completed') or 'completed',
         note=getattr(s, 'note', None),
+        received_by_name=getattr(s, 'received_by_name', None),
+        received_by_phone=getattr(s, 'received_by_phone', None),
+        delivery_type=getattr(s, 'delivery_type', None),
+        receiver_doc_or_car=getattr(s, 'receiver_doc_or_car', None),
+        fulfilled_by_name=getattr(s, 'fulfilled_by_name', None),
+        fulfilled_at=getattr(s, 'fulfilled_at', None),
         created_at=s.created_at,
         items=s.items,
         payment_method=method,
@@ -104,8 +110,8 @@ def pay(sale_id: int, data: PaymentIn, db: Session = Depends(get_db),
 
 
 @router.post("/{sale_id}/fulfill", response_model=SaleOut)
-def fulfill(sale_id: int, db: Session = Depends(get_db), user: m.User = Depends(_sellers)):
-    return to_out(svc.fulfill_order(db, user, sale_id))
+def fulfill(sale_id: int, data: SaleFulfillIn | None = None, db: Session = Depends(get_db), user: m.User = Depends(_sellers)):
+    return to_out(svc.fulfill_order(db, user, sale_id, data))
 
 
 @router.post("/{sale_id}/cancel", response_model=SaleOut)

@@ -89,6 +89,18 @@ def ensure_migrations():
                 conn.execute(text("ALTER TABLE sales ADD COLUMN paid_uzs DECIMAL(14, 2) NULL"))
             if "paid_usd" not in s_columns:
                 conn.execute(text("ALTER TABLE sales ADD COLUMN paid_usd DECIMAL(14, 2) NULL"))
+            if "received_by_name" not in s_columns:
+                conn.execute(text("ALTER TABLE sales ADD COLUMN received_by_name VARCHAR(128) NULL"))
+            if "received_by_phone" not in s_columns:
+                conn.execute(text("ALTER TABLE sales ADD COLUMN received_by_phone VARCHAR(32) NULL"))
+            if "delivery_type" not in s_columns:
+                conn.execute(text("ALTER TABLE sales ADD COLUMN delivery_type VARCHAR(32) NULL"))
+            if "receiver_doc_or_car" not in s_columns:
+                conn.execute(text("ALTER TABLE sales ADD COLUMN receiver_doc_or_car VARCHAR(128) NULL"))
+            if "fulfilled_by_name" not in s_columns:
+                conn.execute(text("ALTER TABLE sales ADD COLUMN fulfilled_by_name VARCHAR(128) NULL"))
+            if "fulfilled_at" not in s_columns:
+                conn.execute(text("ALTER TABLE sales ADD COLUMN fulfilled_at DATETIME NULL"))
     if "users" in table_names:
         u_columns = [c["name"] for c in inspector.get_columns("users")]
         with engine.begin() as conn:

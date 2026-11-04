@@ -479,7 +479,7 @@ class _UsersScreenState extends State<UsersScreen> {
   // TAB 0: Xodimlar Ro'yxati
   // ---------------------------------------------------------------------------
   Widget _buildUsersTab() {
-    final filterOptions = ['Barchasi', 'Adminlar', 'Kassirlar', 'Ishchilar', 'Dasturga kiradiganlar', 'Faqat ro‘yxatdagilar', 'Bloklanganlar'];
+    final filterOptions = ['Barchasi', 'Adminlar', 'Kassirlar', 'Ishchilar', 'Haydovchilar', 'Dasturga kiradiganlar', 'Faqat ro‘yxatdagilar', 'Bloklanganlar'];
 
     return FutureBuilder<List<AppUser>>(
       future: _usersFuture,
@@ -496,6 +496,7 @@ class _UsersScreenState extends State<UsersScreen> {
         final adminCount = allUsers.where((u) => u.role == Role.admin).length;
         final cashierCount = allUsers.where((u) => u.role == Role.kassir).length;
         final workerCount = allUsers.where((u) => u.role == Role.ishchi).length;
+        final driverCount = allUsers.where((u) => u.role == Role.haydovchi).length;
         final blockedCount = allUsers.where((u) => !u.isActive).length;
 
         var users = allUsers.where((u) {
@@ -513,6 +514,8 @@ class _UsersScreenState extends State<UsersScreen> {
               return u.role == Role.kassir && u.isActive;
             case 'Ishchilar':
               return u.role == Role.ishchi && u.isActive;
+            case 'Haydovchilar':
+              return u.role == Role.haydovchi && u.isActive;
             case 'Dasturga kiradiganlar':
               return u.canLogin && u.isActive;
             case 'Faqat ro‘yxatdagilar':
@@ -624,6 +627,9 @@ class _UsersScreenState extends State<UsersScreen> {
         break;
       case Role.ishchi:
         roleColor = const Color(0xFFD97706);
+        break;
+      case Role.haydovchi:
+        roleColor = const Color(0xFF0284C7);
         break;
     }
 
@@ -2002,7 +2008,7 @@ class _UserDialogState extends State<UserDialog> {
                 onChanged: (v) {
                   setState(() {
                     _role = v ?? _role;
-                    if (_role == Role.admin || _role == Role.kassir) {
+                    if (_role == Role.admin || _role == Role.kassir || _role == Role.haydovchi) {
                       _canLogin = true;
                     }
                   });

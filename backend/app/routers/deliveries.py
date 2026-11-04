@@ -203,3 +203,4 @@ def delete_delivery(
     db.delete(delivery)
     db.commit()
     return None
+

@@ -35,7 +35,16 @@ abstract class SalesRepository {
   Future<List<SaleResult>> listSales({int limit = 50, String? status});
   Future<List<SaleResult>> listDebts();
   Future<SaleResult> payDebt(int saleId, double amount, {String method = 'cash'});
-  Future<SaleResult> fulfillOrder(int saleId);
+  Future<SaleResult> fulfillOrder(
+    int saleId, {
+    String? receivedByName,
+    String? receivedByPhone,
+    String? deliveryType,
+    String? receiverDocOrCar,
+    String? note,
+    double? payAmount,
+    String? payMethod,
+  });
   Future<SaleResult> cancelOrder(int saleId);
   Future<SaleResult> returnSale(int saleId, {required List<({int productId, double quantity})> items, String? reason});
 }

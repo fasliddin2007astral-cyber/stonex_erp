@@ -195,8 +195,26 @@ class ApiSalesRepository implements SalesRepository {
   }
 
   @override
-  Future<SaleResult> fulfillOrder(int saleId) async {
-    final j = await _api.post('/sales/$saleId/fulfill') as Map<String, dynamic>;
+  Future<SaleResult> fulfillOrder(
+    int saleId, {
+    String? receivedByName,
+    String? receivedByPhone,
+    String? deliveryType,
+    String? receiverDocOrCar,
+    String? note,
+    double? payAmount,
+    String? payMethod,
+  }) async {
+    final payload = <String, dynamic>{
+      if (receivedByName != null) 'received_by_name': receivedByName,
+      if (receivedByPhone != null) 'received_by_phone': receivedByPhone,
+      if (deliveryType != null) 'delivery_type': deliveryType,
+      if (receiverDocOrCar != null) 'receiver_doc_or_car': receiverDocOrCar,
+      if (note != null) 'note': note,
+      if (payAmount != null && payAmount > 0) 'pay_amount': payAmount,
+      if (payMethod != null) 'pay_method': payMethod,
+    };
+    final j = await _api.post('/sales/$saleId/fulfill', body: payload.isNotEmpty ? payload : null) as Map<String, dynamic>;
     return SaleResult.fromJson(j);
   }
 

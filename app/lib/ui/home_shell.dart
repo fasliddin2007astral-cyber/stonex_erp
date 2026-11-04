@@ -122,6 +122,8 @@ List<_Dest> _destinationsFor(Role role,
       return [pos, orders, deliveries, salesHistory, customers, debts, products];
     case Role.ishchi:
       return [prod];
+    case Role.haydovchi:
+      return [deliveries, orders];
   }
 }
 

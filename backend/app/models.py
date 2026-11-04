@@ -125,6 +125,12 @@ class Sale(Base):
     paid_usd: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True, default=0)  # Dollarda to'langan qism
     status: Mapped[str] = mapped_column(String(20), default="completed")  # completed | order | cancelled
     note: Mapped[str | None] = mapped_column(String(255), nullable=True)  # buyurtma izohi / muddat
+    received_by_name: Mapped[str | None] = mapped_column(String(128), nullable=True)  # Mahsulotni qabul qilib olgan shaxs
+    received_by_phone: Mapped[str | None] = mapped_column(String(32), nullable=True)  # Qabul qiluvchi telefoni
+    delivery_type: Mapped[str | None] = mapped_column(String(32), nullable=True)  # pickup | delivery
+    receiver_doc_or_car: Mapped[str | None] = mapped_column(String(128), nullable=True)  # Mashina raqami yoki pasport
+    fulfilled_by_name: Mapped[str | None] = mapped_column(String(128), nullable=True)  # Topshirgan mas'ul xodim
+    fulfilled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # Topshirilgan vaqt
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
     items: Mapped[list["SaleItem"]] = relationship(cascade="all, delete-orphan")

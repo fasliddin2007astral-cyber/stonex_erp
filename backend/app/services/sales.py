@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from .. import models as m
-from ..schemas import SaleIn
+from ..schemas import SaleIn, SaleFulfillIn
 from ..units import dona_to_base, q2, q3
 from .stock import add_movement, get_stock
 
@@ -167,8 +167,8 @@ def add_payment(db: Session, user: m.User, sale_id: int, amount: Decimal, method
     return sale
 
 
-def fulfill_order(db: Session, user: m.User, sale_id: int) -> m.Sale:
-    """Buyurtmani to'liq savdoga aylantirish (tovarlarni ombordan chiqarish)."""
+def fulfill_order(db: Session, user: m.User, sale_id: int, fulfill_data: SaleFulfillIn | None = None) -> m.Sale:
+    """Buyurtmani to'liq savdoga aylantirish (tovarlarni ombordan chiqarish va qabul qiluvchini qayd etish)."""
     sale = db.get(m.Sale, sale_id, with_for_update=True)
     if sale is None:
         raise HTTPException(404, "Buyurtma topilmadi")
@@ -187,10 +187,29 @@ def fulfill_order(db: Session, user: m.User, sale_id: int) -> m.Sale:
                      ref_type="sale", ref_id=sale.id, user_id=user.id)
 
     sale.status = "completed"
+    sale.fulfilled_at = datetime.utcnow()
+    sale.fulfilled_by_name = user.full_name
+    if fulfill_data:
+        if fulfill_data.received_by_name:
+            sale.received_by_name = fulfill_data.received_by_name.strip()
+        if fulfill_data.received_by_phone:
+            sale.received_by_phone = fulfill_data.received_by_phone.strip()
+        if fulfill_data.delivery_type:
+            sale.delivery_type = fulfill_data.delivery_type.strip()
+        if fulfill_data.receiver_doc_or_car:
+            sale.receiver_doc_or_car = fulfill_data.receiver_doc_or_car.strip()
+        if fulfill_data.note:
+            extra_note = fulfill_data.note.strip()
+            sale.note = f"{sale.note} | Topshirish: {extra_note}" if sale.note else extra_note
+
+        if fulfill_data.pay_amount and fulfill_data.pay_amount > 0:
+            add_payment(db, user, sale.id, fulfill_data.pay_amount, fulfill_data.pay_method or "cash")
+
     c_name = sale.customer.name if sale.customer else f"Mijoz #{sale.customer_id}"
+    receiver_info = f" (Qabul qildi: {sale.received_by_name})" if sale.received_by_name else ""
     db.add(m.Notification(
         title="Buyurtma topshirildi",
-        message=f"{c_name} uchun Buyurtma #{sale.id} tovarlari topshirildi va ombordan chiqarildi.",
+        message=f"{c_name} uchun Buyurtma #{sale.id} tovarlari topshirildi{receiver_info} va ombordan chiqarildi.",
         kind="sale",
     ))
 

@@ -283,6 +283,16 @@ class SaleItemOut(ORM):
     line_total: Decimal
 
 
+class SaleFulfillIn(BaseModel):
+    received_by_name: str | None = None
+    received_by_phone: str | None = None
+    delivery_type: str | None = "pickup"  # 'pickup', 'delivery'
+    receiver_doc_or_car: str | None = None
+    note: str | None = None
+    pay_amount: Decimal | None = None
+    pay_method: str | None = "cash"
+
+
 class SaleOut(BaseModel):
     id: int
     customer: CustomerOut | None
@@ -296,6 +306,12 @@ class SaleOut(BaseModel):
     paid_usd: Decimal | None = None
     status: str = "completed"
     note: str | None = None
+    received_by_name: str | None = None
+    received_by_phone: str | None = None
+    delivery_type: str | None = None
+    receiver_doc_or_car: str | None = None
+    fulfilled_by_name: str | None = None
+    fulfilled_at: datetime | None = None
     created_at: datetime
     items: list[SaleItemOut]
     payment_method: str | None = None

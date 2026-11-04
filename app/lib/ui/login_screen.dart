@@ -653,6 +653,7 @@ class _LoginScreenState extends State<LoginScreen>
                       _buildRoleButton(Role.admin, 'Admin', Icons.shield_rounded),
                       _buildRoleButton(Role.kassir, 'Kassir', Icons.point_of_sale_rounded),
                       _buildRoleButton(Role.ishchi, 'Ishchi', Icons.handyman_rounded),
+                      _buildRoleButton(Role.haydovchi, 'Haydovchi', Icons.local_shipping_rounded),
                     ],
                   ),
                 ),
@@ -825,6 +826,7 @@ class _LoginScreenState extends State<LoginScreen>
                     _buildDemoChip('Admin', 'admin', 'admin12345', Role.admin, AppColors.neonLime, Icons.shield_rounded),
                     _buildDemoChip('Kassir', 'kassir', 'kassir123', Role.kassir, const Color(0xFF38BDF8), Icons.point_of_sale_rounded),
                     _buildDemoChip('Ishchi', 'ishchi', 'ishchi123', Role.ishchi, const Color(0xFFFBBF24), Icons.handyman_rounded),
+                    _buildDemoChip('Haydovchi', 'haydovchi', 'haydovchi123', Role.haydovchi, const Color(0xFF0284C7), Icons.local_shipping_rounded),
                   ],
                 ),
 
@@ -899,16 +901,20 @@ class _LoginScreenState extends State<LoginScreen>
             children: [
               Icon(
                 icon,
-                size: 15,
+                size: 14,
                 color: isSelected ? const Color(0xFF090D14) : const Color(0xFF94A3B8),
               ),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                  color: isSelected ? const Color(0xFF090D14) : const Color(0xFFCBD5E1),
+              const SizedBox(width: 3.5),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                    color: isSelected ? const Color(0xFF090D14) : const Color(0xFFCBD5E1),
+                  ),
                 ),
               ),
             ],
