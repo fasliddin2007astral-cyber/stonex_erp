@@ -39,12 +39,20 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
     super.dispose();
   }
 
+  bool _isTogglingShift = false;
+
   Future<void> _toggleShift(bool val) async {
-    if (widget.currentUser == null) return;
+    if (_isTogglingShift) return;
+    _isTogglingShift = true;
+    final prev = _isOnShift;
     setState(() => _isOnShift = val);
     try {
       final repos = context.read<AppRepositories>();
-      await repos.users.toggleShift(widget.currentUser!.id, val);
+      final uid = widget.currentUser?.id;
+      if (uid == null) {
+        throw Exception('Foydalanuvchi aniqlanmadi');
+      }
+      await repos.users.toggleShift(uid, val);
       if (mounted) {
         showMessage(
           context,
@@ -53,9 +61,11 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isOnShift = !val);
+        setState(() => _isOnShift = prev);
         showMessage(context, 'Xatolik: $e', error: true);
       }
+    } finally {
+      _isTogglingShift = false;
     }
   }
 
@@ -366,16 +376,18 @@ class DeliveriesScreenState extends State<DeliveriesScreen> {
                               ),
                             ),
                             const SizedBox(width: 4),
-                            SizedBox(
-                              height: 18,
-                              width: 30,
-                              child: Transform.scale(
-                                scale: 0.7,
-                                child: Switch.adaptive(
-                                  value: _isOnShift,
-                                  activeColor: const Color(0xFF10B981),
-                                  onChanged: _toggleShift,
-                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            IgnorePointer(
+                              child: SizedBox(
+                                height: 18,
+                                width: 30,
+                                child: Transform.scale(
+                                  scale: 0.7,
+                                  child: Switch.adaptive(
+                                    value: _isOnShift,
+                                    activeColor: const Color(0xFF10B981),
+                                    onChanged: (_) {},
+                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
                                 ),
                               ),
                             ),
