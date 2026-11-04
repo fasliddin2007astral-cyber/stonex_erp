@@ -752,153 +752,130 @@ class _UsersScreenState extends State<UsersScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // 1. Sana boshqaruvi (Ixcham, markazlashtirilgan qulay kapsula bar)
-              Center(
+              // 1. Sana boshqaruvi (O‘ng tomonga yopishtirilgan, yaxlit va qulay zamonaviy kapsula)
+              Align(
+                alignment: Alignment.centerRight,
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Tezkor 'Kecha' va 'Bugun' tugmalari
-                      Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          color: context.isDark ? const Color(0xFF161E28) : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(100),
-                          border: Border.all(color: context.borderColor.withValues(alpha: 0.8)),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3.5),
+                    decoration: BoxDecoration(
+                      color: context.cardColor,
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(color: context.borderColor),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: context.isDark ? 0.25 : 0.04),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildQuickDateChip('Kecha', DateTime.now().subtract(const Duration(days: 1))),
-                            const SizedBox(width: 3),
-                            _buildQuickDateChip('Bugun', DateTime.now()),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 10),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Tezkor 'Kecha' va 'Bugun'
+                        _buildQuickDateChip('Kecha', DateTime.now().subtract(const Duration(days: 1))),
+                        const SizedBox(width: 3),
+                        _buildQuickDateChip('Bugun', DateTime.now()),
+                        const SizedBox(width: 6),
 
-                      // Asosiy sana navigatori: <  [ 📅 4-noyabr, 2026 (Chorshanba) ]  >
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: context.cardColor,
-                          borderRadius: BorderRadius.circular(100),
-                          border: Border.all(color: context.borderColor),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: context.isDark ? 0.25 : 0.04),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                        // Ajratuvchi nozik chiziq
+                        Container(
+                          width: 1,
+                          height: 22,
+                          color: context.borderColor.withValues(alpha: 0.8),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.chevron_left_rounded, size: 22),
-                              onPressed: () {
-                                setState(() {
-                                  _selectedDate = _selectedDate.subtract(const Duration(days: 1));
-                                  _reloadAttendance();
-                                });
-                              },
-                              tooltip: 'Oldingi kun',
-                              splashRadius: 18,
-                              visualDensity: VisualDensity.compact,
-                            ),
-                            InkWell(
-                              onTap: () async {
-                                final picked = await showDatePicker(
-                                  context: context,
-                                  initialDate: _selectedDate,
-                                  firstDate: DateTime(2025),
-                                  lastDate: DateTime(2030),
-                                );
-                                if (picked != null) {
-                                  setState(() {
-                                    _selectedDate = picked;
-                                    _reloadAttendance();
-                                  });
-                                }
-                              },
+                        const SizedBox(width: 4),
+
+                        // Oldingi kun <
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left_rounded, size: 22),
+                          onPressed: () {
+                            setState(() {
+                              _selectedDate = _selectedDate.subtract(const Duration(days: 1));
+                              _reloadAttendance();
+                            });
+                          },
+                          tooltip: 'Oldingi kun',
+                          splashRadius: 18,
+                          visualDensity: VisualDensity.compact,
+                        ),
+
+                        // Markaziy interaktiv sana (Kalendar)
+                        InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: _selectedDate,
+                              firstDate: DateTime(2025),
+                              lastDate: DateTime(2030),
+                            );
+                            if (picked != null) {
+                              setState(() {
+                                _selectedDate = picked;
+                                _reloadAttendance();
+                              });
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(100),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isToday
+                                  ? (context.isDark ? AppColors.neonLime.withValues(alpha: 0.15) : const Color(0xFFF0FDF4))
+                                  : context.pillColor,
                               borderRadius: BorderRadius.circular(100),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 180),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6.5),
-                                decoration: BoxDecoration(
-                                  color: isToday
-                                      ? (context.isDark ? AppColors.neonLime.withValues(alpha: 0.15) : const Color(0xFFF0FDF4))
-                                      : context.pillColor,
-                                  borderRadius: BorderRadius.circular(100),
-                                  border: Border.all(
-                                    color: isToday
-                                        ? (context.isDark ? AppColors.neonLime : const Color(0xFF22C55E))
-                                        : context.borderColor.withValues(alpha: 0.6),
-                                    width: isToday ? 1.2 : 1.0,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.calendar_month_rounded,
-                                      size: 16,
-                                      color: isToday
-                                          ? (context.isDark ? AppColors.neonLime : const Color(0xFF16A34A))
-                                          : context.inkColor,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      _formatDateUz(_selectedDate),
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w800,
-                                        color: isToday
-                                            ? (context.isDark ? AppColors.neonLime : const Color(0xFF15803D))
-                                            : context.inkColor,
-                                      ),
-                                    ),
-                                    if (isToday) ...[
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                        decoration: BoxDecoration(
-                                          color: context.isDark ? AppColors.neonLime : const Color(0xFF16A34A),
-                                          borderRadius: BorderRadius.circular(100),
-                                        ),
-                                        child: Text(
-                                          'Bugun',
-                                          style: TextStyle(
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.w800,
-                                            color: context.isDark ? AppColors.ink : Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
+                              border: Border.all(
+                                color: isToday
+                                    ? (context.isDark ? AppColors.neonLime : const Color(0xFF22C55E))
+                                    : context.borderColor.withValues(alpha: 0.6),
+                                width: isToday ? 1.2 : 1.0,
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.chevron_right_rounded, size: 22),
-                              onPressed: () {
-                                setState(() {
-                                  _selectedDate = _selectedDate.add(const Duration(days: 1));
-                                  _reloadAttendance();
-                                });
-                              },
-                              tooltip: 'Keyingi kun',
-                              splashRadius: 18,
-                              visualDensity: VisualDensity.compact,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.calendar_month_rounded,
+                                  size: 16,
+                                  color: isToday
+                                      ? (context.isDark ? AppColors.neonLime : const Color(0xFF16A34A))
+                                      : context.inkColor,
+                                ),
+                                const SizedBox(width: 7),
+                                Text(
+                                  _formatDateUz(_selectedDate),
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: isToday
+                                        ? (context.isDark ? AppColors.neonLime : const Color(0xFF15803D))
+                                        : context.inkColor,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
+
+                        // Keyingi kun >
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right_rounded, size: 22),
+                          onPressed: () {
+                            setState(() {
+                              _selectedDate = _selectedDate.add(const Duration(days: 1));
+                              _reloadAttendance();
+                            });
+                          },
+                          tooltip: 'Keyingi kun',
+                          splashRadius: 18,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
