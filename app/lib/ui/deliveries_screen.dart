@@ -796,34 +796,29 @@ class _DeliveryCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
 
-          // 3. Olib ketilayotgan mahsulotlar (Tartibli jadval)
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: context.isDark ? const Color(0xFF181D24) : const Color(0xFFF1F5F9).withOpacity(0.6),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.inventory_2_outlined, size: 14, color: AppColors.muted),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Yuklangan mahsulotlar (${delivery.items.length} xil):',
-                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: context.subtextColor),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                if (delivery.items.isEmpty)
-                  Text(
-                    'Mahsulotlar biriktirilmagan',
-                    style: TextStyle(fontSize: 12, color: context.subtextColor, fontStyle: FontStyle.italic),
-                  )
-                else
+          // 3. Olib ketilayotgan mahsulotlar (agar mavjud bo'lsa)
+          if (delivery.items.isNotEmpty) ...[
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: context.isDark ? const Color(0xFF181D24) : const Color(0xFFF1F5F9).withOpacity(0.6),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.inventory_2_outlined, size: 14, color: AppColors.muted),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Yuklangan mahsulotlar (${delivery.items.length} xil):',
+                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: context.subtextColor),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
                   for (int i = 0; i < delivery.items.length; i++) ...[
                     if (i > 0)
                       Divider(height: 10, thickness: 0.5, color: context.borderColor.withOpacity(0.4)),
@@ -865,10 +860,11 @@ class _DeliveryCard extends StatelessWidget {
                       ],
                     ),
                   ],
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
+            const SizedBox(height: 10),
+          ],
 
           // 4. Yo'l haqi va Yetkazish vaqtlari
           Padding(
@@ -1311,110 +1307,7 @@ class _DeliveryEditDialogState extends State<DeliveryEditDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Yuklanayotgan mahsulotlar ro'yxati
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Yuklangan mahsulotlar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: context.subtextColor)),
-                        Text('${_items.length} ta', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.inkColor)),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    // Yangi tovar qo'shish qatori
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: context.isDark ? AppColors.darkCard : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 3,
-                            child: TextField(
-                              controller: _prodNameCtrl,
-                              decoration: const InputDecoration(
-                                hintText: 'Mahsulot nomi...',
-                                isDense: true,
-                                border: InputBorder.none,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            flex: 1,
-                            child: TextField(
-                              controller: _prodQtyCtrl,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              decoration: const InputDecoration(
-                                hintText: 'Miqdori',
-                                isDense: true,
-                                border: InputBorder.none,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          DropdownButton<String>(
-                            value: _prodUnit,
-                            underline: const SizedBox(),
-                            isDense: true,
-                            items: const [
-                              DropdownMenuItem(value: 'dona', child: Text('dona')),
-                              DropdownMenuItem(value: 'm2', child: Text('m²')),
-                              DropdownMenuItem(value: 'metr', child: Text('metr')),
-                              DropdownMenuItem(value: 'qop', child: Text('qop')),
-                              DropdownMenuItem(value: 'kg', child: Text('kg')),
-                            ],
-                            onChanged: (v) => setState(() => _prodUnit = v ?? 'dona'),
-                          ),
-                          const SizedBox(width: 6),
-                          IconButton(
-                            icon: const Icon(Icons.add_circle_rounded, color: AppColors.green),
-                            onPressed: _addItem,
-                            tooltip: 'Qo‘shish',
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Qo'shilgan tovarlar
-                    if (_items.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: context.borderColor),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          children: [
-                            for (int i = 0; i < _items.length; i++)
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      '${i + 1}. ${_items[i].name}',
-                                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: context.inkColor),
-                                    ),
-                                  ),
-                                  Text(
-                                    '${_items[i].quantity} ${_items[i].unit}',
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: context.inkColor),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.danger),
-                                    onPressed: () => setState(() => _items.removeAt(i)),
-                                    splashRadius: 16,
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                ],
-                              ),
-                          ],
-                        ),
-                      ),
-                    const SizedBox(height: 16),
-
-                    // Yo'l haqi va Holat
+                    // Yo‘l haqi va Holat
                     Row(
                       children: [
                         Expanded(
