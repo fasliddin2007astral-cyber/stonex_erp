@@ -752,117 +752,154 @@ class _UsersScreenState extends State<UsersScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // 1. Sana boshqaruvi (Sleek Capsule Date Bar)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: context.cardColor,
-                  borderRadius: BorderRadius.circular(100),
-                  border: Border.all(color: context.borderColor),
-                ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left_rounded),
-                      onPressed: () {
-                        setState(() {
-                          _selectedDate = _selectedDate.subtract(const Duration(days: 1));
-                          _reloadAttendance();
-                        });
-                      },
-                      tooltip: 'Oldingi kun',
-                      splashRadius: 20,
-                    ),
-                    Expanded(
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(100),
-                        onTap: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: _selectedDate,
-                            firstDate: DateTime(2025),
-                            lastDate: DateTime(2030),
-                          );
-                          if (picked != null) {
-                            setState(() {
-                              _selectedDate = picked;
-                              _reloadAttendance();
-                            });
-                          }
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.calendar_today_rounded,
-                                size: 16,
-                                color: isToday
-                                    ? (context.isDark ? AppColors.neonLime : const Color(0xFF16A34A))
-                                    : context.mutedColor,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '$_dateStr ${isToday ? "(Bugun)" : ""}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: context.inkColor,
-                                ),
-                              ),
-                            ],
-                          ),
+              // 1. Sana boshqaruvi (Ixcham, markazlashtirilgan qulay kapsula bar)
+              Center(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Tezkor 'Kecha' va 'Bugun' tugmalari
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: context.isDark ? const Color(0xFF161E28) : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(100),
+                          border: Border.all(color: context.borderColor.withValues(alpha: 0.8)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildQuickDateChip('Kecha', DateTime.now().subtract(const Duration(days: 1))),
+                            const SizedBox(width: 3),
+                            _buildQuickDateChip('Bugun', DateTime.now()),
+                          ],
                         ),
                       ),
-                    ),
-                    if (!isToday) ...[
-                      InkWell(
-                        onTap: () {
-                          setState(() {
-                            _selectedDate = DateTime.now();
-                            _reloadAttendance();
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(100),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: context.pillColor,
-                            borderRadius: BorderRadius.circular(100),
-                            border: Border.all(color: context.borderColor),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.today_rounded, size: 14, color: context.inkColor),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Bugun',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: context.inkColor,
+                      const SizedBox(width: 10),
+
+                      // Asosiy sana navigatori: <  [ 📅 4-noyabr, 2026 (Chorshanba) ]  >
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: context.cardColor,
+                          borderRadius: BorderRadius.circular(100),
+                          border: Border.all(color: context.borderColor),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: context.isDark ? 0.25 : 0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.chevron_left_rounded, size: 22),
+                              onPressed: () {
+                                setState(() {
+                                  _selectedDate = _selectedDate.subtract(const Duration(days: 1));
+                                  _reloadAttendance();
+                                });
+                              },
+                              tooltip: 'Oldingi kun',
+                              splashRadius: 18,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            InkWell(
+                              onTap: () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: _selectedDate,
+                                  firstDate: DateTime(2025),
+                                  lastDate: DateTime(2030),
+                                );
+                                if (picked != null) {
+                                  setState(() {
+                                    _selectedDate = picked;
+                                    _reloadAttendance();
+                                  });
+                                }
+                              },
+                              borderRadius: BorderRadius.circular(100),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6.5),
+                                decoration: BoxDecoration(
+                                  color: isToday
+                                      ? (context.isDark ? AppColors.neonLime.withValues(alpha: 0.15) : const Color(0xFFF0FDF4))
+                                      : context.pillColor,
+                                  borderRadius: BorderRadius.circular(100),
+                                  border: Border.all(
+                                    color: isToday
+                                        ? (context.isDark ? AppColors.neonLime : const Color(0xFF22C55E))
+                                        : context.borderColor.withValues(alpha: 0.6),
+                                    width: isToday ? 1.2 : 1.0,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.calendar_month_rounded,
+                                      size: 16,
+                                      color: isToday
+                                          ? (context.isDark ? AppColors.neonLime : const Color(0xFF16A34A))
+                                          : context.inkColor,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _formatDateUz(_selectedDate),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                        color: isToday
+                                            ? (context.isDark ? AppColors.neonLime : const Color(0xFF15803D))
+                                            : context.inkColor,
+                                      ),
+                                    ),
+                                    if (isToday) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                        decoration: BoxDecoration(
+                                          color: context.isDark ? AppColors.neonLime : const Color(0xFF16A34A),
+                                          borderRadius: BorderRadius.circular(100),
+                                        ),
+                                        child: Text(
+                                          'Bugun',
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: context.isDark ? AppColors.ink : Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.chevron_right_rounded, size: 22),
+                              onPressed: () {
+                                setState(() {
+                                  _selectedDate = _selectedDate.add(const Duration(days: 1));
+                                  _reloadAttendance();
+                                });
+                              },
+                              tooltip: 'Keyingi kun',
+                              splashRadius: 18,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 4),
                     ],
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right_rounded),
-                      onPressed: () {
-                        setState(() {
-                          _selectedDate = _selectedDate.add(const Duration(days: 1));
-                          _reloadAttendance();
-                        });
-                      },
-                      tooltip: 'Keyingi kun',
-                      splashRadius: 20,
-                    ),
-                  ],
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -1011,6 +1048,63 @@ class _UsersScreenState extends State<UsersScreen> {
         );
       },
     );
+  }
+
+  Widget _buildQuickDateChip(String label, DateTime targetDate) {
+    final isSelected = _selectedDate.year == targetDate.year &&
+        _selectedDate.month == targetDate.month &&
+        _selectedDate.day == targetDate.day;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedDate = targetDate;
+          _reloadAttendance();
+        });
+      },
+      borderRadius: BorderRadius.circular(100),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(100),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: context.isDark ? 0.25 : 0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            color: isSelected
+                ? (context.isDark ? AppColors.ink : Colors.white)
+                : context.mutedColor,
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDateUz(DateTime dt) {
+    const months = [
+      'yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun',
+      'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'
+    ];
+    const weekdays = [
+      'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba', 'Yakshanba'
+    ];
+    final dayName = weekdays[dt.weekday - 1];
+    final monthName = months[dt.month - 1];
+    return '${dt.day}-$monthName, ${dt.year} ($dayName)';
   }
 
   bool _isToday(DateTime d) {
