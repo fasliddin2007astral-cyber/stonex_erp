@@ -6,7 +6,7 @@ from .. import roles
 from ..database import get_db
 from ..deps import get_current_user, require_roles
 from ..models import User
-from ..schemas import UserCreate, UserOut, UserUpdate
+from ..schemas import UserCreate, UserOut, UserShiftUpdate, UserUpdate
 from ..security import hash_password
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -89,7 +89,8 @@ def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db),
 @router.patch("/{user_id}/shift", response_model=UserOut)
 def toggle_user_shift(
     user_id: int,
-    on_shift: bool,
+    data: UserShiftUpdate | None = None,
+    on_shift: bool | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -98,7 +99,14 @@ def toggle_user_shift(
         raise HTTPException(404, "Foydalanuvchi topilmadi")
     if current_user.role != roles.ADMIN and current_user.id != user_id:
         raise HTTPException(403, "O'zingizdan boshqa xodim smenasini o'zgartira olmaysiz")
-    u.is_on_shift = on_shift
+
+    val = on_shift
+    if data is not None and data.is_on_shift is not None:
+        val = data.is_on_shift
+    if val is None:
+        val = not u.is_on_shift
+
+    u.is_on_shift = val
     db.commit()
     db.refresh(u)
     return u

@@ -56,6 +56,10 @@ class UserUpdate(BaseModel):
     is_on_shift: bool | None = None
 
 
+class UserShiftUpdate(BaseModel):
+    is_on_shift: bool = True
+
+
 # ---------- attendance & payroll ----------
 class AttendanceCheckIn(BaseModel):
     user_id: int
