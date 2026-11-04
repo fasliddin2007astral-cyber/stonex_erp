@@ -266,13 +266,28 @@ class ApiProductionRepository implements ProductionRepository {
   }
 
   @override
-  Future<void> create({required int productId, required int workerId, required double plannedQty, String? note}) async =>
+  Future<void> create({
+    required int productId,
+    required int workerId,
+    required double plannedQty,
+    String? note,
+    int? orderId,
+    double? cutLength,
+    double? cutWidth,
+    int? cutPieces,
+    String? cutSpec,
+  }) async =>
       _api.post('/production',
           body: {
             'product_id': productId,
             'assigned_to': workerId,
             'planned_qty': plannedQty,
-            if (note != null) 'note': note,
+            if (note != null && note.isNotEmpty) 'note': note,
+            if (orderId != null) 'order_id': orderId,
+            if (cutLength != null) 'cut_length': cutLength,
+            if (cutWidth != null) 'cut_width': cutWidth,
+            if (cutPieces != null) 'cut_pieces': cutPieces,
+            if (cutSpec != null && cutSpec.isNotEmpty) 'cut_spec': cutSpec,
           });
 
   @override

@@ -976,6 +976,11 @@ class ProductionTask {
   final int? approvedBy;
   final DateTime? approvedAt;
   final String? note;
+  final int? orderId;
+  final double? cutLength;
+  final double? cutWidth;
+  final int? cutPieces;
+  final String? cutSpec;
 
   const ProductionTask({
     required this.id,
@@ -991,6 +996,11 @@ class ProductionTask {
     this.approvedBy,
     this.approvedAt,
     this.note,
+    this.orderId,
+    this.cutLength,
+    this.cutWidth,
+    this.cutPieces,
+    this.cutSpec,
   });
 
   bool get isDone => status == 'done';
@@ -1012,6 +1022,11 @@ class ProductionTask {
         approvedBy: (j['approved_by'] as num?)?.toInt(),
         approvedAt: j['approved_at'] == null ? null : DateTime.tryParse(j['approved_at'].toString()),
         note: j['note']?.toString(),
+        orderId: (j['order_id'] as num?)?.toInt(),
+        cutLength: parseNumOrNull(j['cut_length']),
+        cutWidth: parseNumOrNull(j['cut_width']),
+        cutPieces: (j['cut_pieces'] as num?)?.toInt(),
+        cutSpec: j['cut_spec']?.toString(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -1028,6 +1043,11 @@ class ProductionTask {
         if (approvedBy != null) 'approved_by': approvedBy,
         if (approvedAt != null) 'approved_at': approvedAt!.toIso8601String(),
         if (note != null) 'note': note,
+        if (orderId != null) 'order_id': orderId,
+        if (cutLength != null) 'cut_length': cutLength,
+        if (cutWidth != null) 'cut_width': cutWidth,
+        if (cutPieces != null) 'cut_pieces': cutPieces,
+        if (cutSpec != null) 'cut_spec': cutSpec,
       };
 
   @override

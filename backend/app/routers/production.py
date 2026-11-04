@@ -89,7 +89,10 @@ def create_task(data: TaskCreate, db: Session = Depends(get_db),
     if worker is None or worker.role != roles.WORKER or not worker.is_active:
         raise HTTPException(400, "Topshiriq faqat faol ishchiga beriladi")
     t = m.ProductionTask(product_id=data.product_id, assigned_to=data.assigned_to,
-                         planned_qty=data.planned_qty, note=data.note)
+                         planned_qty=data.planned_qty, note=data.note,
+                         order_id=data.order_id, cut_length=data.cut_length,
+                         cut_width=data.cut_width, cut_pieces=data.cut_pieces,
+                         cut_spec=data.cut_spec)
     db.add(t)
 
     # Bildirishnoma yaratish

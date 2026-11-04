@@ -963,7 +963,17 @@ class MockProductionRepository implements ProductionRepository {
       _s.users.values.map((e) => e.user).where((u) => u.role == Role.ishchi && u.isActive).toList();
 
   @override
-  Future<void> create({required int productId, required int workerId, required double plannedQty, String? note}) async {
+  Future<void> create({
+    required int productId,
+    required int workerId,
+    required double plannedQty,
+    String? note,
+    int? orderId,
+    double? cutLength,
+    double? cutWidth,
+    int? cutPieces,
+    String? cutSpec,
+  }) async {
     final i = _s.indexOf(productId);
     if (i < 0) throw ApiException('Mahsulot topilmadi', 404);
     final w = _s.users.values
@@ -974,6 +984,7 @@ class MockProductionRepository implements ProductionRepository {
     _s.tasks.add(ProductionTask(
       id: _s.nextId++, productId: p.id, productName: p.name, unit: p.unit, assignedTo: w.id,
       workerName: w.fullName, planned: plannedQty, produced: 0, status: 'open', note: note,
+      orderId: orderId, cutLength: cutLength, cutWidth: cutWidth, cutPieces: cutPieces, cutSpec: cutSpec,
     ));
     _s.notifications.add(AppNotification(
       id: _s.nextId++,

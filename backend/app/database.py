@@ -152,4 +152,14 @@ def ensure_migrations():
                 conn.execute(text("ALTER TABLE production_tasks ADD COLUMN approved_by INTEGER NULL REFERENCES users(id)"))
             if "approved_at" not in pt_columns:
                 conn.execute(text("ALTER TABLE production_tasks ADD COLUMN approved_at DATETIME NULL"))
+            if "order_id" not in pt_columns:
+                conn.execute(text("ALTER TABLE production_tasks ADD COLUMN order_id INTEGER NULL"))
+            if "cut_length" not in pt_columns:
+                conn.execute(text("ALTER TABLE production_tasks ADD COLUMN cut_length DECIMAL(14, 3) NULL"))
+            if "cut_width" not in pt_columns:
+                conn.execute(text("ALTER TABLE production_tasks ADD COLUMN cut_width DECIMAL(14, 3) NULL"))
+            if "cut_pieces" not in pt_columns:
+                conn.execute(text("ALTER TABLE production_tasks ADD COLUMN cut_pieces INTEGER NULL"))
+            if "cut_spec" not in pt_columns:
+                conn.execute(text("ALTER TABLE production_tasks ADD COLUMN cut_spec VARCHAR(255) NULL"))
 

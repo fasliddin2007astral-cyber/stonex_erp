@@ -65,7 +65,17 @@ abstract class FinanceRepository {
 abstract class ProductionRepository {
   Future<List<ProductionTask>> list();
   Future<List<AppUser>> workers();
-  Future<void> create({required int productId, required int workerId, required double plannedQty, String? note});
+  Future<void> create({
+    required int productId,
+    required int workerId,
+    required double plannedQty,
+    String? note,
+    int? orderId,
+    double? cutLength,
+    double? cutWidth,
+    int? cutPieces,
+    String? cutSpec,
+  });
   Future<void> report(int taskId, double producedQty, {double? wasteQty, String? note});
   Future<void> approve(int taskId);
   Future<void> reject(int taskId, {String? reason});

@@ -144,16 +144,42 @@ class _ProductionScreenState extends State<ProductionScreen> {
     }
   }
 
+  ({String? cutSpec, int? pieces, String? cleanStoneName}) _parseCuttingItemDetails(String text) {
+    final dimMatch = RegExp(r'(\d+(?:\.\d+)?\s*(?:sm|m)?\s*[×xX*]\s*\d+(?:\.\d+)?\s*(?:sm|m)?)').firstMatch(text);
+    final piecesMatch = RegExp(r'(\d+)\s*dona').firstMatch(text);
+    final stoneMatch = RegExp(r'\[([^\]]+)\]').firstMatch(text);
+
+    return (
+      cutSpec: dimMatch?.group(1),
+      pieces: piecesMatch != null ? int.tryParse(piecesMatch.group(1)!) : null,
+      cleanStoneName: stoneMatch?.group(1),
+    );
+  }
+
   Widget _buildTaskSpecsBox(ProductionTask t, BuildContext context) {
     final note = t.note ?? '';
-    if (note.isEmpty) return const SizedBox.shrink();
+    final hasOrderId = t.orderId != null;
+    final hasCutSpec = t.cutSpec != null && t.cutSpec!.isNotEmpty;
+    final hasPieces = t.cutPieces != null && t.cutPieces! > 0;
+
+    // Fallback parser if cutSpec/pieces were not saved in explicit fields (legacy)
+    final fallbackSpec = hasCutSpec ? t.cutSpec : RegExp(r'(\d+(?:\.\d+)?\s*(?:sm|m)?\s*[×xX*]\s*\d+(?:\.\d+)?\s*(?:sm|m)?)').firstMatch(note)?.group(1);
+    final fallbackPieces = hasPieces ? '\${t.cutPieces} dona' : RegExp(r'(\d+\s*dona)').firstMatch(note)?.group(1);
+    final hasPolish = note.toLowerCase().contains('silliqlash') || t.productName.toLowerCase().contains('silliqlash');
+    final hasChamfer = note.toLowerCase().contains('faska') || t.productName.toLowerCase().contains('faska');
+    final hasGroove = note.toLowerCase().contains('chizish') || t.productName.toLowerCase().contains('chizish');
+
+    // Clean note for display: strip out "Buyurtma #XX:" and mechanical dimensions if present in legacy notes
+    var cleanNote = note;
+    if (cleanNote.contains('Buyurtma #')) {
+      cleanNote = cleanNote.replaceFirst(RegExp(r'Buyurtma #\d+[^:]*:\s*'), '');
+    }
+    if (fallbackSpec != null) {
+      cleanNote = cleanNote.replaceAll(fallbackSpec, '');
+    }
+    cleanNote = cleanNote.replaceAll(RegExp(r'\[[^\]]*\]'), '').replaceAll('—', '').replaceAll('|', '').trim();
 
     final isDark = context.isDark;
-    final dimMatch = RegExp(r'(\d+(?:\.\d+)?\s*(?:sm|m)?\s*[×xX*]\s*\d+(?:\.\d+)?\s*(?:sm|m)?)').firstMatch(note);
-    final piecesMatch = RegExp(r'(\d+\s*dona)').firstMatch(note);
-    final hasPolish = note.toLowerCase().contains('silliqlash');
-    final hasChamfer = note.toLowerCase().contains('faska');
-    final hasGroove = note.toLowerCase().contains('chizish');
 
     return Container(
       margin: const EdgeInsets.only(top: 8),
@@ -171,10 +197,10 @@ class _ProductionScreenState extends State<ProductionScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.straighten_rounded, size: 15, color: Color(0xFF0284C7)),
+              const Icon(Icons.info_outline_rounded, size: 15, color: Color(0xFF0284C7)),
               const SizedBox(width: 6),
               const Text(
-                '📐 Kesish / Ishlov ko‘rsatmasi:',
+                '📋 Topshiriq tafsilotlari:',
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 11.5,
@@ -182,7 +208,17 @@ class _ProductionScreenState extends State<ProductionScreen> {
                 ),
               ),
               const Spacer(),
-              if (t.isRejected)
+              if (hasOrderId)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text('Buyurtma #\${t.orderId}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF0284C7))),
+                ),
+              if (t.isRejected) ...[
+                const SizedBox(width: 4),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
@@ -191,37 +227,46 @@ class _ProductionScreenState extends State<ProductionScreen> {
                   ),
                   child: const Text('Qaytarilgan', style: TextStyle(color: Color(0xFFEF4444), fontSize: 10, fontWeight: FontWeight.w800)),
                 ),
+              ],
             ],
           ),
-          if (dimMatch != null || piecesMatch != null || hasPolish || hasChamfer || hasGroove) ...[
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              if (fallbackSpec != null)
+                _buildSpecTag('📏 O‘lchami: $fallbackSpec', const Color(0xFF0284C7), isDark),
+              if (fallbackPieces != null)
+                _buildSpecTag('📦 Soni: $fallbackPieces', const Color(0xFF7C3AED), isDark),
+              if (hasPolish)
+                _buildSpecTag('✨ Silliqlash', const Color(0xFF059669), isDark),
+              if (hasChamfer)
+                _buildSpecTag('📐 Faska', const Color(0xFFD97706), isDark),
+              if (hasGroove)
+                _buildSpecTag('〰️ Chizish', const Color(0xFFD97706), isDark),
+            ],
+          ),
+          if (cleanNote.isNotEmpty && cleanNote != 'null') ...[
             const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (dimMatch != null)
-                  _buildSpecTag('📏 ${dimMatch.group(1)}', const Color(0xFF0284C7), isDark),
-                if (piecesMatch != null)
-                  _buildSpecTag('📦 ${piecesMatch.group(1)}', const Color(0xFF7C3AED), isDark),
-                if (hasPolish)
-                  _buildSpecTag('✨ Silliqlash', const Color(0xFF059669), isDark),
-                if (hasChamfer)
-                  _buildSpecTag('📐 Faska', const Color(0xFFD97706), isDark),
-                if (hasGroove)
-                  _buildSpecTag('〰️ Chizish', const Color(0xFFD97706), isDark),
+                Icon(Icons.chat_bubble_outline_rounded, size: 13, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    'Izoh: $cleanNote',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF334155),
+                    ),
+                  ),
+                ),
               ],
             ),
           ],
-          const SizedBox(height: 5),
-          Text(
-            note,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
-              height: 1.3,
-            ),
-          ),
         ],
       ),
     );
@@ -275,6 +320,10 @@ class _ProductionScreenState extends State<ProductionScreen> {
     double? prefillQty,
     String? prefillNote,
     int? prefillWorkerId,
+    int? prefillOrderId,
+    String? prefillCutSpec,
+    int? prefillCutPieces,
+    String? prefillCustomerInfo,
     List<SaleResult>? availableOrders,
   }) async {
     final repos = context.read<AppRepositories>();
@@ -288,6 +337,10 @@ class _ProductionScreenState extends State<ProductionScreen> {
         initialPlanned: prefillQty,
         initialNote: prefillNote,
         initialWorkerId: prefillWorkerId,
+        initialOrderId: prefillOrderId,
+        initialCutSpec: prefillCutSpec,
+        initialCutPieces: prefillCutPieces,
+        initialCustomerInfo: prefillCustomerInfo,
         availableOrders: orders.where((o) => o.status == 'order').toList(),
       ),
     );
@@ -1182,10 +1235,15 @@ class _ProductionScreenState extends State<ProductionScreen> {
                   const SizedBox(width: 10),
                   FilledButton.icon(
                     onPressed: () {
+                      final details = _parseCuttingItemDetails(item.productName);
                       _create(
                         prefillProductId: item.productId > 0 ? item.productId : null,
                         prefillQty: item.quantity > 0 ? item.quantity : null,
-                        prefillNote: 'Buyurtma #${order.id} (${order.customerName ?? 'Mijoz'}): ${item.productName}${order.note != null && order.note!.isNotEmpty ? ' — ${order.note}' : ''}',
+                        prefillOrderId: order.id,
+                        prefillCutSpec: details.cutSpec,
+                        prefillCutPieces: details.pieces,
+                        prefillCustomerInfo: '\${order.customerName ?? "Mijoz"}\${order.customerPhone != null && order.customerPhone!.isNotEmpty ? " (\${order.customerPhone})" : ""}',
+                        prefillNote: order.note, // Faqat mijoz izohi, eni-bo'yi tafsilotlarda alohida saqlanadi
                         availableOrders: allCuttingOrders,
                       );
                     },
@@ -1270,6 +1328,10 @@ class TaskCreateDialog extends StatefulWidget {
     this.initialPlanned,
     this.initialNote,
     this.initialWorkerId,
+    this.initialOrderId,
+    this.initialCutSpec,
+    this.initialCutPieces,
+    this.initialCustomerInfo,
     this.availableOrders = const [],
   });
   final ProductionRepository productionRepo;
@@ -1278,6 +1340,10 @@ class TaskCreateDialog extends StatefulWidget {
   final double? initialPlanned;
   final String? initialNote;
   final int? initialWorkerId;
+  final int? initialOrderId;
+  final String? initialCutSpec;
+  final int? initialCutPieces;
+  final String? initialCustomerInfo;
   final List<SaleResult> availableOrders;
 
   @override
@@ -1288,10 +1354,26 @@ class _TaskCreateDialogState extends State<TaskCreateDialog> {
   late Future<({List<Product> products, List<AppUser> workers})> _loadFuture;
   int? _selectedProductId;
   int? _selectedWorkerId;
+  int? _orderId;
+  String? _cutSpec;
+  int? _cutPieces;
+  String? _customerInfo;
   final _planCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
   String? _error;
   bool _busy = false;
+
+  ({String? cutSpec, int? pieces, String? cleanStoneName}) _parseCuttingItemDetails(String text) {
+    final dimMatch = RegExp(r'(\d+(?:\.\d+)?\s*(?:sm|m)?\s*[×xX*]\s*\d+(?:\.\d+)?\s*(?:sm|m)?)').firstMatch(text);
+    final piecesMatch = RegExp(r'(\d+)\s*dona').firstMatch(text);
+    final stoneMatch = RegExp(r'\[([^\]]+)\]').firstMatch(text);
+
+    return (
+      cutSpec: dimMatch?.group(1),
+      pieces: piecesMatch != null ? int.tryParse(piecesMatch.group(1)!) : null,
+      cleanStoneName: stoneMatch?.group(1),
+    );
+  }
 
   @override
   void initState() {
@@ -1300,6 +1382,10 @@ class _TaskCreateDialogState extends State<TaskCreateDialog> {
     if (widget.initialWorkerId != null) _selectedWorkerId = widget.initialWorkerId;
     if (widget.initialPlanned != null) _planCtrl.text = qty(widget.initialPlanned!);
     if (widget.initialNote != null) _noteCtrl.text = widget.initialNote!;
+    _orderId = widget.initialOrderId;
+    _cutSpec = widget.initialCutSpec;
+    _cutPieces = widget.initialCutPieces;
+    _customerInfo = widget.initialCustomerInfo;
     _loadFuture = _loadData();
   }
 
@@ -1349,6 +1435,11 @@ class _TaskCreateDialogState extends State<TaskCreateDialog> {
         workerId: _selectedWorkerId!,
         plannedQty: planned,
         note: _noteCtrl.text.trim().isNotEmpty ? _noteCtrl.text.trim() : null,
+        orderId: _orderId,
+        cutLength: null,
+        cutWidth: null,
+        cutPieces: _cutPieces,
+        cutSpec: _cutSpec,
       );
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -1447,20 +1538,90 @@ class _TaskCreateDialogState extends State<TaskCreateDialog> {
                           ),
                       ],
                       onChanged: (ord) {
-                        if (ord == null) return;
+                        if (ord == null) {
+                          setState(() {
+                            _orderId = null;
+                            _cutSpec = null;
+                            _cutPieces = null;
+                            _customerInfo = null;
+                            _noteCtrl.clear();
+                          });
+                          return;
+                        }
                         final cutItem = ord.items.firstWhere(
                           (it) => it.isCut || it.productName.toLowerCase().contains('kesish') || it.productName.toLowerCase().contains('ishlov'),
                           orElse: () => ord.items.first,
                         );
                         final matching = products.where((p) => p.id == cutItem.productId || p.name.toLowerCase() == cutItem.productName.toLowerCase()).firstOrNull;
+                        final details = _parseCuttingItemDetails(cutItem.productName);
+
                         setState(() {
                           if (matching != null) {
                             _selectedProductId = matching.id;
                           }
                           _planCtrl.text = qty(cutItem.quantity);
-                          _noteCtrl.text = 'Buyurtma #${ord.id} (${ord.customerName ?? 'Mijoz'}${ord.customerPhone != null ? ', ${ord.customerPhone}' : ''}): ${cutItem.productName}${ord.note != null && ord.note!.isNotEmpty ? ' — ${ord.note}' : ''}';
+                          _orderId = ord.id;
+                          _cutSpec = details.cutSpec;
+                          _cutPieces = details.pieces;
+                          _customerInfo = '\${ord.customerName ?? "Mijoz"}\${ord.customerPhone != null ? " (\${ord.customerPhone})" : ""}';
+                          // Eni-bo'yi izohga yozilmaydi! Faqat mijozning haqiqiy izohi yoziladi:
+                          _noteCtrl.text = (ord.note != null && ord.note!.isNotEmpty) ? ord.note! : '';
                         });
                       },
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
+                  // Tafsilotlar bloki (Eni, bo'yi, buyurtma ma'lumotlari)
+                  if (_orderId != null || _cutSpec != null || _customerInfo != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: context.isDark ? const Color(0xFF13222F) : const Color(0xFFF0F9FF),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: context.isDark ? const Color(0xFF0284C7).withValues(alpha: 0.4) : const Color(0xFFBAE6FD),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF0284C7)),
+                              const SizedBox(width: 6),
+                              const Text('Topshiriq tafsilotlari:', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF0284C7))),
+                              const Spacer(),
+                              if (_orderId != null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text('Buyurtma #\$_orderId', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF0284C7))),
+                                ),
+                            ],
+                          ),
+                          if (_customerInfo != null && _customerInfo!.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text('👤 Mijoz: \$_customerInfo', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          ],
+                          if (_cutSpec != null && _cutSpec!.isNotEmpty) ...[
+                            const SizedBox(height: 5),
+                            Row(
+                              children: [
+                                const Text('📐 O‘lchami (Eni × Bo‘yi): ', style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                                Text(_cutSpec!, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF0284C7))),
+                              ],
+                            ),
+                          ],
+                          if (_cutPieces != null && _cutPieces! > 0) ...[
+                            const SizedBox(height: 3),
+                            Text('📦 Soni: \$_cutPieces dona', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          ],
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 14),
                   ],
@@ -1509,13 +1670,13 @@ class _TaskCreateDialogState extends State<TaskCreateDialog> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Izoh va texnik parametrlar
+                  // Qo'shimcha izoh (faqat usta uchun eslatma, eni-bo'yi tafsilotlarda ko'rsatiladi)
                   TextField(
                     controller: _noteCtrl,
                     maxLines: 2,
                     decoration: const InputDecoration(
-                      labelText: 'Buyurtma tafsiloti / Kesish o‘lchami',
-                      hintText: 'Masalan: 120 × 60 sm kesish, 3-etaj pillapoyaga',
+                      labelText: 'Qo‘shimcha izoh (ixtiyoriy)',
+                      hintText: 'Usta uchun maxsus qo‘shimcha eslatma (masalan: 3-etaj pillapoyaga)',
                       prefixIcon: Icon(Icons.edit_note_rounded, size: 20),
                     ),
                   ),

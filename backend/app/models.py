@@ -6,7 +6,7 @@ Savdo, xarid, ishlab chiqarish, tuzatish — hammasi bitta harakatlar tizimi orq
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Numeric, String, Text
+from sqlalchemy import Boolean, Integer, DateTime, ForeignKey, Index, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -195,6 +195,11 @@ class ProductionTask(Base):
     approved_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     note: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    order_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cut_length: Mapped[Decimal | None] = mapped_column(QTY, nullable=True)
+    cut_width: Mapped[Decimal | None] = mapped_column(QTY, nullable=True)
+    cut_pieces: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cut_spec: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     product: Mapped["Product"] = relationship()

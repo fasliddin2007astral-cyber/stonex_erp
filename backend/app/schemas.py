@@ -344,6 +344,11 @@ class TaskCreate(BaseModel):
     assigned_to: int
     planned_qty: Decimal = Field(gt=0)
     note: str | None = None
+    order_id: int | None = None
+    cut_length: Decimal | None = None
+    cut_width: Decimal | None = None
+    cut_pieces: int | None = None
+    cut_spec: str | None = None
 
 
 class TaskReject(BaseModel):
@@ -369,7 +374,12 @@ class TaskOut(BaseModel):
     status: str
     approved_by: int | None = None
     approved_at: datetime | None = None
-    note: str | None
+    note: str | None = None
+    order_id: int | None = None
+    cut_length: Decimal | None = None
+    cut_width: Decimal | None = None
+    cut_pieces: int | None = None
+    cut_spec: str | None = None
 
 
 # ---------- finance ----------
