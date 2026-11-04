@@ -15,6 +15,7 @@ import 'currency_badge.dart';
 import 'customers_screen.dart';
 import 'dashboard_screen.dart';
 import 'debts_screen.dart';
+import 'deliveries_screen.dart';
 import 'orders_screen.dart';
 import 'pos_screen.dart';
 import 'production_screen.dart';
@@ -50,6 +51,12 @@ List<_Dest> _destinationsFor(Role role,
       onNavigate?.call(posIdx);
     }),
     actionLabel: '+ Yangi Buyurtma',
+  );
+  const deliveries = _Dest(
+    'Yetkazib berish',
+    Icons.local_shipping_rounded,
+    DeliveriesScreen.new,
+    actionLabel: '+ Yangi Yetkazish',
   );
   const salesHistory = _Dest(
     'Savdolar',
@@ -100,6 +107,7 @@ List<_Dest> _destinationsFor(Role role,
         dash,
         pos,
         orders,
+        deliveries,
         salesHistory,
         customers,
         debts,
@@ -111,7 +119,7 @@ List<_Dest> _destinationsFor(Role role,
         cams
       ];
     case Role.kassir:
-      return [pos, orders, salesHistory, customers, debts, products];
+      return [pos, orders, deliveries, salesHistory, customers, debts, products];
     case Role.ishchi:
       return [prod];
   }

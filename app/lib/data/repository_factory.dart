@@ -21,6 +21,7 @@ AppRepositories buildRepositories() {
       notifications: MockNotificationRepository(s),
       customers: MockCustomerRepository(s),
       attendance: MockAttendanceRepository(s),
+      deliveries: MockDeliveryRepository(s),
     );
   }
   return AppRepositories(
@@ -34,5 +35,6 @@ AppRepositories buildRepositories() {
     notifications: ApiNotificationRepository(appApiClient),
     customers: ApiCustomerRepository(appApiClient),
     attendance: ApiAttendanceRepository(appApiClient),
+    deliveries: ApiDeliveryRepository(appApiClient),
   );
 }

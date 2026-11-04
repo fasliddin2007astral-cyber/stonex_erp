@@ -228,6 +228,49 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(float(s_data["paid_uzs"]), 60000.0)
         self.assertEqual(float(s_data["paid_usd"]), 5.0)
 
+    def test_delivery_crud_and_status(self):
+        # 1. Yetkazib berish (Delivery) yaratish
+        payload = {
+            "vehicle_number": "01 A 777 AA",
+            "vehicle_model": "Labo",
+            "driver_name": "Farhod Haydovchi",
+            "driver_phone": "+998 90 123 45 67",
+            "recipient_name": "Akmal aka",
+            "recipient_phone": "+998 93 987 65 43",
+            "destination_address": "Toshkent sh., Chilonzor 9",
+            "delivery_fee": 150000,
+            "fee_payer": "customer",
+            "status": "loading",
+            "note": "Ehtiyotkorlik bilan yetkazilsin",
+            "items": [
+                {"product_name": "Granit 60x60", "quantity": 40.0, "unit": "m2"},
+                {"product_name": "Kafel yelimi", "quantity": 10.0, "unit": "qop"},
+            ],
+        }
+        res = self.c.post("/deliveries", headers=self.h, json=payload)
+        self.assertEqual(res.status_code, 201)
+        d = res.json()
+        self.assertEqual(d["vehicle_number"], "01 A 777 AA")
+        self.assertEqual(d["driver_name"], "Farhod Haydovchi")
+        self.assertEqual(len(d["items"]), 2)
+        did = d["id"]
+
+        # 2. Ro'yxatdan qidirish
+        list_res = self.c.get(f"/deliveries?query=777", headers=self.h)
+        self.assertEqual(list_res.status_code, 200)
+        self.assertTrue(any(x["id"] == did for x in list_res.json()))
+
+        # 3. Holatini o'zgartirish: loading -> on_the_way -> delivered
+        status_res = self.c.patch(f"/deliveries/{did}/status", headers=self.h, json={"status": "on_the_way"})
+        self.assertEqual(status_res.status_code, 200)
+        self.assertEqual(status_res.json()["status"], "on_the_way")
+        self.assertIsNotNone(status_res.json()["dispatch_time"])
+
+        status_res2 = self.c.patch(f"/deliveries/{did}/status", headers=self.h, json={"status": "delivered"})
+        self.assertEqual(status_res2.status_code, 200)
+        self.assertEqual(status_res2.json()["status"], "delivered")
+        self.assertIsNotNone(status_res2.json()["delivered_time"])
+
 
 if __name__ == "__main__":
     unittest.main()

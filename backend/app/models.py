@@ -194,3 +194,39 @@ class Notification(Base):
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
+
+class Delivery(Base):
+    __tablename__ = "deliveries"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    sale_id: Mapped[int | None] = mapped_column(ForeignKey("sales.id"), nullable=True)
+    vehicle_number: Mapped[str] = mapped_column(String(32), index=True)
+    vehicle_model: Mapped[str] = mapped_column(String(64), default="Labo")
+    driver_name: Mapped[str] = mapped_column(String(128))
+    driver_phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    recipient_name: Mapped[str] = mapped_column(String(128))
+    recipient_phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    destination_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    delivery_fee: Mapped[Decimal] = mapped_column(MONEY, default=0)
+    fee_payer: Mapped[str] = mapped_column(String(32), default="customer")  # customer | store | included
+    status: Mapped[str] = mapped_column(String(32), default="loading", index=True)  # loading | on_the_way | delivered | cancelled
+    dispatch_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    delivered_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+    items: Mapped[list["DeliveryItem"]] = relationship(cascade="all, delete-orphan", back_populates="delivery")
+    sale: Mapped["Sale | None"] = relationship()
+
+
+class DeliveryItem(Base):
+    __tablename__ = "delivery_items"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    delivery_id: Mapped[int] = mapped_column(ForeignKey("deliveries.id", ondelete="CASCADE"), index=True)
+    product_id: Mapped[int | None] = mapped_column(ForeignKey("products.id"), nullable=True)
+    product_name: Mapped[str] = mapped_column(String(128))
+    quantity: Mapped[Decimal] = mapped_column(QTY)
+    unit: Mapped[str] = mapped_column(String(16), default="dona")
+
+    delivery: Mapped["Delivery"] = relationship(back_populates="items")
+
+

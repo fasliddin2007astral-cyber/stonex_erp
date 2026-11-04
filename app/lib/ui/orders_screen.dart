@@ -6,6 +6,7 @@ import '../core/theme.dart';
 import '../data/local_image_store.dart';
 import '../data/repositories.dart';
 import '../domain/models.dart';
+import 'deliveries_screen.dart';
 import 'receipt_dialog.dart';
 
 class OrdersScreen extends StatefulWidget {
@@ -359,6 +360,47 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
   }
 
+  Future<void> _createDeliveryForOrder(SaleResult order) async {
+    final repos = context.read<AppRepositories>();
+    final items = order.items
+        .map((i) => DeliveryItem(
+              productId: i.productId,
+              productName: i.productName,
+              quantity: i.quantity,
+              unit: 'dona',
+            ))
+        .toList();
+
+    final created = await showDialog<Delivery>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => DeliveryEditDialog(
+        saleId: order.id,
+        initialRecipientName: order.customerName,
+        initialRecipientPhone: order.customerPhone,
+        initialAddress: order.note,
+        initialItems: items,
+      ),
+    );
+
+    if (created != null && mounted) {
+      try {
+        await repos.deliveries.create(created);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: const Color(0xFF10B981),
+            content: Text('✓ Buyurtma #${order.id} uchun yetkazib berish (mashina: ${created.vehicleNumber}) reysga qo‘shildi'),
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(behavior: SnackBarBehavior.floating, content: Text('Xatolik: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Widget _buildFilterSegment({
     required String label,
     required int count,
@@ -660,6 +702,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     onCancel: () => _cancelOrder(order),
                     onPay: () => _payDebtDialog(order),
                     onReceipt: () => ReceiptDialog.show(context, order),
+                    onDelivery: () => _createDeliveryForOrder(order),
                   ),
                 ),
           ],
@@ -739,6 +782,7 @@ class _OrderCard extends StatelessWidget {
     required this.onCancel,
     required this.onPay,
     required this.onReceipt,
+    required this.onDelivery,
   });
 
   final SaleResult order;
@@ -746,6 +790,7 @@ class _OrderCard extends StatelessWidget {
   final VoidCallback onCancel;
   final VoidCallback onPay;
   final VoidCallback onReceipt;
+  final VoidCallback onDelivery;
 
   @override
   Widget build(BuildContext context) {
@@ -1108,6 +1153,23 @@ class _OrderCard extends StatelessWidget {
                   ),
                 // Bekor qilish
                 if (isOrder) ...[
+                  // Yetkazish (Logistika / Avtomobil)
+                  OutlinedButton.icon(
+                    onPressed: onDelivery,
+                    icon: const Icon(Icons.local_shipping_rounded, size: 15, color: Color(0xFF0284C7)),
+                    label: const Text(
+                      'Yetkazish',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF0284C7)),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF0284C7),
+                      side: BorderSide(color: const Color(0xFF0284C7).withOpacity(0.5)),
+                      backgroundColor: const Color(0xFF0284C7).withOpacity(0.06),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
                   OutlinedButton.icon(
                     onPressed: onCancel,
                     icon: const Icon(Icons.close_rounded, size: 15, color: Color(0xFFEF4444)),

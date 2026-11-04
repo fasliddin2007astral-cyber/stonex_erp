@@ -371,3 +371,80 @@ class NotificationOut(ORM):
     is_read: bool
     created_at: datetime
 
+
+# ---------- deliveries ----------
+class DeliveryItemIn(BaseModel):
+    product_id: int | None = None
+    product_name: str = Field(min_length=1, max_length=128)
+    quantity: Decimal = Field(gt=0)
+    unit: str = "dona"
+
+
+class DeliveryItemOut(ORM):
+    id: int
+    delivery_id: int
+    product_id: int | None = None
+    product_name: str
+    quantity: Decimal
+    unit: str
+
+
+class DeliveryCreate(BaseModel):
+    sale_id: int | None = None
+    vehicle_number: str = Field(min_length=1, max_length=32)
+    vehicle_model: str = Field(default="Labo", max_length=64)
+    driver_name: str = Field(min_length=1, max_length=128)
+    driver_phone: str | None = None
+    recipient_name: str = Field(min_length=1, max_length=128)
+    recipient_phone: str | None = None
+    destination_address: str | None = None
+    delivery_fee: Decimal = Decimal("0")
+    fee_payer: str = "customer"  # customer | store | included
+    status: str = "loading"  # loading | on_the_way | delivered | cancelled
+    dispatch_time: datetime | None = None
+    delivered_time: datetime | None = None
+    note: str | None = None
+    items: list[DeliveryItemIn] = []
+
+
+class DeliveryUpdate(BaseModel):
+    vehicle_number: str | None = None
+    vehicle_model: str | None = None
+    driver_name: str | None = None
+    driver_phone: str | None = None
+    recipient_name: str | None = None
+    recipient_phone: str | None = None
+    destination_address: str | None = None
+    delivery_fee: Decimal | None = None
+    fee_payer: str | None = None
+    status: str | None = None
+    dispatch_time: datetime | None = None
+    delivered_time: datetime | None = None
+    note: str | None = None
+    items: list[DeliveryItemIn] | None = None
+
+
+class DeliveryStatusUpdate(BaseModel):
+    status: str  # loading | on_the_way | delivered | cancelled
+
+
+class DeliveryOut(ORM):
+    id: int
+    sale_id: int | None = None
+    vehicle_number: str
+    vehicle_model: str
+    driver_name: str
+    driver_phone: str | None = None
+    recipient_name: str
+    recipient_phone: str | None = None
+    destination_address: str | None = None
+    delivery_fee: Decimal
+    fee_payer: str
+    status: str
+    dispatch_time: datetime | None = None
+    delivered_time: datetime | None = None
+    note: str | None = None
+    created_at: datetime
+    items: list[DeliveryItemOut] = []
+
+

@@ -326,6 +326,75 @@ class MockStore {
     ),
   ];
 
+  int nextDeliveryId = 10;
+  final List<Delivery> deliveries = [
+    Delivery(
+      id: 1,
+      saleId: 99,
+      vehicleNumber: '01 A 777 AA',
+      vehicleModel: 'Labo',
+      driverName: 'Farhod Haydovchi',
+      driverPhone: '+998 90 123 45 67',
+      recipientName: 'Akmal aka',
+      recipientPhone: '+998 90 123 45 67',
+      destinationAddress: 'Toshkent sh., Chilonzor 9-mavze, 14-uy',
+      deliveryFee: 150000,
+      feePayer: 'customer',
+      status: 'on_the_way',
+      dispatchTime: DateTime.now().subtract(const Duration(minutes: 40)),
+      deliveredTime: null,
+      note: 'Ehtiyotkorlik bilan yetkazilsin, marmar plitalar',
+      createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+      items: const [
+        DeliveryItem(id: 1, productId: 2, productName: 'Miramir Marmar', quantity: 5, unit: 'm2'),
+        DeliveryItem(id: 2, productId: 5, productName: 'Kley Akfix', quantity: 2, unit: 'dona'),
+      ],
+    ),
+    Delivery(
+      id: 2,
+      saleId: 100,
+      vehicleNumber: '10 820 BBA',
+      vehicleModel: 'Gazel',
+      driverName: 'Ulug‘bek Haydovchi',
+      driverPhone: '+998 97 765 43 21',
+      recipientName: 'Sobirjon',
+      recipientPhone: '+998 99 555 12 34',
+      destinationAddress: 'Samarqand darvoza, Qurilish obyekti',
+      deliveryFee: 250000,
+      feePayer: 'store',
+      status: 'loading',
+      dispatchTime: null,
+      deliveredTime: null,
+      note: 'Yuk ortilmoqda, tushlikdan keyin jo‘natiladi',
+      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+      items: const [
+        DeliveryItem(id: 3, productId: 3, productName: 'Tan Brown Granit', quantity: 10, unit: 'm2'),
+      ],
+    ),
+    Delivery(
+      id: 3,
+      saleId: 98,
+      vehicleNumber: '01 543 ZZA',
+      vehicleModel: 'Isuzu',
+      driverName: 'Jasur Haydovchi',
+      driverPhone: '+998 93 333 22 11',
+      recipientName: 'Botir Qurilish',
+      recipientPhone: '+998 94 666 44 55',
+      destinationAddress: 'Yunusobod 4-mavze',
+      deliveryFee: 300000,
+      feePayer: 'customer',
+      status: 'delivered',
+      dispatchTime: DateTime.now().subtract(const Duration(hours: 5)),
+      deliveredTime: DateTime.now().subtract(const Duration(hours: 3)),
+      note: 'Muvaffaqiyatli topshirildi',
+      createdAt: DateTime.now().subtract(const Duration(hours: 6)),
+      items: const [
+        DeliveryItem(id: 4, productId: 7, productName: 'Disk Olmos', quantity: 2, unit: 'dona'),
+        DeliveryItem(id: 5, productId: 6, productName: 'Sim', quantity: 1, unit: 'm'),
+      ],
+    ),
+  ];
+
   int indexOf(int productId) => products.indexWhere((p) => p.id == productId);
 
   void setStock(int productId, double newStock) {
@@ -1291,4 +1360,78 @@ class MockCustomerRepository implements CustomerRepository {
     }
   }
 }
+
+class MockDeliveryRepository implements DeliveryRepository {
+  MockDeliveryRepository(this._s);
+  final MockStore _s;
+
+  @override
+  Future<List<Delivery>> list({String? status, String? query}) async {
+    await Future.delayed(const Duration(milliseconds: 60));
+    var list = List.of(_s.deliveries);
+    if (status != null && status.isNotEmpty && status != 'all') {
+      list = list.where((d) => d.status == status).toList();
+    }
+    if (query != null && query.trim().isNotEmpty) {
+      final q = query.trim().toLowerCase();
+      list = list.where((d) {
+        return d.vehicleNumber.toLowerCase().contains(q) ||
+            d.driverName.toLowerCase().contains(q) ||
+            d.recipientName.toLowerCase().contains(q) ||
+            (d.destinationAddress ?? '').toLowerCase().contains(q) ||
+            d.items.any((i) => i.productName.toLowerCase().contains(q));
+      }).toList();
+    }
+    list.sort((a, b) => b.id.compareTo(a.id));
+    return list;
+  }
+
+  @override
+  Future<Delivery> get(int id) async {
+    return _s.deliveries.firstWhere(
+      (d) => d.id == id,
+      orElse: () => throw ApiException('Yetkazib berish yozuvi topilmadi', 404),
+    );
+  }
+
+  @override
+  Future<Delivery> create(Delivery delivery) async {
+    final d = delivery.copyWith(
+      id: _s.nextDeliveryId++,
+      createdAt: DateTime.now(),
+      dispatchTime: delivery.status == 'on_the_way' ? DateTime.now() : delivery.dispatchTime,
+      deliveredTime: delivery.status == 'delivered' ? DateTime.now() : delivery.deliveredTime,
+    );
+    _s.deliveries.insert(0, d);
+    return d;
+  }
+
+  @override
+  Future<Delivery> update(Delivery delivery) async {
+    final idx = _s.deliveries.indexWhere((x) => x.id == delivery.id);
+    if (idx < 0) throw ApiException('Yetkazib berish yozuvi topilmadi', 404);
+    _s.deliveries[idx] = delivery;
+    return delivery;
+  }
+
+  @override
+  Future<Delivery> updateStatus(int id, String status) async {
+    final idx = _s.deliveries.indexWhere((x) => x.id == id);
+    if (idx < 0) throw ApiException('Yetkazib berish yozuvi topilmadi', 404);
+    final cur = _s.deliveries[idx];
+    final updated = cur.copyWith(
+      status: status,
+      dispatchTime: status == 'on_the_way' && cur.dispatchTime == null ? DateTime.now() : cur.dispatchTime,
+      deliveredTime: status == 'delivered' ? DateTime.now() : cur.deliveredTime,
+    );
+    _s.deliveries[idx] = updated;
+    return updated;
+  }
+
+  @override
+  Future<void> delete(int id) async {
+    _s.deliveries.removeWhere((d) => d.id == id);
+  }
+}
+
 

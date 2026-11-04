@@ -583,3 +583,48 @@ class ApiCustomerRepository implements CustomerRepository {
   }
 }
 
+class ApiDeliveryRepository implements DeliveryRepository {
+  ApiDeliveryRepository(this._api);
+  final ApiClient _api;
+
+  @override
+  Future<List<Delivery>> list({String? status, String? query}) async {
+    final qp = <String, String>{};
+    if (status != null && status.isNotEmpty && status != 'all') qp['status'] = status;
+    if (query != null && query.trim().isNotEmpty) qp['query'] = query.trim();
+
+    final res = await _api.get('/deliveries', query: qp.isEmpty ? null : qp) as List<dynamic>;
+    return res.map((e) => Delivery.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  @override
+  Future<Delivery> get(int id) async {
+    final j = await _api.get('/deliveries/$id') as Map<String, dynamic>;
+    return Delivery.fromJson(j);
+  }
+
+  @override
+  Future<Delivery> create(Delivery delivery) async {
+    final j = await _api.post('/deliveries', body: delivery.toJson()) as Map<String, dynamic>;
+    return Delivery.fromJson(j);
+  }
+
+  @override
+  Future<Delivery> update(Delivery delivery) async {
+    final j = await _api.put('/deliveries/${delivery.id}', body: delivery.toJson()) as Map<String, dynamic>;
+    return Delivery.fromJson(j);
+  }
+
+  @override
+  Future<Delivery> updateStatus(int id, String status) async {
+    final j = await _api.patch('/deliveries/$id/status', body: {'status': status}) as Map<String, dynamic>;
+    return Delivery.fromJson(j);
+  }
+
+  @override
+  Future<void> delete(int id) async {
+    await _api.delete('/deliveries/$id');
+  }
+}
+
+

@@ -115,6 +115,15 @@ abstract class NotificationRepository {
   Future<void> markAllRead();
 }
 
+abstract class DeliveryRepository {
+  Future<List<Delivery>> list({String? status, String? query});
+  Future<Delivery> get(int id);
+  Future<Delivery> create(Delivery delivery);
+  Future<Delivery> update(Delivery delivery);
+  Future<Delivery> updateStatus(int id, String status);
+  Future<void> delete(int id);
+}
+
 class AppRepositories {
   final AuthRepository auth;
   final ProductRepository products;
@@ -126,6 +135,7 @@ class AppRepositories {
   final NotificationRepository notifications;
   final CustomerRepository customers;
   final AttendanceRepository attendance;
+  final DeliveryRepository deliveries;
 
   const AppRepositories({
     required this.auth,
@@ -138,6 +148,7 @@ class AppRepositories {
     required this.notifications,
     required this.customers,
     required this.attendance,
+    required this.deliveries,
   });
 }
 

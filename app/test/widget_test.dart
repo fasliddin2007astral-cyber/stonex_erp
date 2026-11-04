@@ -39,6 +39,7 @@ void main() {
       notifications: MockNotificationRepository(store),
       customers: MockCustomerRepository(store),
       attendance: MockAttendanceRepository(store),
+      deliveries: MockDeliveryRepository(store),
     );
   });
 

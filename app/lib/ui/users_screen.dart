@@ -775,7 +775,7 @@ class _UsersScreenState extends State<UsersScreen> {
           attMap[a.userId] = a;
         }
 
-        final presentCount = attendances.where((a) => a.status == 'present').length;
+        final presentCount = attendances.where((a) => a.checkIn != null).length;
         final lateCount = attendances.where((a) => a.status == 'late').length;
         final totalActive = users.length;
         final absentUsers = users.where((u) => attMap[u.id]?.checkIn == null).toList();
@@ -799,7 +799,7 @@ class _UsersScreenState extends State<UsersScreen> {
 
           switch (_attFilter) {
             case 'Kelganlar':
-              return hasCheckedIn && !isLate;
+              return hasCheckedIn;
             case 'Hali kelmaganlar':
               return !hasCheckedIn;
             case 'Kechikkanlar':

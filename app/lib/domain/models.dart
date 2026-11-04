@@ -1011,3 +1011,191 @@ class AppNotification {
   @override
   int get hashCode => id.hashCode;
 }
+
+class DeliveryItem {
+  final int? id;
+  final int? productId;
+  final String productName;
+  final double quantity;
+  final String unit;
+
+  const DeliveryItem({
+    this.id,
+    this.productId,
+    required this.productName,
+    required this.quantity,
+    this.unit = 'dona',
+  });
+
+  factory DeliveryItem.fromJson(Map<String, dynamic> j) => DeliveryItem(
+        id: (j['id'] as num?)?.toInt(),
+        productId: (j['product_id'] as num?)?.toInt(),
+        productName: (j['product_name'] ?? '').toString(),
+        quantity: parseNum(j['quantity']),
+        unit: (j['unit'] ?? 'dona').toString(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        if (id != null) 'id': id,
+        if (productId != null) 'product_id': productId,
+        'product_name': productName,
+        'quantity': quantity,
+        'unit': unit,
+      };
+}
+
+class Delivery {
+  final int id;
+  final int? saleId;
+  final String vehicleNumber;
+  final String vehicleModel;
+  final String driverName;
+  final String? driverPhone;
+  final String recipientName;
+  final String? recipientPhone;
+  final String? destinationAddress;
+  final double deliveryFee;
+  final String feePayer; // 'customer', 'store', 'included'
+  final String status; // 'loading', 'on_the_way', 'delivered', 'cancelled'
+  final DateTime? dispatchTime;
+  final DateTime? deliveredTime;
+  final String? note;
+  final DateTime createdAt;
+  final List<DeliveryItem> items;
+
+  const Delivery({
+    required this.id,
+    this.saleId,
+    required this.vehicleNumber,
+    this.vehicleModel = 'Labo',
+    required this.driverName,
+    this.driverPhone,
+    required this.recipientName,
+    this.recipientPhone,
+    this.destinationAddress,
+    this.deliveryFee = 0,
+    this.feePayer = 'customer',
+    this.status = 'loading',
+    this.dispatchTime,
+    this.deliveredTime,
+    this.note,
+    required this.createdAt,
+    this.items = const [],
+  });
+
+  bool get isLoading => status == 'loading';
+  bool get isOnTheWay => status == 'on_the_way';
+  bool get isDelivered => status == 'delivered';
+  bool get isCancelled => status == 'cancelled';
+
+  String get statusLabel {
+    switch (status) {
+      case 'on_the_way':
+        return 'Yo‘lda';
+      case 'delivered':
+        return 'Yetkazildi';
+      case 'cancelled':
+        return 'Bekor qilingan';
+      default:
+        return 'Yuklanmoqda';
+    }
+  }
+
+  String get feePayerLabel {
+    switch (feePayer) {
+      case 'store':
+        return 'Do‘kon hisobidan (Bepul)';
+      case 'included':
+        return 'Narx ichida';
+      default:
+        return 'Mijoz to‘laydi';
+    }
+  }
+
+  factory Delivery.fromJson(Map<String, dynamic> j) => Delivery(
+        id: (j['id'] as num?)?.toInt() ?? 0,
+        saleId: (j['sale_id'] as num?)?.toInt(),
+        vehicleNumber: (j['vehicle_number'] ?? '').toString(),
+        vehicleModel: (j['vehicle_model'] ?? 'Labo').toString(),
+        driverName: (j['driver_name'] ?? '').toString(),
+        driverPhone: j['driver_phone']?.toString(),
+        recipientName: (j['recipient_name'] ?? '').toString(),
+        recipientPhone: j['recipient_phone']?.toString(),
+        destinationAddress: j['destination_address']?.toString(),
+        deliveryFee: parseNum(j['delivery_fee']),
+        feePayer: (j['fee_payer'] ?? 'customer').toString(),
+        status: (j['status'] ?? 'loading').toString(),
+        dispatchTime: j['dispatch_time'] != null
+            ? DateTime.tryParse(j['dispatch_time'].toString())
+            : null,
+        deliveredTime: j['delivered_time'] != null
+            ? DateTime.tryParse(j['delivered_time'].toString())
+            : null,
+        note: j['note']?.toString(),
+        createdAt: j['created_at'] != null
+            ? DateTime.tryParse(j['created_at'].toString()) ?? DateTime.now()
+            : DateTime.now(),
+        items: (j['items'] as List<dynamic>?)
+                ?.map((e) => DeliveryItem.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            const [],
+      );
+
+  Map<String, dynamic> toJson() => {
+        if (id > 0) 'id': id,
+        if (saleId != null) 'sale_id': saleId,
+        'vehicle_number': vehicleNumber,
+        'vehicle_model': vehicleModel,
+        'driver_name': driverName,
+        'driver_phone': driverPhone,
+        'recipient_name': recipientName,
+        'recipient_phone': recipientPhone,
+        'destination_address': destinationAddress,
+        'delivery_fee': deliveryFee,
+        'fee_payer': feePayer,
+        'status': status,
+        if (dispatchTime != null) 'dispatch_time': dispatchTime?.toIso8601String(),
+        if (deliveredTime != null) 'delivered_time': deliveredTime?.toIso8601String(),
+        if (note != null) 'note': note,
+        'items': items.map((i) => i.toJson()).toList(),
+      };
+
+  Delivery copyWith({
+    int? id,
+    int? saleId,
+    String? vehicleNumber,
+    String? vehicleModel,
+    String? driverName,
+    String? driverPhone,
+    String? recipientName,
+    String? recipientPhone,
+    String? destinationAddress,
+    double? deliveryFee,
+    String? feePayer,
+    String? status,
+    DateTime? dispatchTime,
+    DateTime? deliveredTime,
+    String? note,
+    DateTime? createdAt,
+    List<DeliveryItem>? items,
+  }) =>
+      Delivery(
+        id: id ?? this.id,
+        saleId: saleId ?? this.saleId,
+        vehicleNumber: vehicleNumber ?? this.vehicleNumber,
+        vehicleModel: vehicleModel ?? this.vehicleModel,
+        driverName: driverName ?? this.driverName,
+        driverPhone: driverPhone ?? this.driverPhone,
+        recipientName: recipientName ?? this.recipientName,
+        recipientPhone: recipientPhone ?? this.recipientPhone,
+        destinationAddress: destinationAddress ?? this.destinationAddress,
+        deliveryFee: deliveryFee ?? this.deliveryFee,
+        feePayer: feePayer ?? this.feePayer,
+        status: status ?? this.status,
+        dispatchTime: dispatchTime ?? this.dispatchTime,
+        deliveredTime: deliveredTime ?? this.deliveredTime,
+        note: note ?? this.note,
+        createdAt: createdAt ?? this.createdAt,
+        items: items ?? this.items,
+      );
+}
