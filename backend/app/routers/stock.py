@@ -15,6 +15,7 @@ from ..units import q2
 
 router = APIRouter(prefix="/stock", tags=["stock"])
 _admin = require_roles(roles.ADMIN)
+_stock_access = require_roles(roles.ADMIN, roles.FOREMAN)
 
 
 def _mv_to_out(mv: m.StockMovement) -> MovementOut:
@@ -34,7 +35,7 @@ def _mv_to_out(mv: m.StockMovement) -> MovementOut:
 
 @router.get("/movements", response_model=list[MovementOut])
 def movements(product_id: int | None = None, limit: int = 200, db: Session = Depends(get_db),
-              _: m.User = Depends(_admin)):
+              _: m.User = Depends(_stock_access)):
     stmt = (
         select(m.StockMovement)
         .options(selectinload(m.StockMovement.product), selectinload(m.StockMovement.user))
@@ -47,7 +48,7 @@ def movements(product_id: int | None = None, limit: int = 200, db: Session = Dep
 
 
 @router.post("/purchase", response_model=MovementOut, status_code=201)
-def purchase(data: PurchaseIn, db: Session = Depends(get_db), admin: m.User = Depends(_admin)):
+def purchase(data: PurchaseIn, db: Session = Depends(get_db), admin: m.User = Depends(_stock_access)):
     """Xarid kirimi. Tannarx — o'rtacha tortilgan (weighted average) usulida yangilanadi."""
     p = db.get(m.Product, data.product_id, with_for_update=True)
     if p is None or not p.is_active:
@@ -70,7 +71,7 @@ def purchase(data: PurchaseIn, db: Session = Depends(get_db), admin: m.User = De
 
 
 @router.post("/adjust", response_model=MovementOut, status_code=201)
-def adjust(data: AdjustIn, db: Session = Depends(get_db), admin: m.User = Depends(_admin)):
+def adjust(data: AdjustIn, db: Session = Depends(get_db), admin: m.User = Depends(_stock_access)):
     p = db.get(m.Product, data.product_id, with_for_update=True)
     if p is None:
         raise HTTPException(404, "Mahsulot topilmadi")

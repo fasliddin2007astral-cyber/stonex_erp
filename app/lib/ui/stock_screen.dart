@@ -27,7 +27,7 @@ class _StockScreenState extends State<StockScreen> {
   @override
   void initState() {
     super.initState();
-    _movementsFuture = _stockRepo.movements();
+    _movementsFuture = _stockRepo.movements().catchError((_) => <StockMovementRecord>[]);
     _productsFuture = _productRepo.list();
     _combinedFuture = Future.wait([_movementsFuture, _productsFuture]);
   }
@@ -41,7 +41,7 @@ class _StockScreenState extends State<StockScreen> {
   void _reload() {
     if (mounted) {
       setState(() {
-        _movementsFuture = _stockRepo.movements();
+        _movementsFuture = _stockRepo.movements().catchError((_) => <StockMovementRecord>[]);
         _productsFuture = _productRepo.list();
         _combinedFuture = Future.wait([_movementsFuture, _productsFuture]);
       });

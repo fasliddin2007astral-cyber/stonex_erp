@@ -444,6 +444,16 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(dup_foreman.status_code, 400)
         self.assertIn("faqat 1 ta", dup_foreman.json()["detail"].lower())
 
+        # 7. Ish boshqaruvchi ombordagi harakatlarni va qoldiqlarni ko'ra olishi
+        stk_res = self.c.get("/stock/movements", headers=f_headers)
+        self.assertEqual(stk_res.status_code, 200)
+
+        # 8. Ish boshqaruvchi ombor qoldig'ini tuzata olishi (inventarizatsiya)
+        adj_res = self.c.post("/stock/adjust", headers=f_headers, json={
+            "product_id": pid, "delta": 5, "note": "Inventarizatsiya boshqaruvchi tomonidan"
+        })
+        self.assertEqual(adj_res.status_code, 201)
+
 
 if __name__ == "__main__":
     unittest.main()
