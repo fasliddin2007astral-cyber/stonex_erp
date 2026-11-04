@@ -9,7 +9,7 @@ from .. import models as m
 from .. import roles
 from ..database import get_db
 from ..deps import require_roles
-from ..schemas import TaskCreate, TaskOut, TaskReport
+from ..schemas import TaskCreate, TaskOut, TaskReport, TaskReject
 from ..services.stock import add_movement
 from ..units import q3
 
@@ -162,6 +162,36 @@ def approve_task(task_id: int, db: Session = Depends(get_db),
     db.add(m.Notification(
         title="Ishlab chiqarish tasdiqlandi (OTK)",
         message=f"{t.worker.full_name} ning {t.produced_qty} {t.product.unit} {t.product.name} topshirig'i sifat nazoratidan o'tdi va omborga kirim qilindi.",
+        kind="production",
+    ))
+
+    db.commit()
+    db.refresh(t)
+    return to_out(t)
+
+
+@router.post("/{task_id}/reject", response_model=TaskOut)
+def reject_task(task_id: int, data: TaskReject | None = None, db: Session = Depends(get_db),
+                user: m.User = Depends(_prod)):
+    """Ishchi topshiriqni qaytaradi (rad etadi). Topshiriq 'rejected' holatiga o'tadi."""
+    t = db.get(m.ProductionTask, task_id, with_for_update=True)
+    if t is None or (user.role == roles.WORKER and t.assigned_to != user.id):
+        raise HTTPException(404, "Topshiriq topilmadi")
+    if t.status == "done":
+        raise HTTPException(400, "Yakunlangan topshiriqni qaytarib bo'lmaydi")
+    if t.status == "rejected":
+        raise HTTPException(400, "Topshiriq allaqachon qaytarilgan")
+
+    t.status = "rejected"
+    reason_txt = f": {data.reason}" if data and data.reason and data.reason.strip() else ""
+    t.note = f"{t.note or ''} [Ishchi qaytardi{reason_txt}]".strip()
+
+    prod_name = t.product.name if t.product else "Mahsulot"
+    worker_name = t.worker.full_name if t.worker else "Ishchi"
+
+    db.add(m.Notification(
+        title="Topshiriq qaytarildi",
+        message=f"{worker_name} #{t.id} topshiriqni ({prod_name}) qaytardi{reason_txt}.",
         kind="production",
     ))
 

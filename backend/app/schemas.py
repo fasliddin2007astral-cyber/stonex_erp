@@ -346,6 +346,10 @@ class TaskCreate(BaseModel):
     note: str | None = None
 
 
+class TaskReject(BaseModel):
+    reason: str | None = None
+
+
 class TaskReport(BaseModel):
     produced_qty: Decimal = Field(gt=0)  # shu hisobotda qo'shilgan miqdor
     waste_qty: Decimal | None = Field(default=Decimal(0), ge=0)  # yaroqsiz / chiqindi

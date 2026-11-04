@@ -1029,6 +1029,37 @@ class MockProductionRepository implements ProductionRepository {
       approvedBy: 1, approvedAt: DateTime.now(), note: t.note,
     );
   }
+
+  @override
+  Future<void> reject(int taskId, {String? reason}) async {
+    final ti = _s.tasks.indexWhere((t) => t.id == taskId);
+    if (ti < 0) throw ApiException('Topshiriq topilmadi', 404);
+    final t = _s.tasks[ti];
+    if (t.status == 'done') throw ApiException('Topshiriq yopilgan', 400);
+    _s.tasks[ti] = ProductionTask(
+      id: t.id,
+      productId: t.productId,
+      productName: t.productName,
+      unit: t.unit,
+      assignedTo: t.assignedTo,
+      workerName: t.workerName,
+      planned: t.planned,
+      produced: t.produced,
+      waste: t.waste,
+      status: 'rejected',
+      note: '${t.note ?? ""}' + (reason != null && reason.isNotEmpty ? ' [Qaytarildi: $reason]' : ' [Ishchi qaytardi]'),
+      approvedBy: t.approvedBy,
+      approvedAt: t.approvedAt,
+    );
+    _s.notifications.add(AppNotification(
+      id: _s.nextId++,
+      title: 'Topshiriq qaytarildi',
+      message: '${t.workerName}: ${t.productName} topshirig‘ini qaytardi' + (reason != null && reason.isNotEmpty ? ' ($reason)' : ''),
+      kind: 'production',
+      isRead: false,
+      createdAt: DateTime.now(),
+    ));
+  }
 }
 
 class MockUserRepository implements UserRepository {

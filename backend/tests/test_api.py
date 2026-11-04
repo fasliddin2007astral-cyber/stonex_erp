@@ -448,6 +448,18 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(dup_foreman.status_code, 400)
         self.assertIn("faqat 1 ta", dup_foreman.json()["detail"].lower())
 
+        # 7. Ishchi topshiriqni bajara olmasdan qaytarishi (reject)
+        t_res2 = self.c.post("/production", headers=f_headers, json={
+            "product_id": pid, "assigned_to": wid, "planned_qty": 15, "note": "Buyurtma #55 kesish"
+        })
+        self.assertEqual(t_res2.status_code, 201)
+        tid2 = t_res2.json()["id"]
+
+        rej_res = self.c.post(f"/production/{tid2}/reject", headers=w_headers, json={"reason": "Stanok band"})
+        self.assertEqual(rej_res.status_code, 200)
+        self.assertEqual(rej_res.json()["status"], "rejected")
+        self.assertIn("Stanok band", rej_res.json()["note"])
+
         # 7. Ish boshqaruvchi ombordagi harakatlarni va qoldiqlarni ko'ra olishi
         stk_res = self.c.get("/stock/movements", headers=f_headers)
         self.assertEqual(stk_res.status_code, 200)

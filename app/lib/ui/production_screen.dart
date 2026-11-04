@@ -59,6 +59,193 @@ class _ProductionScreenState extends State<ProductionScreen> {
         item.productName.contains('[');
   }
 
+
+  String _cuttingFilter = 'pending'; // 'pending' | 'assigned' | 'all'
+
+  bool _isOrderAssigned(SaleResult o, List<ProductionTask> tasks) {
+    final needle1 = 'Buyurtma #${o.id}';
+    final needle2 = '[Order #${o.id}]';
+    return tasks.any((t) =>
+        t.status != 'rejected' &&
+        t.status != 'cancelled' &&
+        ((t.note?.contains(needle1) ?? false) || (t.note?.contains(needle2) ?? false)));
+  }
+
+  bool _isOrderRejected(SaleResult o, List<ProductionTask> tasks) {
+    if (_isOrderAssigned(o, tasks)) return false;
+    final needle1 = 'Buyurtma #${o.id}';
+    final needle2 = '[Order #${o.id}]';
+    return tasks.any((t) =>
+        t.status == 'rejected' &&
+        ((t.note?.contains(needle1) ?? false) || (t.note?.contains(needle2) ?? false)));
+  }
+
+  ProductionTask? _getOrderTask(SaleResult o, List<ProductionTask> tasks) {
+    final needle1 = 'Buyurtma #${o.id}';
+    final needle2 = '[Order #${o.id}]';
+    return tasks.where((t) =>
+        ((t.note?.contains(needle1) ?? false) || (t.note?.contains(needle2) ?? false))).firstOrNull;
+  }
+
+  Future<void> _reject(ProductionTask t) async {
+    final reasonCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.dialogBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.undo_rounded, color: Color(0xFFEF4444), size: 22),
+            SizedBox(width: 10),
+            Text('Topshiriqni qaytarish', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Ushbu topshiriqni (${t.productName}) bajara olmasligingiz sababli ish boshqaruvchiga qaytarmoqchimisiz?',
+              style: const TextStyle(fontSize: 13.5, height: 1.4),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: reasonCtrl,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Qaytarish sababi (ixtiyoriy)',
+                hintText: 'Masalan: Stanok band / Boshqa shoshilinch ish chiqdi',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Bekor')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+            child: const Text('Qaytarish', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+
+    if (ok == true && mounted) {
+      try {
+        await _repo.reject(t.id, reason: reasonCtrl.text.trim());
+        if (mounted) {
+          showMessage(context, 'Topshiriq ish boshqaruvchiga qaytarildi');
+          _reload();
+        }
+      } catch (e) {
+        if (mounted) showMessage(context, 'Xatolik: $e', error: true);
+      }
+    }
+  }
+
+  Widget _buildTaskSpecsBox(ProductionTask t, BuildContext context) {
+    final note = t.note ?? '';
+    if (note.isEmpty) return const SizedBox.shrink();
+
+    final isDark = context.isDark;
+    final dimMatch = RegExp(r'(\d+(?:\.\d+)?\s*(?:sm|m)?\s*[×xX*]\s*\d+(?:\.\d+)?\s*(?:sm|m)?)').firstMatch(note);
+    final piecesMatch = RegExp(r'(\d+\s*dona)').firstMatch(note);
+    final hasPolish = note.toLowerCase().contains('silliqlash');
+    final hasChamfer = note.toLowerCase().contains('faska');
+    final hasGroove = note.toLowerCase().contains('chizish');
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF13222F) : const Color(0xFFF0F9FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? const Color(0xFF0284C7).withValues(alpha: 0.4) : const Color(0xFFBAE6FD),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.straighten_rounded, size: 15, color: Color(0xFF0284C7)),
+              const SizedBox(width: 6),
+              const Text(
+                '📐 Kesish / Ishlov ko‘rsatmasi:',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 11.5,
+                  color: Color(0xFF0284C7),
+                ),
+              ),
+              const Spacer(),
+              if (t.isRejected)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text('Qaytarilgan', style: TextStyle(color: Color(0xFFEF4444), fontSize: 10, fontWeight: FontWeight.w800)),
+                ),
+            ],
+          ),
+          if (dimMatch != null || piecesMatch != null || hasPolish || hasChamfer || hasGroove) ...[
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (dimMatch != null)
+                  _buildSpecTag('📏 ${dimMatch.group(1)}', const Color(0xFF0284C7), isDark),
+                if (piecesMatch != null)
+                  _buildSpecTag('📦 ${piecesMatch.group(1)}', const Color(0xFF7C3AED), isDark),
+                if (hasPolish)
+                  _buildSpecTag('✨ Silliqlash', const Color(0xFF059669), isDark),
+                if (hasChamfer)
+                  _buildSpecTag('📐 Faska', const Color(0xFFD97706), isDark),
+                if (hasGroove)
+                  _buildSpecTag('〰️ Chizish', const Color(0xFFD97706), isDark),
+              ],
+            ),
+          ],
+          const SizedBox(height: 5),
+          Text(
+            note,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSpecTag(String text, Color color, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.2 : 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.4), width: 0.8),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: isDark ? color.withValues(alpha: 0.95) : color,
+        ),
+      ),
+    );
+  }
+
   Future<void> _report(ProductionTask t) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -114,7 +301,7 @@ class _ProductionScreenState extends State<ProductionScreen> {
   Widget build(BuildContext context) {
     final curUser = context.watch<AuthController>().user;
     final isManager = curUser?.role == Role.admin || curUser?.role == Role.ishBoshqaruvchi;
-    final filters = ['Barchasi', 'Kutilmoqda (OTK)', 'Jarayonda', 'Yakunlangan'];
+    final filters = ['Barchasi', 'Kutilmoqda (OTK)', 'Jarayonda', 'Yakunlangan', 'Qaytarilgan'];
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
@@ -138,19 +325,34 @@ class _ProductionScreenState extends State<ProductionScreen> {
           final allTasks = (snap.data?[0] as List<ProductionTask>?) ?? [];
           final allOrders = (snap.data?[1] as List<SaleResult>?) ?? [];
 
-          // Kesish va toshga ishlov berish talab qilingan faol buyurtmalar
-          final cuttingOrders = allOrders.where((o) =>
+          // Kesish va toshga ishlov berish talab qilingan barcha buyurtmalar
+          final allCuttingOrders = allOrders.where((o) =>
               o.status == 'order' && o.items.any((it) => _isCuttingItem(it))
           ).toList();
+
+          final pendingCuttingOrders = allCuttingOrders.where((o) => !_isOrderAssigned(o, allTasks)).toList();
+          final assignedCuttingOrders = allCuttingOrders.where((o) => _isOrderAssigned(o, allTasks)).toList();
+
+          List<SaleResult> displayedCuttingOrders;
+          if (_cuttingFilter == 'assigned') {
+            displayedCuttingOrders = assignedCuttingOrders;
+          } else if (_cuttingFilter == 'all') {
+            displayedCuttingOrders = allCuttingOrders;
+          } else {
+            displayedCuttingOrders = pendingCuttingOrders;
+          }
+          final cuttingOrders = displayedCuttingOrders;
 
           var displayTasks = List<ProductionTask>.from(allTasks);
 
           if (_selectedFilter == 'Kutilmoqda (OTK)') {
             displayTasks = displayTasks.where((t) => t.isPendingApproval).toList();
           } else if (_selectedFilter == 'Jarayonda') {
-            displayTasks = displayTasks.where((t) => t.status != 'done' && !t.isPendingApproval).toList();
+            displayTasks = displayTasks.where((t) => t.status != 'done' && !t.isPendingApproval && !t.isRejected).toList();
           } else if (_selectedFilter == 'Yakunlangan') {
             displayTasks = displayTasks.where((t) => t.status == 'done').toList();
+          } else if (_selectedFilter == 'Qaytarilgan') {
+            displayTasks = displayTasks.where((t) => t.isRejected).toList();
           }
 
           final q = _searchCtrl.text.trim().toLowerCase();
@@ -200,7 +402,7 @@ class _ProductionScreenState extends State<ProductionScreen> {
                             const SizedBox(width: 4),
                             Expanded(
                               child: _buildTabPill(
-                                label: 'Buyurtmalardan kesish (${cuttingOrders.length})',
+                                label: 'Buyurtmalardan kesish (${pendingCuttingOrders.length})',
                                 icon: Icons.content_cut_rounded,
                                 active: _activeTab == 'orders',
                                 onTap: () => setState(() => _activeTab = 'orders'),
@@ -222,14 +424,14 @@ class _ProductionScreenState extends State<ProductionScreen> {
                             borderRadius: BorderRadius.circular(22),
                             border: Border.all(color: context.borderColor),
                           ),
-                          child: const Center(
+                          child: Center(
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(Icons.check_circle_outline_rounded, size: 48, color: AppColors.green),
                                 SizedBox(height: 12),
                                 Text(
-                                  'Kesish yoki ishlov berish talab qilingan faol buyurtmalar yo‘q',
+                                  _cuttingFilter == 'pending' ? 'Kutilayotgan biriktirilmagan buyurtmalar yo‘q' : (_cuttingFilter == 'assigned' ? 'Biriktirilgan buyurtmalar hozircha yo‘q' : 'Kesish talab qilingan buyurtmalar yo‘q'),
                                   textAlign: TextAlign.center,
                                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                                 ),
@@ -244,13 +446,29 @@ class _ProductionScreenState extends State<ProductionScreen> {
                           ),
                         )
                       else ...[
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            const Icon(Icons.content_cut_rounded, size: 18, color: Color(0xFFF59E0B)),
-                            const SizedBox(width: 8),
                             Text(
-                              'Kesish / Ishlov berish kutilayotgan buyurtmalar (${cuttingOrders.length} ta):',
+                              'Buyurtmalar:',
                               style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                            ),
+                            ChoiceChip(
+                              label: Text('Kutilayotganlar (${pendingCuttingOrders.length})'),
+                              selected: _cuttingFilter == 'pending',
+                              onSelected: (_) => setState(() => _cuttingFilter = 'pending'),
+                            ),
+                            ChoiceChip(
+                              label: Text('Biriktirilganlar (${assignedCuttingOrders.length})'),
+                              selected: _cuttingFilter == 'assigned',
+                              onSelected: (_) => setState(() => _cuttingFilter = 'assigned'),
+                            ),
+                            ChoiceChip(
+                              label: Text('Barchasi (${allCuttingOrders.length})'),
+                              selected: _cuttingFilter == 'all',
+                              onSelected: (_) => setState(() => _cuttingFilter = 'all'),
                             ),
                           ],
                         ),
@@ -260,7 +478,7 @@ class _ProductionScreenState extends State<ProductionScreen> {
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: cuttingOrders.length,
                           separatorBuilder: (_, __) => const SizedBox(height: 12),
-                          itemBuilder: (_, i) => _buildOrderCuttingCard(context, cuttingOrders[i], cuttingOrders),
+                          itemBuilder: (_, i) => _buildOrderCuttingCard(context, cuttingOrders[i], allCuttingOrders, allTasks),
                         ),
                       ],
                     ] else ...[
@@ -436,7 +654,7 @@ class _ProductionScreenState extends State<ProductionScreen> {
                             borderRadius: BorderRadius.circular(22),
                             border: Border.all(color: context.borderColor),
                           ),
-                          child: const Center(
+                          child: Center(
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -829,7 +1047,10 @@ class _ProductionScreenState extends State<ProductionScreen> {
     );
   }
 
-  Widget _buildOrderCuttingCard(BuildContext context, SaleResult order, List<SaleResult> allCuttingOrders) {
+  Widget _buildOrderCuttingCard(BuildContext context, SaleResult order, List<SaleResult> allCuttingOrders, List<ProductionTask> allTasks) {
+    final isAssigned = _isOrderAssigned(order, allTasks);
+    final isRejected = _isOrderRejected(order, allTasks);
+    final assignedTask = _getOrderTask(order, allTasks);
     final cutItems = order.items.where(_isCuttingItem).toList();
 
     return Container(
@@ -868,11 +1089,23 @@ class _ProductionScreenState extends State<ProductionScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF59E0B).withValues(alpha: 0.14),
+                            color: isAssigned
+                                ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                : (isRejected ? const Color(0xFFEF4444).withValues(alpha: 0.15) : const Color(0xFFF59E0B).withValues(alpha: 0.14)),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text('Kesish kutilmoqda',
-                              style: TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.w800, fontSize: 10.5)),
+                          child: Text(
+                            isAssigned
+                                ? '✅ Biriktirilgan (${assignedTask?.workerName ?? "Usta"})'
+                                : (isRejected ? '⚠️ Ishchi qaytargan' : 'Kesish kutilmoqda'),
+                            style: TextStyle(
+                              color: isAssigned
+                                  ? const Color(0xFF059669)
+                                  : (isRejected ? const Color(0xFFEF4444) : const Color(0xFFF59E0B)),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 10.5,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -963,7 +1196,7 @@ class _ProductionScreenState extends State<ProductionScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     icon: Icon(Icons.person_add_alt_1_rounded, size: 15, color: context.isDark ? AppColors.ink : AppColors.neonLime),
-                    label: const Text('Ishchiga biriktirish', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)),
+                    label: Text(isAssigned ? 'Qayta biriktirish' : (isRejected ? 'Boshqa ustaga biriktirish' : 'Ishchiga biriktirish'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)),
                   ),
                 ],
               ),

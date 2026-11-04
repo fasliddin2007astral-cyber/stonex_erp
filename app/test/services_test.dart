@@ -240,5 +240,20 @@ void main() {
       expect(hasCut, isTrue);
       expect(hasPolish, isTrue);
     });
+     test('Ishchi topshiriqni bajara olmasdan qaytara oladi (reject) va status rejected boladi', () async {
+      final store = MockStore();
+      final prodRepo = MockProductionRepository(store);
+      final tasksBefore = await prodRepo.list();
+      expect(tasksBefore.isNotEmpty, isTrue);
+
+      final t = tasksBefore.first;
+      await prodRepo.reject(t.id, reason: 'Stanok band');
+
+      final tasksAfter = await prodRepo.list();
+      final updated = tasksAfter.firstWhere((item) => item.id == t.id);
+      expect(updated.status, 'rejected');
+      expect(updated.isRejected, isTrue);
+      expect(updated.note, contains('Stanok band'));
+    });
   });
 }

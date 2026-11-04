@@ -995,6 +995,8 @@ class ProductionTask {
 
   bool get isDone => status == 'done';
   bool get isPendingApproval => status == 'pending_approval';
+  bool get isRejected => status == 'rejected';
+  bool get isOpen => status == 'open';
 
   factory ProductionTask.fromJson(Map<String, dynamic> j) => ProductionTask(
         id: (j['id'] as num?)?.toInt() ?? 0,

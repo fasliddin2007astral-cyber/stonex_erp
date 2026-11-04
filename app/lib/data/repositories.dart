@@ -68,6 +68,7 @@ abstract class ProductionRepository {
   Future<void> create({required int productId, required int workerId, required double plannedQty, String? note});
   Future<void> report(int taskId, double producedQty, {double? wasteQty, String? note});
   Future<void> approve(int taskId);
+  Future<void> reject(int taskId, {String? reason});
 }
 
 abstract class UserRepository {

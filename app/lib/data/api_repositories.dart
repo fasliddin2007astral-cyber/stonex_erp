@@ -286,6 +286,12 @@ class ApiProductionRepository implements ProductionRepository {
   @override
   Future<void> approve(int taskId) async =>
       _api.post('/production/$taskId/approve');
+
+  @override
+  Future<void> reject(int taskId, {String? reason}) async =>
+      _api.post('/production/$taskId/reject', body: {
+        if (reason != null && reason.isNotEmpty) 'reason': reason,
+      });
 }
 
 class ApiUserRepository implements UserRepository {
