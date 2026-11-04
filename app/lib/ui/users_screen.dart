@@ -803,14 +803,12 @@ class _UsersScreenState extends State<UsersScreen> {
                           visualDensity: VisualDensity.compact,
                         ),
 
-                        // Markaziy interaktiv sana (Kalendar)
+                        // Markaziy interaktiv sana (Stonex Custom Kalendar)
                         InkWell(
                           onTap: () async {
-                            final picked = await showDatePicker(
+                            final picked = await StonexDatePickerDialog.show(
                               context: context,
                               initialDate: _selectedDate,
-                              firstDate: DateTime(2025),
-                              lastDate: DateTime(2030),
                             );
                             if (picked != null) {
                               setState(() {
@@ -822,7 +820,7 @@ class _UsersScreenState extends State<UsersScreen> {
                           borderRadius: BorderRadius.circular(100),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 180),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6.5),
                             decoration: BoxDecoration(
                               color: isToday
                                   ? (context.isDark ? AppColors.neonLime.withValues(alpha: 0.15) : const Color(0xFFF0FDF4))
@@ -855,6 +853,14 @@ class _UsersScreenState extends State<UsersScreen> {
                                         ? (context.isDark ? AppColors.neonLime : const Color(0xFF15803D))
                                         : context.inkColor,
                                   ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  size: 16,
+                                  color: isToday
+                                      ? (context.isDark ? AppColors.neonLime : const Color(0xFF16A34A))
+                                      : context.mutedColor,
                                 ),
                               ],
                             ),
@@ -2159,6 +2165,417 @@ class _AttendanceDialogState extends State<AttendanceDialog> {
           child: const Text('Saqlash', style: TextStyle(fontWeight: FontWeight.w800)),
         ),
       ],
+    );
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// Stonex ERP Maxsus Zamonaviy Sana Tanlash Dialogi (StonexDatePickerDialog)
+// ---------------------------------------------------------------------------
+
+class StonexDatePickerDialog extends StatefulWidget {
+  final DateTime initialDate;
+  final DateTime firstDate;
+  final DateTime lastDate;
+
+  const StonexDatePickerDialog({
+    super.key,
+    required this.initialDate,
+    required this.firstDate,
+    required this.lastDate,
+  });
+
+  static Future<DateTime?> show({
+    required BuildContext context,
+    required DateTime initialDate,
+    DateTime? firstDate,
+    DateTime? lastDate,
+  }) {
+    return showDialog<DateTime>(
+      context: context,
+      barrierDismissible: true,
+      builder: (_) => StonexDatePickerDialog(
+        initialDate: initialDate,
+        firstDate: firstDate ?? DateTime(2025),
+        lastDate: lastDate ?? DateTime(2030),
+      ),
+    );
+  }
+
+  @override
+  State<StonexDatePickerDialog> createState() => _StonexDatePickerDialogState();
+}
+
+class _StonexDatePickerDialogState extends State<StonexDatePickerDialog> {
+  late DateTime _selected;
+  late DateTime _viewMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.initialDate;
+    _viewMonth = DateTime(_selected.year, _selected.month, 1);
+  }
+
+  void _prevMonth() {
+    setState(() {
+      _viewMonth = DateTime(_viewMonth.year, _viewMonth.month - 1, 1);
+    });
+  }
+
+  void _nextMonth() {
+    setState(() {
+      _viewMonth = DateTime(_viewMonth.year, _viewMonth.month + 1, 1);
+    });
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  String _monthNameUz(int m) {
+    const months = [
+      'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
+      'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'
+    ];
+    return months[m - 1];
+  }
+
+  String _formatFullDate(DateTime dt) {
+    const weekdays = [
+      'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba', 'Yakshanba'
+    ];
+    final wName = weekdays[dt.weekday - 1];
+    final mName = _monthNameUz(dt.month).toLowerCase();
+    final now = DateTime.now();
+    final isToday = _isSameDay(dt, now);
+    final isYesterday = _isSameDay(dt, now.subtract(const Duration(days: 1)));
+    final suffix = isToday ? ' · Bugun' : (isYesterday ? ' · Kecha' : '');
+    return '${dt.day}-$mName, ${dt.year} ($wName)$suffix';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = context.isDark;
+    final now = DateTime.now();
+    final daysInMonth = DateTime(_viewMonth.year, _viewMonth.month + 1, 0).day;
+    final startOffset = _viewMonth.weekday - 1; // 0 for Mon .. 6 for Sun
+    final totalCells = startOffset + daysInMonth;
+    final rowCount = (totalCells / 7).ceil();
+
+    return Dialog(
+      backgroundColor: context.cardColor,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: Container(
+        width: 360,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 1. Sarlavha va yopish tugmasi
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.neonLime.withValues(alpha: 0.15) : const Color(0xFFDCFCE7),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.calendar_month_rounded,
+                    size: 18,
+                    color: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Sana tanlash',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: context.inkColor,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 20),
+                  onPressed: () => Navigator.pop(context),
+                  splashRadius: 18,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // 2. Tanlangan sana ko'rsatgichi
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF161E28) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isDark
+                      ? AppColors.neonLime.withValues(alpha: 0.3)
+                      : const Color(0xFF22C55E).withValues(alpha: 0.3),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Tanlangan sana:',
+                    style: TextStyle(fontSize: 10.5, color: context.mutedColor, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _formatFullDate(_selected),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? AppColors.neonLime : const Color(0xFF15803D),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // 3. Tezkor tugmalar (Presets)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: [
+                  _presetButton('Bugun', now),
+                  const SizedBox(width: 6),
+                  _presetButton('Kecha', now.subtract(const Duration(days: 1))),
+                  const SizedBox(width: 6),
+                  _presetButton('2 kun oldin', now.subtract(const Duration(days: 2))),
+                  const SizedBox(width: 6),
+                  _presetButton('Hafta boshi (Du)', now.subtract(Duration(days: now.weekday - 1))),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // 4. Oy va Yil almashtirish navigatori
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              decoration: BoxDecoration(
+                color: context.pillColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left_rounded, size: 22),
+                    onPressed: _prevMonth,
+                    tooltip: 'Oldingi oy',
+                    splashRadius: 18,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  Text(
+                    '${_monthNameUz(_viewMonth.month)} ${_viewMonth.year}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: context.inkColor,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right_rounded, size: 22),
+                    onPressed: _nextMonth,
+                    tooltip: 'Keyingi oy',
+                    splashRadius: 18,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // 5. Hafta kunlari sarlavhasi
+            Row(
+              children: const ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh', 'Ya'].map((d) {
+                final isWeekend = d == 'Sh' || d == 'Ya';
+                return Expanded(
+                  child: Center(
+                    child: Text(
+                      d,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: isWeekend ? AppColors.danger : context.mutedColor,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 6),
+
+            // 6. Kalendar kunlari panjarasi (Grid)
+            Column(
+              children: [
+                for (var r = 0; r < rowCount; r++)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2.5),
+                    child: Row(
+                      children: [
+                        for (var c = 0; c < 7; c++) ...[
+                          Expanded(
+                            child: _buildDayCell(r * 7 + c, startOffset, daysInMonth, now),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // 7. Amallar: Bekor qilish va Tanlash
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                    ),
+                    child: Text('Bekor qilish', style: TextStyle(color: context.mutedColor, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => Navigator.pop(context, _selected),
+                    icon: const Icon(Icons.check_rounded, size: 16),
+                    label: const Text('Tanlash', style: TextStyle(fontWeight: FontWeight.w800)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: isDark ? AppColors.neonLime : AppColors.darkCard,
+                      foregroundColor: isDark ? AppColors.ink : Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDayCell(int cellIndex, int startOffset, int daysInMonth, DateTime now) {
+    final dayNum = cellIndex - startOffset + 1;
+    if (dayNum < 1 || dayNum > daysInMonth) {
+      return const SizedBox(height: 34);
+    }
+
+    final cellDate = DateTime(_viewMonth.year, _viewMonth.month, dayNum);
+    final isSel = _isSameDay(cellDate, _selected);
+    final isToday = _isSameDay(cellDate, now);
+    final isWeekend = cellDate.weekday == DateTime.saturday || cellDate.weekday == DateTime.sunday;
+    final isDark = context.isDark;
+
+    return Center(
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _selected = cellDate;
+          });
+        },
+        borderRadius: BorderRadius.circular(100),
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isSel
+                ? (isDark ? AppColors.neonLime : AppColors.darkCard)
+                : (isToday
+                    ? (isDark ? AppColors.neonLime.withValues(alpha: 0.15) : const Color(0xFFDCFCE7))
+                    : Colors.transparent),
+            border: isToday && !isSel
+                ? Border.all(
+                    color: isDark ? AppColors.neonLime : const Color(0xFF22C55E),
+                    width: 1.4,
+                  )
+                : null,
+            boxShadow: isSel
+                ? [
+                    BoxShadow(
+                      color: (isDark ? AppColors.neonLime : Colors.black).withValues(alpha: 0.25),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: Text(
+              '$dayNum',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: (isSel || isToday) ? FontWeight.w900 : FontWeight.w600,
+                color: isSel
+                    ? (isDark ? AppColors.ink : Colors.white)
+                    : (isToday
+                        ? (isDark ? AppColors.neonLime : const Color(0xFF15803D))
+                        : (isWeekend ? AppColors.danger.withValues(alpha: 0.8) : context.inkColor)),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _presetButton(String label, DateTime targetDate) {
+    final isSel = _isSameDay(_selected, targetDate);
+    final isDark = context.isDark;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selected = targetDate;
+          _viewMonth = DateTime(targetDate.year, targetDate.month, 1);
+        });
+      },
+      borderRadius: BorderRadius.circular(100),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+        decoration: BoxDecoration(
+          color: isSel
+              ? (isDark ? AppColors.neonLime : AppColors.darkCard)
+              : context.pillColor,
+          borderRadius: BorderRadius.circular(100),
+          border: Border.all(
+            color: isSel
+                ? (isDark ? AppColors.neonLime : AppColors.darkCard)
+                : context.borderColor,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+            color: isSel
+                ? (isDark ? AppColors.ink : Colors.white)
+                : context.mutedColor,
+          ),
+        ),
+      ),
     );
   }
 }
