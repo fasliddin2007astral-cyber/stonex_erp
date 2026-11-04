@@ -35,7 +35,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(256))
     role: Mapped[str] = mapped_column(String(16))
     salary: Mapped[Decimal] = mapped_column(MONEY, default=Decimal(0))
-    salary_type: Mapped[str] = mapped_column(String(16), default="monthly")  # monthly, daily, hourly
+    salary_type: Mapped[str] = mapped_column(String(16), default="monthly")  # monthly, daily, hourly, trip
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     can_login: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

@@ -1194,17 +1194,25 @@ class MockAttendanceRepository implements AttendanceRepository {
       final daysLate = uList.where((a) => a.status == 'late').length;
 
       double calculated = 0;
-      if (u.salaryType == 'daily') {
+      double deduction = 0;
+      if (u.salaryType == 'trip' || u.role == Role.haydovchi) {
+        calculated = u.salary > 0 ? (u.salary * 12) : 1800000;
+        deduction = 0;
+      } else if (u.salaryType == 'daily') {
         calculated = u.salary * daysWorked;
+        final dayRate = u.salary;
+        deduction = (dayRate * 0.1 * daysLate).roundToDouble();
       } else if (u.salaryType == 'hourly') {
         calculated = u.salary * hoursWorked;
+        final dayRate = u.salary * 8;
+        deduction = (dayRate * 0.1 * daysLate).roundToDouble();
       } else {
         final perDay = totalWorkingDays > 0 ? (u.salary / totalWorkingDays) : 0;
         calculated = (perDay * (daysWorked > 0 ? daysWorked : totalWorkingDays)).roundToDouble();
+        final dayRate = totalWorkingDays > 0 ? (u.salary / totalWorkingDays) : 0;
+        deduction = (dayRate * 0.1 * daysLate).roundToDouble();
       }
 
-      final dayRate = totalWorkingDays > 0 ? (u.salary / totalWorkingDays) : 0;
-      final deduction = (dayRate * 0.1 * daysLate).roundToDouble();
       final net = (calculated - deduction).clamp(0.0, double.infinity);
 
       list.add(SalaryReportItem(

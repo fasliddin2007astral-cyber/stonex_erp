@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from .. import roles
 from ..database import get_db
 from ..deps import get_current_user, require_roles
-from ..models import Attendance, User
+from ..models import Attendance, User, Delivery
 from ..schemas import (
     AttendanceBulkCheckIn,
     AttendanceCheckIn,
@@ -321,18 +321,41 @@ def get_salary_report(
         sal_type = u.salary_type or "monthly"
 
         # Davomat bo'yicha hisoblash
-        if sal_type == "daily":
+        if sal_type == "trip" or u.role == roles.DRIVER:
+            completed_deliveries = db.scalars(
+                select(Delivery).where(
+                    Delivery.status == "delivered",
+                    Delivery.driver_name.ilike(f"%{u.full_name}%"),
+                )
+            ).all()
+            month_deliveries = [
+                d for d in completed_deliveries
+                if (d.delivered_time and d.delivered_time.strftime("%Y-%m") == month)
+                or (not d.delivered_time and d.created_at and d.created_at.strftime("%Y-%m") == month)
+            ]
+            if base_sal > 0:
+                calc_sal = base_sal * Decimal(len(month_deliveries))
+            else:
+                calc_sal = sum((d.delivery_fee or Decimal(0) for d in month_deliveries), Decimal(0))
+            days_worked = len(month_deliveries) if month_deliveries else days_worked
+            deduction = Decimal(0)
+            net = calc_sal
+        elif sal_type == "daily":
             calc_sal = base_sal * Decimal(days_worked)
+            day_rate = base_sal
+            deduction = Decimal(str(round(float(day_rate * Decimal(0.1) * Decimal(days_late)), 2)))
+            net = max(Decimal(0), calc_sal - deduction)
         elif sal_type == "hourly":
             calc_sal = base_sal * hours_worked
+            day_rate = base_sal * Decimal(8)
+            deduction = Decimal(str(round(float(day_rate * Decimal(0.1) * Decimal(days_late)), 2)))
+            net = max(Decimal(0), calc_sal - deduction)
         else:  # monthly
             per_day = base_sal / Decimal(total_working_days) if total_working_days else Decimal(0)
             calc_sal = Decimal(str(round(float(per_day * Decimal(days_worked)), 2)))
-
-        # Kechikishlar jarimasi (har bir kechikish uchun kunlik maoshning 10%)
-        day_rate = (base_sal / Decimal(total_working_days)) if total_working_days else Decimal(0)
-        deduction = Decimal(str(round(float(day_rate * Decimal(0.1) * Decimal(days_late)), 2)))
-        net = max(Decimal(0), calc_sal - deduction)
+            day_rate = (base_sal / Decimal(total_working_days)) if total_working_days else Decimal(0)
+            deduction = Decimal(str(round(float(day_rate * Decimal(0.1) * Decimal(days_late)), 2)))
+            net = max(Decimal(0), calc_sal - deduction)
 
         report.append(
             SalaryReportItem(

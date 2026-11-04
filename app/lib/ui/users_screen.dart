@@ -732,7 +732,11 @@ class _UsersScreenState extends State<UsersScreen> {
                       const Text('· ', style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
                     ],
                     Text(
-                      'Maosh: ${money(u.salary)} (${u.salaryType == "daily" ? "kunbay" : (u.salaryType == "hourly" ? "soatbay" : "oylik")})',
+                      u.salaryType == 'trip'
+                          ? (u.salary > 0
+                              ? 'Maosh: ${money(u.salary)} (reysbay)'
+                              : 'Maosh: Reysbay (yetkazishdan)')
+                          : 'Maosh: ${money(u.salary)} (${u.salaryType == "daily" ? "kunbay" : (u.salaryType == "hourly" ? "soatbay" : "oylik")})',
                       style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: context.inkColor),
                     ),
                   ],
@@ -1748,7 +1752,7 @@ class _UsersScreenState extends State<UsersScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Stavka: ${money(r.baseSalary)} / ${r.salaryType == "daily" ? "kun" : (r.salaryType == "hourly" ? "soat" : "oy")}',
+                      'Stavka: ${money(r.baseSalary)} / ${r.salaryType == "daily" ? "kun" : (r.salaryType == "hourly" ? "soat" : (r.salaryType == "trip" ? "reys" : "oy"))}',
                       style: TextStyle(fontSize: 11.5, color: context.mutedColor),
                     ),
                   ],
@@ -1859,11 +1863,13 @@ class _UserDialogState extends State<UserDialog> {
   late final _userCtrl = TextEditingController(text: widget.user?.username ?? '');
   late final _nameCtrl = TextEditingController(text: widget.user?.fullName ?? '');
   final _passCtrl = TextEditingController();
-  late final _salaryCtrl = TextEditingController(
-    text: widget.user != null ? widget.user!.salary.toInt().toString() : '5000000',
-  );
   late Role _role = widget.user?.role ?? Role.ishchi;
-  late String _salaryType = widget.user?.salaryType ?? 'monthly';
+  late String _salaryType = widget.user?.salaryType ?? (_role == Role.haydovchi ? 'trip' : 'monthly');
+  late final _salaryCtrl = TextEditingController(
+    text: widget.user != null
+        ? widget.user!.salary.toInt().toString()
+        : (_role == Role.haydovchi ? '0' : '5000000'),
+  );
   late bool _isActive = widget.user?.isActive ?? true;
   late bool _canLogin = widget.user?.canLogin ?? (_role != Role.ishchi);
 
@@ -2011,6 +2017,17 @@ class _UserDialogState extends State<UserDialog> {
                     if (_role == Role.admin || _role == Role.kassir || _role == Role.haydovchi) {
                       _canLogin = true;
                     }
+                    if (_role == Role.haydovchi) {
+                      _salaryType = 'trip';
+                      if (_salaryCtrl.text == '5000000' || _salaryCtrl.text.isEmpty) {
+                        _salaryCtrl.text = '0';
+                      }
+                    } else if (_salaryType == 'trip') {
+                      _salaryType = 'monthly';
+                      if (_salaryCtrl.text == '0') {
+                        _salaryCtrl.text = '5000000';
+                      }
+                    }
                   });
                 },
               ),
@@ -2130,10 +2147,15 @@ class _UserDialogState extends State<UserDialog> {
               TextField(
                 controller: _salaryCtrl,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Maosh stavkasi (so‘m)',
-                  hintText: '5000000',
-                  prefixIcon: Icon(Icons.payments_outlined),
+                decoration: InputDecoration(
+                  labelText: _salaryType == 'trip'
+                      ? 'Reys stavkasi (0 bo‘lsa buyurtmadagi yo‘l haqi)'
+                      : 'Maosh stavkasi (so‘m)',
+                  hintText: _salaryType == 'trip' ? '0' : '5000000',
+                  helperText: _salaryType == 'trip'
+                      ? '0 bo‘lsa, yetkazilgan buyurtmalardagi yo‘l haqi summasi to‘lanadi'
+                      : null,
+                  prefixIcon: const Icon(Icons.payments_outlined),
                 ),
               ),
               const SizedBox(height: 12),
@@ -2149,8 +2171,16 @@ class _UserDialogState extends State<UserDialog> {
                   DropdownMenuItem(value: 'monthly', child: Text('Oylik (oybay fixed)')),
                   DropdownMenuItem(value: 'daily', child: Text('Kunlik (kunbay stavka)')),
                   DropdownMenuItem(value: 'hourly', child: Text('Soatlik (soatbay stavka)')),
+                  DropdownMenuItem(value: 'trip', child: Text('Reysbay (yetkazilgan buyurtmalardan)')),
                 ],
-                onChanged: (v) => setState(() => _salaryType = v ?? 'monthly'),
+                onChanged: (v) {
+                  setState(() {
+                    _salaryType = v ?? 'monthly';
+                    if (_salaryType == 'trip' && _salaryCtrl.text == '5000000') {
+                      _salaryCtrl.text = '0';
+                    }
+                  });
+                },
               ),
               if (_isEditing) ...[
                 const SizedBox(height: 12),
