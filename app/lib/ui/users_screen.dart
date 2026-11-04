@@ -231,16 +231,25 @@ class _UsersScreenState extends State<UsersScreen> {
 
     final now = DateTime.now();
     int count = 0;
-    for (final u in absentUsers) {
-      try {
-        await _attRepo.checkIn(u.id, time: now);
-        count++;
-      } catch (_) {}
-    }
-    if (mounted) {
-      showMessage(context, '✓ $count nafar xodim keldi deb belgilandi');
-      _reloadAttendance();
-      _reloadSalary();
+    try {
+      await _attRepo.bulkCheckIn(absentUsers.map((u) => u.id).toList(), time: now, date: _dateStr);
+      count = absentUsers.length;
+    } catch (_) {
+      // Fallback
+      for (final u in absentUsers) {
+        try {
+          await _attRepo.checkIn(u.id, time: now);
+          count++;
+        } catch (_) {}
+      }
+    } finally {
+      if (mounted) {
+        if (count > 0) {
+          showMessage(context, '✓ $count nafar xodim keldi deb belgilandi');
+        }
+        _reloadAttendance();
+        _reloadSalary();
+      }
     }
   }
 

@@ -96,4 +96,16 @@ def ensure_migrations():
                 conn.execute(text("ALTER TABLE users ADD COLUMN salary DECIMAL(14, 2) DEFAULT 0.00"))
             if "salary_type" not in u_columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN salary_type VARCHAR(16) DEFAULT 'monthly'"))
+            if "can_login" not in u_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN can_login BOOLEAN DEFAULT TRUE"))
+                conn.execute(text("UPDATE users SET can_login = TRUE WHERE can_login IS NULL"))
+    if "attendance" in table_names:
+        att_columns = [c["name"] for c in inspector.get_columns("attendance")]
+        with engine.begin() as conn:
+            if "status" not in att_columns:
+                conn.execute(text("ALTER TABLE attendance ADD COLUMN status VARCHAR(16) DEFAULT 'present'"))
+            if "note" not in att_columns:
+                conn.execute(text("ALTER TABLE attendance ADD COLUMN note TEXT NULL"))
+            if "worked_hours" not in att_columns:
+                conn.execute(text("ALTER TABLE attendance ADD COLUMN worked_hours DECIMAL(14, 3) DEFAULT 0"))
 

@@ -1045,6 +1045,14 @@ class MockAttendanceRepository implements AttendanceRepository {
   }
 
   @override
+  Future<void> bulkCheckIn(List<int> userIds, {DateTime? time, String? date}) async {
+    final now = time ?? DateTime.now();
+    for (final uid in userIds) {
+      await checkIn(uid, time: now);
+    }
+  }
+
+  @override
   Future<AttendanceRecord> saveRecord(AttendanceRecord record) async {
     final idx = _s.attendances.indexWhere((a) => a.id == record.id || (a.userId == record.userId && a.date == record.date));
     if (idx >= 0) {

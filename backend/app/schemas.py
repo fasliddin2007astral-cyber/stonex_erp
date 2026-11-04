@@ -69,6 +69,12 @@ class AttendanceCheckOut(BaseModel):
     note: str | None = None
 
 
+class AttendanceBulkCheckIn(BaseModel):
+    user_ids: list[int]
+    date: str | None = None  # YYYY-MM-DD
+    check_in: datetime | None = None
+
+
 class AttendanceRecordIn(BaseModel):
     id: int | None = None
     user_id: int

@@ -88,6 +88,7 @@ abstract class AttendanceRepository {
   Future<List<AttendanceRecord>> list({String? date, String? month, int? userId});
   Future<AttendanceRecord> checkIn(int userId, {DateTime? time, String? note});
   Future<AttendanceRecord> checkOut(int userId, {DateTime? time, String? note});
+  Future<void> bulkCheckIn(List<int> userIds, {DateTime? time, String? date});
   Future<AttendanceRecord> saveRecord(AttendanceRecord record);
   Future<List<SalaryReportItem>> getSalaryReport({required String month, int totalWorkingDays = 26});
   Future<void> paySalary(int userId, String month, double amount);

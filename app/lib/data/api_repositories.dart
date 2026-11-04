@@ -355,6 +355,15 @@ class ApiAttendanceRepository implements AttendanceRepository {
   }
 
   @override
+  Future<void> bulkCheckIn(List<int> userIds, {DateTime? time, String? date}) async {
+    await _api.post('/attendance/bulk-check-in', body: {
+      'user_ids': userIds,
+      if (date != null) 'date': date,
+      if (time != null) 'check_in': time.toIso8601String(),
+    });
+  }
+
+  @override
   Future<AttendanceRecord> saveRecord(AttendanceRecord record) async {
     final j = await _api.post('/attendance/record', body: record.toJson());
     return AttendanceRecord.fromJson(j as Map<String, dynamic>);

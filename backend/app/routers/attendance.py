@@ -9,6 +9,7 @@ from ..database import get_db
 from ..deps import get_current_user, require_roles
 from ..models import Attendance, User
 from ..schemas import (
+    AttendanceBulkCheckIn,
     AttendanceCheckIn,
     AttendanceCheckOut,
     AttendanceOut,
@@ -26,7 +27,9 @@ def _today_str() -> str:
 def _calc_hours(check_in: datetime | None, check_out: datetime | None) -> Decimal:
     if not check_in or not check_out:
         return Decimal(0)
-    diff = (check_out - check_in).total_seconds()
+    cin = check_in.replace(tzinfo=None) if check_in.tzinfo else check_in
+    cout = check_out.replace(tzinfo=None) if check_out.tzinfo else check_out
+    diff = (cout - cin).total_seconds()
     hours = max(0.0, diff / 3600.0)
     return Decimal(str(round(hours, 2)))
 
@@ -178,6 +181,68 @@ def check_out(
         status=record.status,
         note=record.note,
     )
+
+
+@router.post("/bulk-check-in", response_model=list[AttendanceOut])
+def bulk_check_in(
+    data: AttendanceBulkCheckIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != roles.ADMIN:
+        raise HTTPException(403, "Faqat admin barcha xodimlarni bir vaqtda keldi qila oladi")
+
+    date_str = data.date or _today_str()
+    now = data.check_in or datetime.now()
+    if now.tzinfo:
+        now = now.replace(tzinfo=None)
+    is_late = now.hour > 9 or (now.hour == 9 and now.minute > 15)
+
+    results = []
+    for uid in data.user_ids:
+        u = db.get(User, uid)
+        if not u or not u.is_active:
+            continue
+        record = db.scalar(
+            select(Attendance).where(
+                Attendance.user_id == uid, Attendance.date == date_str
+            )
+        )
+        if record:
+            if not record.check_in:
+                record.check_in = now
+                record.status = "late" if is_late else "present"
+            if record.check_out:
+                record.worked_hours = _calc_hours(record.check_in, record.check_out)
+        else:
+            record = Attendance(
+                user_id=uid,
+                date=date_str,
+                check_in=now,
+                worked_hours=Decimal(0),
+                status="late" if is_late else "present",
+            )
+            db.add(record)
+        results.append((record, u.full_name))
+
+    db.commit()
+    out = []
+    for rec, uname in results:
+        db.refresh(rec)
+        out.append(
+            AttendanceOut(
+                id=rec.id,
+                user_id=rec.user_id,
+                user_name=uname,
+                date=rec.date,
+                check_in=rec.check_in,
+                check_out=rec.check_out,
+                worked_hours=rec.worked_hours,
+                status=rec.status,
+                note=rec.note,
+            )
+        )
+    return out
 
 
 @router.post("/record", response_model=AttendanceOut)
