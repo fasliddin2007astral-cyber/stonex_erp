@@ -249,7 +249,8 @@ class _UsersScreenState extends State<UsersScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Top Tabs
+  // ---------------------------------------------------------------------------
+  // Top Tabs (Burchaksiz zamonaviy kapsula / Segmented UI)
   // ---------------------------------------------------------------------------
   Widget _buildTopTabs() {
     final tabs = [
@@ -258,62 +259,79 @@ class _UsersScreenState extends State<UsersScreen> {
       ('Oylik hisobi', Icons.account_balance_wallet_rounded),
     ];
 
+    final isDark = context.isDark;
+
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: context.cardColor,
-        border: Border(bottom: BorderSide(color: context.borderColor)),
+        border: Border(bottom: BorderSide(color: context.borderColor.withValues(alpha: 0.6))),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            for (var i = 0; i < tabs.length; i++) ...[
-              InkWell(
-                onTap: () => setState(() => _currentTab = i),
-                borderRadius: BorderRadius.circular(16),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _currentTab == i
-                        ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
-                        : context.pillColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
+        physics: const BouncingScrollPhysics(),
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF161E28) : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(100),
+            border: Border.all(color: context.borderColor.withValues(alpha: 0.7)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < tabs.length; i++) ...[
+                InkWell(
+                  onTap: () => setState(() => _currentTab = i),
+                  borderRadius: BorderRadius.circular(100),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeInOut,
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8.5),
+                    decoration: BoxDecoration(
                       color: _currentTab == i
-                          ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
-                          : context.borderColor.withValues(alpha: 0.5),
+                          ? (isDark ? AppColors.neonLime : AppColors.darkCard)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(100),
+                      boxShadow: _currentTab == i
+                          ? [
+                              BoxShadow(
+                                color: (isDark ? AppColors.neonLime : Colors.black).withValues(alpha: 0.18),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
                     ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        tabs[i].$2,
-                        size: 16,
-                        color: _currentTab == i
-                            ? (context.isDark ? AppColors.ink : Colors.white)
-                            : context.mutedColor,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        tabs[i].$1,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: _currentTab == i ? FontWeight.w800 : FontWeight.w600,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          tabs[i].$2,
+                          size: 16,
                           color: _currentTab == i
-                              ? (context.isDark ? AppColors.ink : Colors.white)
+                              ? (isDark ? AppColors.ink : Colors.white)
                               : context.mutedColor,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        Text(
+                          tabs[i].$1,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: _currentTab == i ? FontWeight.w800 : FontWeight.w600,
+                            color: _currentTab == i
+                                ? (isDark ? AppColors.ink : Colors.white)
+                                : context.mutedColor,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
