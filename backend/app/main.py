@@ -61,9 +61,72 @@ def root():
     }
 
 
+import os
+import shutil
+import platform
+
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    # Disk statistics
+    try:
+        total_d, used_d, free_d = shutil.disk_usage("/")
+        disk_info = {
+            "total_gb": round(total_d / (1024**3), 2),
+            "used_gb": round(used_d / (1024**3), 2),
+            "free_gb": round(free_d / (1024**3), 2),
+            "free_percent": round((free_d / total_d) * 100, 1),
+        }
+    except Exception as e:
+        disk_info = {"error": str(e)}
+
+    # RAM statistics
+    ram_info = {}
+    try:
+        # Cgroup limit (container memory limit)
+        cg_limit = None
+        cg_usage = None
+        for p in ["/sys/fs/cgroup/memory/memory.limit_in_bytes", "/sys/fs/cgroup/memory.max"]:
+            if os.path.exists(p):
+                with open(p) as f:
+                    v = f.read().strip()
+                    if v and v != "max":
+                        cg_limit = int(v)
+                        break
+        for p in ["/sys/fs/cgroup/memory/memory.usage_in_bytes", "/sys/fs/cgroup/memory.current"]:
+            if os.path.exists(p):
+                with open(p) as f:
+                    v = f.read().strip()
+                    if v:
+                        cg_usage = int(v)
+                        break
+
+        if cg_limit and cg_limit < 10**12:
+            ram_info["container_limit_mb"] = round(cg_limit / (1024 * 1024), 2)
+            if cg_usage:
+                ram_info["container_used_mb"] = round(cg_usage / (1024 * 1024), 2)
+                ram_info["container_free_mb"] = round(max(0, cg_limit - cg_usage) / (1024 * 1024), 2)
+                ram_info["container_free_percent"] = round((max(0, cg_limit - cg_usage) / cg_limit) * 100, 1)
+
+        # Linux /proc/meminfo
+        if os.path.exists("/proc/meminfo"):
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    if ":" in line:
+                        k, v = line.split(":", 1)
+                        k = k.strip()
+                        val = v.strip().split()[0]
+                        if k in ("MemTotal", "MemFree", "MemAvailable"):
+                            ram_info[k] = f"{round(int(val) / 1024, 2)} MB"
+    except Exception as e:
+        ram_info["error"] = str(e)
+
+    return {
+        "status": "ok",
+        "disk": disk_info,
+        "ram": ram_info,
+        "os": platform.system(),
+        "python_version": platform.python_version(),
+    }
 
 
 @app.get("/ping")
