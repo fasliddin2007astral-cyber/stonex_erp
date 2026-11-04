@@ -490,4 +490,46 @@ void main() {
     final lowStockProd = updated.copyWith(stock: 15.0);
     expect(lowStockProd.stock <= lowStockProd.minStock, true);
   });
+
+  test('Xodimlar: Dasturga kirmaydigan ishchi login va parolsiz qo‘shiladi, ishlab chiqarish va davomatda qatnashadi', () async {
+    final s = MockStore();
+    final usersRepo = MockUserRepository(s);
+    final authRepo = MockAuthRepository(s);
+    final prodRepo = MockProductionRepository(s);
+    final attRepo = MockAttendanceRepository(s);
+
+    // 1. Dasturga kirmaydigan jismoniy ishchi (tosh ustasi) qo'shish: login va parol kerak emas
+    final worker = await usersRepo.create(
+      fullName: 'Sardor Toshkesar (Usta)',
+      role: Role.ishchi,
+      canLogin: false,
+      salary: 180000,
+      salaryType: 'daily',
+    );
+
+    expect(worker.fullName, 'Sardor Toshkesar (Usta)');
+    expect(worker.canLogin, false);
+    expect(worker.role, Role.ishchi);
+    expect(worker.salary, 180000);
+    expect(worker.salaryType, 'daily');
+
+    // 2. Ushbu xodim login/parol orqali dasturga kira olmasligini tekshiramiz
+    expect(
+      () => authRepo.login(worker.username, 'har_qanday_parol', Role.ishchi),
+      throwsA(isA<Exception>()),
+    );
+
+    // 3. Ammo uning ismi ishlab chiqarish ishchilari ro'yxatida chiqadi
+    final workers = await prodRepo.workers();
+    expect(workers.any((w) => w.id == worker.id && w.fullName.contains('Sardor')), true);
+
+    // Unga ishlab chiqarish topshirig'i (vazifa) biriktirish mumkin
+    await prodRepo.create(productId: s.products.first.id, workerId: worker.id, plannedQty: 10);
+    final tasks = await prodRepo.list();
+    expect(tasks.any((t) => t.assignedTo == worker.id && t.workerName.contains('Sardor')), true);
+
+    // 4. Davomatda ham u uchun keldi/ketdi qayd qilish mumkin
+    final att = await attRepo.checkIn(worker.id, time: DateTime.now());
+    expect(att.userId, worker.id);
+  });
 }

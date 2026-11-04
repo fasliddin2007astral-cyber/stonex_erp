@@ -28,15 +28,28 @@ def list_users(role: str | None = None, db: Session = Depends(get_db),
 @router.post("", response_model=UserOut, status_code=201)
 def create_user(data: UserCreate, db: Session = Depends(get_db),
                 _: User = Depends(require_roles(roles.ADMIN))):
-    if db.scalar(select(User).where(User.username == data.username)):
-        raise HTTPException(409, "Bu login band")
+    import uuid
+    if data.can_login:
+        if not data.username or len(data.username.strip()) < 3:
+            raise HTTPException(400, "Dasturga kiruvchi xodim uchun login kiritilishi shart (kamida 3 belgi)")
+        if not data.password or len(data.password) < 6:
+            raise HTTPException(400, "Dasturga kiruvchi xodim uchun parol kiritilishi shart (kamida 6 belgi)")
+        if db.scalar(select(User).where(User.username == data.username.strip())):
+            raise HTTPException(409, "Bu login band")
+        username = data.username.strip()
+        pwd_hash = hash_password(data.password)
+    else:
+        username = data.username.strip() if (data.username and data.username.strip()) else f"worker_{uuid.uuid4().hex[:8]}"
+        pwd_hash = "NO_LOGIN"
+
     u = User(
-        username=data.username,
+        username=username,
         full_name=data.full_name,
         role=data.role,
         salary=data.salary,
         salary_type=data.salary_type,
-        password_hash=hash_password(data.password),
+        can_login=data.can_login,
+        password_hash=pwd_hash,
     )
     db.add(u)
     db.commit()
@@ -53,8 +66,12 @@ def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db),
         raise HTTPException(400, "O'zingizni o'chira yoki rolingizni pasaytira olmaysiz")
     if data.full_name is not None:
         u.full_name = data.full_name
+    if data.username is not None and data.username.strip():
+        u.username = data.username.strip()
     if data.role is not None:
         u.role = data.role
+    if data.can_login is not None:
+        u.can_login = data.can_login
     if data.salary is not None:
         u.salary = data.salary
     if data.salary_type is not None:

@@ -323,7 +323,7 @@ class _UsersScreenState extends State<UsersScreen> {
   // TAB 0: Xodimlar Ro'yxati
   // ---------------------------------------------------------------------------
   Widget _buildUsersTab() {
-    final filterOptions = ['Barchasi', 'Adminlar', 'Kassirlar', 'Ishchilar', 'Bloklanganlar'];
+    final filterOptions = ['Barchasi', 'Adminlar', 'Kassirlar', 'Ishchilar', 'Dasturga kiradiganlar', 'Faqat ro‘yxatdagilar', 'Bloklanganlar'];
 
     return FutureBuilder<List<AppUser>>(
       future: _usersFuture,
@@ -357,6 +357,10 @@ class _UsersScreenState extends State<UsersScreen> {
               return u.role == Role.kassir && u.isActive;
             case 'Ishchilar':
               return u.role == Role.ishchi && u.isActive;
+            case 'Dasturga kiradiganlar':
+              return u.canLogin && u.isActive;
+            case 'Faqat ro‘yxatdagilar':
+              return !u.canLogin && u.isActive;
             case 'Bloklanganlar':
               return !u.isActive;
             default:
@@ -512,18 +516,61 @@ class _UsersScreenState extends State<UsersScreen> {
                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: roleColor),
                       ),
                     ),
+                    const SizedBox(width: 6),
+                    if (!u.canLogin)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: context.isDark ? const Color(0xFF21262D) : const Color(0xFFEFF2F6),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: context.borderColor, width: 0.7),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.badge_outlined, size: 11, color: context.mutedColor),
+                            const SizedBox(width: 3),
+                            Text(
+                              'Faqat ro‘yxatda',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: context.mutedColor),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.green.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.key_rounded, size: 10, color: AppColors.green),
+                            SizedBox(width: 3),
+                            Text(
+                              'Kirish ruxsati bor',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.green),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 3),
                 Row(
                   children: [
+                    if (u.canLogin) ...[
+                      Text(
+                        '@${u.username}',
+                        style: TextStyle(fontSize: 11.5, color: context.mutedColor),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('· ', style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
+                    ],
                     Text(
-                      '@${u.username}',
-                      style: TextStyle(fontSize: 11.5, color: context.mutedColor),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '·  Maosh: ${money(u.salary)} (${u.salaryType == "daily" ? "kunbay" : (u.salaryType == "hourly" ? "soatbay" : "oylik")})',
+                      'Maosh: ${money(u.salary)} (${u.salaryType == "daily" ? "kunbay" : (u.salaryType == "hourly" ? "soatbay" : "oylik")})',
                       style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: context.inkColor),
                     ),
                   ],
@@ -1041,6 +1088,7 @@ class _UserDialogState extends State<UserDialog> {
   late Role _role = widget.user?.role ?? Role.ishchi;
   late String _salaryType = widget.user?.salaryType ?? 'monthly';
   late bool _isActive = widget.user?.isActive ?? true;
+  late bool _canLogin = widget.user?.canLogin ?? (_role != Role.ishchi);
 
   String? _error;
   bool _busy = false;
@@ -1057,23 +1105,32 @@ class _UserDialogState extends State<UserDialog> {
   }
 
   Future<void> _submit() async {
-    final u = _userCtrl.text.trim();
     final n = _nameCtrl.text.trim();
-    final p = _passCtrl.text;
     final sal = double.tryParse(_salaryCtrl.text.replaceAll(' ', '')) ?? 0;
 
-    if (u.isEmpty || n.isEmpty) {
+    if (n.isEmpty) {
       setState(() {
-        _error = 'Login va to‘liq ismni kiriting';
+        _error = 'Xodimning to‘liq ismini kiriting';
       });
       return;
     }
 
-    if (!_isEditing && p.isEmpty) {
-      setState(() {
-        _error = 'Yangi xodim uchun parol kiritish shart';
-      });
-      return;
+    final u = _userCtrl.text.trim();
+    final p = _passCtrl.text;
+
+    if (_canLogin) {
+      if (u.isEmpty) {
+        setState(() {
+          _error = 'Dasturga kirish uchun loginni kiriting';
+        });
+        return;
+      }
+      if (!_isEditing && p.isEmpty) {
+        setState(() {
+          _error = 'Dasturga kirish uchun parol kiritish shart';
+        });
+        return;
+      }
     }
 
     setState(() {
@@ -1085,19 +1142,22 @@ class _UserDialogState extends State<UserDialog> {
       if (_isEditing) {
         await widget.repo.update(
           widget.user!.id,
+          username: _canLogin ? u : null,
           fullName: n,
-          password: p.isNotEmpty ? p : null,
+          password: (_canLogin && p.isNotEmpty) ? p : null,
           role: _role,
+          canLogin: _canLogin,
           salary: sal,
           salaryType: _salaryType,
           isActive: _isActive,
         );
       } else {
         await widget.repo.create(
-          username: u,
+          username: _canLogin ? u : null,
           fullName: n,
-          password: p,
+          password: _canLogin ? p : null,
           role: _role,
+          canLogin: _canLogin,
           salary: sal,
           salaryType: _salaryType,
         );
@@ -1138,42 +1198,30 @@ class _UserDialogState extends State<UserDialog> {
         ],
       ),
       content: SizedBox(
-        width: 400,
+        width: 420,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextField(
-                controller: _userCtrl,
-                enabled: !_isEditing,
-                decoration: InputDecoration(
-                  labelText: 'Login (foydalanuvchi nomi)',
-                  hintText: 'masalan: bobur_uz',
-                  helperText: _isEditing ? 'Loginni o‘zgartirib bo‘lmaydi' : null,
-                ),
-              ),
-              const SizedBox(height: 12),
+              // 1. To'liq ismi (F.I.O)
               TextField(
                 controller: _nameCtrl,
                 decoration: const InputDecoration(
                   labelText: 'To‘liq ismi (F.I.O)',
                   hintText: 'masalan: Bobur Rahimov',
+                  prefixIcon: Icon(Icons.badge_outlined),
                 ),
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: _passCtrl,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: _isEditing ? 'Yangi parol (ixtiyoriy)' : 'Parol',
-                  hintText: _isEditing ? 'O‘zgartirmaslik uchun bo‘sh qoldiring' : 'Kamida 6 ta belgi',
-                ),
-              ),
-              const SizedBox(height: 12),
+
+              // 2. Tizimdagi roli
               DropdownButtonFormField<Role>(
                 value: _role,
-                decoration: const InputDecoration(labelText: 'Tizimdagi roli'),
+                decoration: const InputDecoration(
+                  labelText: 'Tizimdagi roli',
+                  prefixIcon: Icon(Icons.work_outline_rounded),
+                ),
                 items: Role.values
                     .map((r) => DropdownMenuItem(
                           value: r,
@@ -1183,10 +1231,125 @@ class _UserDialogState extends State<UserDialog> {
                 onChanged: (v) {
                   setState(() {
                     _role = v ?? _role;
+                    if (_role == Role.admin || _role == Role.kassir) {
+                      _canLogin = true;
+                    }
                   });
                 },
               ),
               const SizedBox(height: 12),
+
+              // 3. Dasturga kirish huquqi (Login & Parol) switch card
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: context.pillColor,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: context.borderColor),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _canLogin ? Icons.lock_open_rounded : Icons.lock_clock_rounded,
+                      size: 20,
+                      color: _canLogin
+                          ? (context.isDark ? AppColors.neonLime : AppColors.ink)
+                          : context.mutedColor,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Dasturga kirish huquqi',
+                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _canLogin
+                                ? 'Login va parol orqali tizimga kira oladi'
+                                : 'Faqat ro‘yxatda (dasturga kirmaydi, login/parol shart emas)',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _canLogin ? AppColors.green : context.mutedColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: _canLogin,
+                      activeColor: AppColors.green,
+                      onChanged: (_role == Role.admin || _role == Role.kassir)
+                          ? null
+                          : (v) => setState(() => _canLogin = v),
+                    ),
+                  ],
+                ),
+              ),
+
+              // 4. Login & Parol maydonlari (agar dasturga kirishi kerak bo'lsa)
+              if (_canLogin) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _userCtrl,
+                  enabled: !_isEditing,
+                  decoration: InputDecoration(
+                    labelText: 'Login (foydalanuvchi nomi)',
+                    hintText: 'masalan: bobur_uz',
+                    prefixIcon: const Icon(Icons.alternate_email_rounded),
+                    helperText: _isEditing ? 'Loginni o‘zgartirib bo‘lmaydi' : null,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _passCtrl,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: _isEditing ? 'Yangi parol (ixtiyoriy)' : 'Parol',
+                    hintText: _isEditing ? 'O‘zgartirmaslik uchun bo‘sh qoldiring' : 'Kamida 6 ta belgi',
+                    prefixIcon: const Icon(Icons.password_rounded),
+                  ),
+                ),
+              ] else ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: (context.isDark ? AppColors.neonLime : const Color(0xFF16A34A)).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: (context.isDark ? AppColors.neonLime : const Color(0xFF16A34A)).withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        size: 18,
+                        color: context.isDark ? AppColors.neonLime : const Color(0xFF16A34A),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Xodim faqat ro‘yxatda saqlanadi. U ishlab chiqarish vazifalarida (kesish, faska, silliqlash), davomatda va oylik hisobida to‘liq qatnashadi, ammo dasturga kirish uchun login va parol talab etilmaydi.',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            height: 1.4,
+                            color: context.inkColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+
+              // 5. Maosh stavkasi
               TextField(
                 controller: _salaryCtrl,
                 keyboardType: TextInputType.number,
@@ -1197,9 +1360,14 @@ class _UserDialogState extends State<UserDialog> {
                 ),
               ),
               const SizedBox(height: 12),
+
+              // 6. Maosh hisoblash turi
               DropdownButtonFormField<String>(
                 value: _salaryType,
-                decoration: const InputDecoration(labelText: 'Maosh hisoblash turi'),
+                decoration: const InputDecoration(
+                  labelText: 'Maosh hisoblash turi',
+                  prefixIcon: Icon(Icons.calendar_month_rounded),
+                ),
                 items: const [
                   DropdownMenuItem(value: 'monthly', child: Text('Oylik (oybay fixed)')),
                   DropdownMenuItem(value: 'daily', child: Text('Kunlik (kunbay stavka)')),
@@ -1223,7 +1391,7 @@ class _UserDialogState extends State<UserDialog> {
                           children: [
                             const Text('Xodim holati', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                             Text(
-                              _isActive ? 'Tizimga kirishga ruxsat berilgan' : 'Hisob bloklangan',
+                              _isActive ? 'Faol xodim' : 'Hisob bloklangan',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: _isActive ? AppColors.green : AppColors.danger,

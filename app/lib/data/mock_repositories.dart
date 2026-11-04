@@ -72,6 +72,19 @@ class MockStore {
         role: Role.ishchi,
         salary: 5200000,
         salaryType: 'monthly',
+        canLogin: true,
+      ),
+    ),
+    'worker_4': (
+      password: '',
+      user: const AppUser(
+        id: 4,
+        username: 'worker_4',
+        fullName: 'Rustam Toshkesar',
+        role: Role.ishchi,
+        salary: 200000,
+        salaryType: 'daily',
+        canLogin: false,
       ),
     ),
   };
@@ -334,6 +347,9 @@ class MockAuthRepository implements AuthRepository {
   Future<AppUser> login(String username, String password, Role role) async {
     final rec = _s.users[username.trim()];
     if (rec == null) throw ApiException('Login yoki parol noto‘g‘ri', 401);
+    if (!rec.user.canLogin) {
+      throw ApiException('Ushbu xodim uchun dasturga kirish huquqi berilmagan', 403);
+    }
     final isMatch = rec.password == password ||
         (username.trim() == 'admin' && (password == 'admin12345' || password == 'admin123'));
     if (!isMatch) throw ApiException('Login yoki parol noto‘g‘ri', 401);
@@ -868,35 +884,42 @@ class MockUserRepository implements UserRepository {
 
   @override
   Future<AppUser> create({
-    required String username,
+    String? username,
     required String fullName,
-    required String password,
+    String? password,
     required Role role,
+    bool canLogin = true,
     double salary = 0,
     String salaryType = 'monthly',
   }) async {
-    if (_s.users.containsKey(username.trim())) {
+    final u = (canLogin && username != null && username.trim().isNotEmpty)
+        ? username.trim()
+        : 'worker_${_s.nextUserId}';
+    if (canLogin && _s.users.containsKey(u)) {
       throw ApiException('Bu login allaqachon mavjud', 409);
     }
     final user = AppUser(
       id: _s.nextUserId++,
-      username: username.trim(),
+      username: u,
       fullName: fullName.trim(),
       role: role,
       salary: salary,
       salaryType: salaryType,
       isActive: true,
+      canLogin: canLogin,
     );
-    _s.users[username.trim()] = (password: password, user: user);
+    _s.users[u] = (password: canLogin ? (password ?? '') : '', user: user);
     return user;
   }
 
   @override
   Future<AppUser> update(
     int id, {
+    String? username,
     String? fullName,
     String? password,
     Role? role,
+    bool? canLogin,
     double? salary,
     String? salaryType,
     bool? isActive,
@@ -906,17 +929,23 @@ class MockUserRepository implements UserRepository {
       orElse: () => throw ApiException('Foydalanuvchi topilmadi', 404),
     );
     final oldUser = entry.value.user;
+    final effectiveCanLogin = canLogin ?? oldUser.canLogin;
+    final effectiveUsername = (effectiveCanLogin && username != null && username.isNotEmpty)
+        ? username.trim()
+        : oldUser.username;
+
     final updated = AppUser(
       id: oldUser.id,
-      username: oldUser.username,
+      username: effectiveUsername,
       fullName: fullName ?? oldUser.fullName,
       role: role ?? oldUser.role,
       salary: salary ?? oldUser.salary,
       salaryType: salaryType ?? oldUser.salaryType,
       isActive: isActive ?? oldUser.isActive,
+      canLogin: effectiveCanLogin,
     );
     _s.users[entry.key] = (
-      password: (password != null && password.isNotEmpty) ? password : entry.value.password,
+      password: (effectiveCanLogin && password != null && password.isNotEmpty) ? password : entry.value.password,
       user: updated,
     );
     return updated;

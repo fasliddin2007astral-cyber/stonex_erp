@@ -96,7 +96,20 @@ List<_Dest> _destinationsFor(Role role,
 
   switch (role) {
     case Role.admin:
-      return [dash, pos, orders, salesHistory, customers, debts, purchases, products, stock, prod, staff, cams];
+      return [
+        dash,
+        pos,
+        orders,
+        salesHistory,
+        customers,
+        debts,
+        purchases,
+        products,
+        stock,
+        prod,
+        staff,
+        cams
+      ];
     case Role.kassir:
       return [pos, orders, salesHistory, customers, debts, products];
     case Role.ishchi:
@@ -203,7 +216,8 @@ class _HomeShellState extends State<HomeShell> {
       final posIndex = dests.indexWhere((d) => d.label.startsWith('Savdo'));
       if (posIndex >= 0) {
         setState(() => _index = posIndex);
-        showMessage(context, 'Yangi buyurtma uchun mahsulotlarni tanlang va to‘lov oynasida "Buyurtma"ni belgilang.');
+        showMessage(context,
+            'Yangi buyurtma uchun mahsulotlarni tanlang va to‘lov oynasida "Buyurtma"ni belgilang.');
       }
     } else if (cur.label == 'Mijozlar') {
       final updated = await showDialog<bool>(
@@ -853,7 +867,8 @@ class _HomeShellState extends State<HomeShell> {
       );
     }
 
-    final isDashboard = dests[_index].label == 'Asosiy oyna' || dests[_index].label == 'Dashboard';
+    final isDashboard = dests[_index].label == 'Asosiy oyna' ||
+        dests[_index].label == 'Dashboard';
 
     // Mobil va planshet ekrani
     return Scaffold(
@@ -897,7 +912,8 @@ class _HomeShellState extends State<HomeShell> {
             IconButton(
               tooltip: 'Xizmatlar (kesish, faska, silliqlash, chizish)',
               icon: const Icon(Icons.design_services_rounded, size: 22),
-              onPressed: () => StoneServicesDialog.show(context, user: widget.user),
+              onPressed: () =>
+                  StoneServicesDialog.show(context, user: widget.user),
             ),
           ],
           if (isDashboard) ...[
@@ -911,8 +927,7 @@ class _HomeShellState extends State<HomeShell> {
               children: [
                 IconButton(
                   tooltip: 'Bildirishnomalar',
-                  icon: const Icon(Icons.notifications_none_rounded,
-                      size: 22),
+                  icon: const Icon(Icons.notifications_none_rounded, size: 22),
                   onPressed: _showNotifications,
                 ),
                 if (unreadCount > 0)
@@ -1146,8 +1161,8 @@ class _VaultHeader extends StatelessWidget {
                                     Theme.of(context).scaffoldBackgroundColor,
                                 width: 1.5),
                           ),
-                          constraints: const BoxConstraints(
-                              minWidth: 18, minHeight: 18),
+                          constraints:
+                              const BoxConstraints(minWidth: 18, minHeight: 18),
                           child: Text(
                             unreadCount > 9 ? '9+' : '$unreadCount',
                             textAlign: TextAlign.center,
@@ -1184,7 +1199,8 @@ class _VaultHeader extends StatelessWidget {
                 style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
               ),
               style: FilledButton.styleFrom(
-                backgroundColor: isDark ? const Color(0xFF232832) : const Color(0xFFF1F5F9),
+                backgroundColor:
+                    isDark ? const Color(0xFF232832) : const Color(0xFFF1F5F9),
                 foregroundColor: isDark ? AppColors.neonLime : AppColors.ink,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
@@ -1192,7 +1208,8 @@ class _VaultHeader extends StatelessWidget {
                     color: isDark ? const Color(0xFF282D34) : AppColors.border,
                   ),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 elevation: 0,
               ),
             ),
@@ -1581,18 +1598,20 @@ class _SearchKeyBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
       decoration: BoxDecoration(
-        color: context.isDark ? const Color(0xFF282828) : const Color(0xFFF1F3F5),
+        color:
+            context.isDark ? const Color(0xFF282828) : const Color(0xFFF1F3F5),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: context.isDark ? const Color(0xFF383838) : const Color(0xFFE2E8F0),
+          color: context.isDark
+              ? const Color(0xFF383838)
+              : const Color(0xFFE2E8F0),
           width: 0.8,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.window_rounded,
-              size: 11, color: context.mutedColor),
+          Icon(Icons.window_rounded, size: 11, color: context.mutedColor),
           const SizedBox(width: 3),
           Text('Win + K',
               style: TextStyle(

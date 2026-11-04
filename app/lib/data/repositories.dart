@@ -63,18 +63,21 @@ abstract class ProductionRepository {
 abstract class UserRepository {
   Future<List<AppUser>> list({String? role});
   Future<AppUser> create({
-    required String username,
+    String? username,
     required String fullName,
-    required String password,
+    String? password,
     required Role role,
+    bool canLogin = true,
     double salary = 0,
     String salaryType = 'monthly',
   });
   Future<AppUser> update(
     int id, {
+    String? username,
     String? fullName,
     String? password,
     Role? role,
+    bool? canLogin,
     double? salary,
     String? salaryType,
     bool? isActive,

@@ -272,18 +272,20 @@ class ApiUserRepository implements UserRepository {
 
   @override
   Future<AppUser> create({
-    required String username,
+    String? username,
     required String fullName,
-    required String password,
+    String? password,
     required Role role,
+    bool canLogin = true,
     double salary = 0,
     String salaryType = 'monthly',
   }) async {
     final j = await _api.post('/users', body: {
-      'username': username,
+      if (username != null && username.isNotEmpty) 'username': username,
       'full_name': fullName,
-      'password': password,
+      if (password != null && password.isNotEmpty) 'password': password,
       'role': role.code,
+      'can_login': canLogin,
       'salary': salary,
       'salary_type': salaryType,
     });
@@ -293,17 +295,21 @@ class ApiUserRepository implements UserRepository {
   @override
   Future<AppUser> update(
     int id, {
+    String? username,
     String? fullName,
     String? password,
     Role? role,
+    bool? canLogin,
     double? salary,
     String? salaryType,
     bool? isActive,
   }) async {
     final body = <String, dynamic>{
+      if (username != null && username.isNotEmpty) 'username': username,
       if (fullName != null) 'full_name': fullName,
       if (password != null && password.isNotEmpty) 'password': password,
       if (role != null) 'role': role.code,
+      if (canLogin != null) 'can_login': canLogin,
       if (salary != null) 'salary': salary,
       if (salaryType != null) 'salary_type': salaryType,
       if (isActive != null) 'is_active': isActive,

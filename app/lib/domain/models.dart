@@ -32,6 +32,7 @@ class AppUser {
   final double salary;
   final String salaryType; // 'monthly', 'daily', 'hourly'
   final bool isActive;
+  final bool canLogin;
 
   const AppUser({
     required this.id,
@@ -41,17 +42,27 @@ class AppUser {
     this.salary = 0,
     this.salaryType = 'monthly',
     this.isActive = true,
+    this.canLogin = true,
   });
 
-  factory AppUser.fromJson(Map<String, dynamic> j) => AppUser(
-        id: (j['id'] as num?)?.toInt() ?? 0,
-        username: (j['username'] ?? '').toString(),
-        fullName: (j['full_name'] ?? j['username'] ?? '').toString(),
-        role: Role.fromCode((j['role'] ?? 'ishchi').toString()),
-        salary: parseNum(j['salary']),
-        salaryType: (j['salary_type'] ?? 'monthly').toString(),
-        isActive: (j['is_active'] ?? true) as bool,
-      );
+  factory AppUser.fromJson(Map<String, dynamic> j) {
+    final rawCanLogin = j['can_login'];
+    final uName = (j['username'] ?? '').toString();
+    final bool canLogin = rawCanLogin is bool
+        ? rawCanLogin
+        : (uName.isNotEmpty && !uName.startsWith('worker_'));
+
+    return AppUser(
+      id: (j['id'] as num?)?.toInt() ?? 0,
+      username: uName,
+      fullName: (j['full_name'] ?? j['username'] ?? '').toString(),
+      role: Role.fromCode((j['role'] ?? 'ishchi').toString()),
+      salary: parseNum(j['salary']),
+      salaryType: (j['salary_type'] ?? 'monthly').toString(),
+      isActive: (j['is_active'] ?? true) as bool,
+      canLogin: canLogin,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -61,6 +72,7 @@ class AppUser {
         'salary': salary,
         'salary_type': salaryType,
         'is_active': isActive,
+        'can_login': canLogin,
       };
 
   AppUser copyWith({
@@ -71,6 +83,7 @@ class AppUser {
     double? salary,
     String? salaryType,
     bool? isActive,
+    bool? canLogin,
   }) =>
       AppUser(
         id: id ?? this.id,
@@ -80,6 +93,7 @@ class AppUser {
         salary: salary ?? this.salary,
         salaryType: salaryType ?? this.salaryType,
         isActive: isActive ?? this.isActive,
+        canLogin: canLogin ?? this.canLogin,
       );
 
   @override

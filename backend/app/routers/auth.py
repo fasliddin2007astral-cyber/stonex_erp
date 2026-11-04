@@ -15,7 +15,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/login", response_model=LoginOut)
 def login(data: LoginIn, db: Session = Depends(get_db)):
     user = db.scalar(select(User).where(User.username == data.username.strip()))
-    if user is None or not user.is_active or not verify_password(data.password, user.password_hash):
+    if user is None or not user.is_active or not getattr(user, 'can_login', True) or not verify_password(data.password, user.password_hash):
         raise HTTPException(401, "Login yoki parol noto'g'ri")
     # Ekranda rol tanlash hech narsani bermaydi: haqiqiy rol bazadan tekshiriladi.
     if data.role and data.role != user.role:
