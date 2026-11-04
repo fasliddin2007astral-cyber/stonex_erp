@@ -655,4 +655,52 @@ void main() {
     expect(find.text('Cheklar'), findsOneWidget);
     expect(find.text('Mijozlar'), findsOneWidget);
   });
+
+  testWidgets('Ish boshqaruvchi HomeShell navigatsiyasi va topshiriq / OTK tasdiqlash ruxsatlari', (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    final auth = AuthController(repos.auth);
+
+    // Boshqaruvchi login
+    await auth.login('boshqaruvchi', 'boshqaruvchi123', Role.ishBoshqaruvchi);
+    expect(auth.user?.role, Role.ishBoshqaruvchi);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          Provider<AppRepositories>.value(value: repos),
+          ChangeNotifierProvider.value(value: auth),
+          ChangeNotifierProvider(create: (_) => CartController(repos.sales)),
+          ChangeNotifierProvider(create: (_) => CurrencyController()),
+          ChangeNotifierProvider(create: (_) => ThemeController()),
+        ],
+        child: MaterialApp(
+          home: HomeShell(user: auth.user!),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Ish boshqaruvchiga xos bo'limlar ko'rinishi kerak
+    expect(find.text('Ishlab chiqarish'), findsWidgets);
+    expect(find.text('Xodimlar'), findsWidgets);
+    expect(find.text('Mahsulotlar'), findsWidgets);
+    expect(find.text('Ombor'), findsWidgets);
+
+    // Ish boshqaruvchiga topshiriq tugmasi chiqishi kerak
+    expect(find.text('Topshiriq'), findsOneWidget);
+
+    // 2-ish boshqaruvchi akkauntini ochish cheklovi (faqat 1 ta bo'lishi shart)
+    expect(
+      () => repos.users.create(
+        username: 'boshqaruvchi_2',
+        fullName: 'Ikkinchi Boshqaruvchi',
+        role: Role.ishBoshqaruvchi,
+      ),
+      throwsA(isA<Exception>()),
+    );
+  });
 }

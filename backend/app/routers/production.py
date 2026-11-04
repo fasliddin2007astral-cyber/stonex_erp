@@ -14,7 +14,7 @@ from ..services.stock import add_movement
 from ..units import q3
 
 router = APIRouter(prefix="/production", tags=["production"])
-_prod = require_roles(roles.ADMIN, roles.WORKER)
+_prod = require_roles(roles.ADMIN, roles.WORKER, roles.FOREMAN)
 
 
 def to_out(t: m.ProductionTask) -> TaskOut:
@@ -82,7 +82,7 @@ def list_tasks(db: Session = Depends(get_db), user: m.User = Depends(_prod)):
 
 @router.post("", response_model=TaskOut, status_code=201)
 def create_task(data: TaskCreate, db: Session = Depends(get_db),
-                _: m.User = Depends(require_roles(roles.ADMIN))):
+                _: m.User = Depends(require_roles(roles.ADMIN, roles.FOREMAN))):
     if db.get(m.Product, data.product_id) is None:
         raise HTTPException(404, "Mahsulot topilmadi")
     worker = db.get(m.User, data.assigned_to)
@@ -122,15 +122,15 @@ def report(task_id: int, data: TaskReport, db: Session = Depends(get_db),
     t.produced_qty = t.produced_qty + qty
     t.waste_qty = (t.waste_qty or Decimal(0)) + waste
 
-    # Agar admin / brigadir o'zi kiritayotgan bo'lsa, darhol tasdiqlanadi va omborga o'tadi
-    if user.role == roles.ADMIN:
+    # Agar admin / ish boshqaruvchi o'zi kiritayotgan bo'lsa, darhol tasdiqlanadi va omborga o'tadi
+    if user.role in (roles.ADMIN, roles.FOREMAN):
         _apply_production_and_bom(db, t, qty, waste, user.id)
         if t.produced_qty >= t.planned_qty:
             t.status = "done"
             t.approved_by = user.id
             t.approved_at = datetime.utcnow()
     else:
-        # Ishchi kiritganda sifat tekshiruvi (OTK / Brigadir tasdig'i) kutiladi
+        # Ishchi kiritganda sifat tekshiruvi (OTK / Ish boshqaruvchi tasdig'i) kutiladi
         t.status = "pending_approval"
         db.add(m.Notification(
             title="OTK tekshiruvi: Ishlab chiqarish hisoboti",
@@ -145,8 +145,8 @@ def report(task_id: int, data: TaskReport, db: Session = Depends(get_db),
 
 @router.post("/{task_id}/approve", response_model=TaskOut)
 def approve_task(task_id: int, db: Session = Depends(get_db),
-                 user: m.User = Depends(require_roles(roles.ADMIN))):
-    """Brigadir / Admin sifat nazorati (OTK) dan o'tkazib topshiriqni tasdiqlaydi."""
+                 user: m.User = Depends(require_roles(roles.ADMIN, roles.FOREMAN))):
+    """Ish boshqaruvchi / Admin sifat nazorati (OTK) dan o'tkazib topshiriqni tasdiqlaydi."""
     t = db.get(m.ProductionTask, task_id, with_for_update=True)
     if t is None:
         raise HTTPException(404, "Topshiriq topilmadi")

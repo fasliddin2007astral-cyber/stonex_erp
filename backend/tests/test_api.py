@@ -399,6 +399,51 @@ class ApiTest(unittest.TestCase):
         raw_prod = next(p for p in raw_check.json() if p["id"] == raw_id)
         self.assertEqual(float(raw_prod["stock"]), 73.6)
 
+    def test_foreman_role_permissions_and_single_account_limit(self):
+        # 1. Ish boshqaruvchi login qilishi
+        f_login = self.c.post("/auth/login", json={"username": "boshqaruvchi", "password": "boshqaruvchi123"})
+        self.assertEqual(f_login.status_code, 200)
+        f_token = f_login.json()["access_token"]
+        f_headers = {"Authorization": f"Bearer {f_token}"}
+        me = self.c.get("/auth/me", headers=f_headers)
+        self.assertEqual(me.json()["role"], "ish_boshqaruvchi")
+
+        # 2. Ish boshqaruvchi ishchilarni ko'ra olishi
+        u_res = self.c.get("/users", headers=f_headers)
+        self.assertEqual(u_res.status_code, 200)
+        workers = [u for u in u_res.json() if u["role"] == "ishchi"]
+        self.assertTrue(len(workers) > 0)
+        wid = workers[0]["id"]
+
+        # 3. Ish boshqaruvchi ishchini ishga biriktirishi (topshiriq yaratishi)
+        prods = self.c.get("/products", headers=f_headers).json()
+        pid = prods[0]["id"]
+        t_res = self.c.post("/production", headers=f_headers, json={
+            "product_id": pid, "assigned_to": wid, "planned_qty": 30, "note": "Foreman assigned"
+        })
+        self.assertEqual(t_res.status_code, 201)
+        tid = t_res.json()["id"]
+
+        # 4. Ishchi hisobot topshiradi
+        w_login = self.c.post("/auth/login", json={"username": "ishchi", "password": "ishchi123"})
+        w_headers = {"Authorization": f"Bearer {w_login.json()['access_token']}"}
+        rep = self.c.post(f"/production/{tid}/report", headers=w_headers, json={"produced_qty": 30})
+        self.assertEqual(rep.status_code, 200)
+        self.assertEqual(rep.json()["status"], "pending_approval")
+
+        # 5. Ish boshqaruvchi hisobotni tasdiqlaydi (OTK tasdig'i)
+        appr = self.c.post(f"/production/{tid}/approve", headers=f_headers)
+        self.assertEqual(appr.status_code, 200)
+        self.assertEqual(appr.json()["status"], "done")
+
+        # 6. Tizimda 2-ish boshqaruvchi akkauntini ochishga urinish (faqat 1 ta bo'lishi shart)
+        dup_foreman = self.c.post("/users", headers=self.h, json={
+            "username": "boshqaruvchi_2", "password": "password123", "full_name": "Ikkinchi Brigadir",
+            "role": "ish_boshqaruvchi", "can_login": True, "salary": 7000000, "salary_type": "monthly"
+        })
+        self.assertEqual(dup_foreman.status_code, 400)
+        self.assertIn("faqat 1 ta", dup_foreman.json()["detail"].lower())
+
 
 if __name__ == "__main__":
     unittest.main()

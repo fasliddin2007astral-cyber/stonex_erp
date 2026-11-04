@@ -24,4 +24,6 @@ Thumbs.db
 
 # Uploads
 backend/uploads/
+apk/
+*.apk
 

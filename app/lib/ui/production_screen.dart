@@ -83,12 +83,13 @@ class _ProductionScreenState extends State<ProductionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin = context.watch<AuthController>().user?.role == Role.admin;
-    final filters = ['Barchasi', 'Jarayonda', 'Yakunlangan'];
+    final curUser = context.watch<AuthController>().user;
+    final isManager = curUser?.role == Role.admin || curUser?.role == Role.ishBoshqaruvchi;
+    final filters = ['Barchasi', 'Kutilmoqda (OTK)', 'Jarayonda', 'Yakunlangan'];
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
-      floatingActionButton: isAdmin
+      floatingActionButton: isManager
           ? FloatingActionButton.extended(
               onPressed: _create,
               icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.neonLime),
@@ -108,8 +109,10 @@ class _ProductionScreenState extends State<ProductionScreen> {
           final allTasks = snap.data ?? [];
           var displayTasks = List<ProductionTask>.from(allTasks);
 
-          if (_selectedFilter == 'Jarayonda') {
-            displayTasks = displayTasks.where((t) => t.status != 'done').toList();
+          if (_selectedFilter == 'Kutilmoqda (OTK)') {
+            displayTasks = displayTasks.where((t) => t.isPendingApproval).toList();
+          } else if (_selectedFilter == 'Jarayonda') {
+            displayTasks = displayTasks.where((t) => t.status != 'done' && !t.isPendingApproval).toList();
           } else if (_selectedFilter == 'Yakunlangan') {
             displayTasks = displayTasks.where((t) => t.status == 'done').toList();
           }
@@ -295,7 +298,7 @@ class _ProductionScreenState extends State<ProductionScreen> {
                             ),
                           ),
                         ),
-                        if (isAdmin && isDesktop) ...[
+                        if (isManager && isDesktop) ...[
                           const SizedBox(width: 12),
                           FilledButton.icon(
                             onPressed: _create,
@@ -463,7 +466,7 @@ class _ProductionScreenState extends State<ProductionScreen> {
                                                 fontSize: 11,
                                               )),
                                         )
-                                      else if (t.isPendingApproval && isAdmin)
+                                      else if (t.isPendingApproval && isManager)
                                         FilledButton.icon(
                                           onPressed: () => _approve(t),
                                           style: FilledButton.styleFrom(
@@ -553,7 +556,7 @@ class _ProductionScreenState extends State<ProductionScreen> {
                                                     fontSize: 11,
                                                   )),
                                             )
-                                          else if (t.isPendingApproval && isAdmin)
+                                          else if (t.isPendingApproval && isManager)
                                             FilledButton.icon(
                                               onPressed: () => _approve(t),
                                               style: FilledButton.styleFrom(

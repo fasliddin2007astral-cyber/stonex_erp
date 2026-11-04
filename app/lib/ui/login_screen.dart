@@ -652,6 +652,7 @@ class _LoginScreenState extends State<LoginScreen>
                     children: [
                       _buildRoleButton(Role.admin, 'Admin', Icons.shield_rounded),
                       _buildRoleButton(Role.kassir, 'Kassir', Icons.point_of_sale_rounded),
+                      _buildRoleButton(Role.ishBoshqaruvchi, 'Boshqaruvchi', Icons.engineering_rounded),
                       _buildRoleButton(Role.ishchi, 'Ishchi', Icons.handyman_rounded),
                       _buildRoleButton(Role.haydovchi, 'Haydovchi', Icons.local_shipping_rounded),
                     ],
@@ -825,6 +826,7 @@ class _LoginScreenState extends State<LoginScreen>
                   children: [
                     _buildDemoChip('Admin', 'admin', 'admin12345', Role.admin, AppColors.neonLime, Icons.shield_rounded),
                     _buildDemoChip('Kassir', 'kassir', 'kassir123', Role.kassir, const Color(0xFF38BDF8), Icons.point_of_sale_rounded),
+                    _buildDemoChip('Boshqaruvchi', 'boshqaruvchi', 'boshqaruvchi123', Role.ishBoshqaruvchi, const Color(0xFF34D399), Icons.engineering_rounded),
                     _buildDemoChip('Ishchi', 'ishchi', 'ishchi123', Role.ishchi, const Color(0xFFFBBF24), Icons.handyman_rounded),
                     _buildDemoChip('Haydovchi', 'haydovchi', 'haydovchi123', Role.haydovchi, const Color(0xFF0284C7), Icons.local_shipping_rounded),
                   ],

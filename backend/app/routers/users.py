@@ -15,12 +15,12 @@ router = APIRouter(prefix="/users", tags=["users"])
 @router.get("", response_model=list[UserOut])
 def list_users(role: str | None = None, db: Session = Depends(get_db),
                user: User = Depends(get_current_user)):
-    if user.role != roles.ADMIN and role != roles.WORKER:
+    if user.role not in (roles.ADMIN, roles.FOREMAN) and role != roles.WORKER:
         raise HTTPException(403, "Bu amal uchun ruxsat yo'q")
     q = select(User).order_by(User.id)
     if role:
         q = q.where(User.role == role)
-    elif user.role != roles.ADMIN:
+    elif user.role not in (roles.ADMIN, roles.FOREMAN):
         q = q.where(User.role == roles.WORKER)
     return db.scalars(q).all()
 
@@ -29,6 +29,11 @@ def list_users(role: str | None = None, db: Session = Depends(get_db),
 def create_user(data: UserCreate, db: Session = Depends(get_db),
                 _: User = Depends(require_roles(roles.ADMIN))):
     import uuid
+    if data.role == roles.FOREMAN:
+        existing = db.scalar(select(User).where(User.role == roles.FOREMAN, User.is_active == True))
+        if existing:
+            raise HTTPException(400, "Tizimda faqat 1 ta Ish boshqaruvchi akkaunti bo'lishi mumkin!")
+
     if data.can_login:
         if not data.username or len(data.username.strip()) < 3:
             raise HTTPException(400, "Dasturga kiruvchi xodim uchun login kiritilishi shart (kamida 3 belgi)")
@@ -69,6 +74,10 @@ def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db),
     if data.username is not None and data.username.strip():
         u.username = data.username.strip()
     if data.role is not None:
+        if data.role == roles.FOREMAN and u.role != roles.FOREMAN:
+            existing = db.scalar(select(User).where(User.role == roles.FOREMAN, User.is_active == True, User.id != u.id))
+            if existing:
+                raise HTTPException(400, "Tizimda faqat 1 ta Ish boshqaruvchi akkaunti bo'lishi mumkin!")
         u.role = data.role
     if data.can_login is not None:
         u.can_login = data.can_login

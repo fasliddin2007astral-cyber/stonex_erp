@@ -479,7 +479,7 @@ class _UsersScreenState extends State<UsersScreen> {
   // TAB 0: Xodimlar Ro'yxati
   // ---------------------------------------------------------------------------
   Widget _buildUsersTab() {
-    final filterOptions = ['Barchasi', 'Adminlar', 'Kassirlar', 'Ishchilar', 'Haydovchilar', 'Dasturga kiradiganlar', 'Faqat ro‘yxatdagilar', 'Bloklanganlar'];
+    final filterOptions = ['Barchasi', 'Adminlar', 'Kassirlar', 'Ish boshqaruvchi', 'Ishchilar', 'Haydovchilar', 'Dasturga kiradiganlar', 'Faqat ro‘yxatdagilar', 'Bloklanganlar'];
 
     return FutureBuilder<List<AppUser>>(
       future: _usersFuture,
@@ -512,6 +512,8 @@ class _UsersScreenState extends State<UsersScreen> {
               return u.role == Role.admin && u.isActive;
             case 'Kassirlar':
               return u.role == Role.kassir && u.isActive;
+            case 'Ish boshqaruvchi':
+              return u.role == Role.ishBoshqaruvchi && u.isActive;
             case 'Ishchilar':
               return u.role == Role.ishchi && u.isActive;
             case 'Haydovchilar':
@@ -624,6 +626,9 @@ class _UsersScreenState extends State<UsersScreen> {
         break;
       case Role.kassir:
         roleColor = AppColors.green;
+        break;
+      case Role.ishBoshqaruvchi:
+        roleColor = const Color(0xFF0D9488);
         break;
       case Role.ishchi:
         roleColor = const Color(0xFFD97706);
@@ -2014,7 +2019,7 @@ class _UserDialogState extends State<UserDialog> {
                 onChanged: (v) {
                   setState(() {
                     _role = v ?? _role;
-                    if (_role == Role.admin || _role == Role.kassir || _role == Role.haydovchi) {
+                    if (_role == Role.admin || _role == Role.kassir || _role == Role.haydovchi || _role == Role.ishBoshqaruvchi) {
                       _canLogin = true;
                     }
                     if (_role == Role.haydovchi) {
@@ -2076,7 +2081,7 @@ class _UserDialogState extends State<UserDialog> {
                     Switch(
                       value: _canLogin,
                       activeColor: AppColors.green,
-                      onChanged: (_role == Role.admin || _role == Role.kassir)
+                      onChanged: (_role == Role.admin || _role == Role.kassir || _role == Role.ishBoshqaruvchi)
                           ? null
                           : (v) => setState(() => _canLogin = v),
                     ),

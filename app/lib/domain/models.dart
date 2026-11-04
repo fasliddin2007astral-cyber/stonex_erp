@@ -14,6 +14,7 @@ double? parseNumOrNull(dynamic v) {
 enum Role {
   admin('admin', 'Admin'),
   kassir('kassir', 'Kassir'),
+  ishBoshqaruvchi('ish_boshqaruvchi', 'Ish boshqaruvchi'),
   ishchi('ishchi', 'Ishchi'),
   haydovchi('haydovchi', 'Haydovchi');
 

@@ -87,6 +87,18 @@ class MockStore {
         canLogin: true,
       ),
     ),
+    'boshqaruvchi': (
+      password: 'boshqaruvchi123',
+      user: const AppUser(
+        id: 6,
+        username: 'boshqaruvchi',
+        fullName: 'Mansur Ish boshqaruvchi',
+        role: Role.ishBoshqaruvchi,
+        salary: 8000000,
+        salaryType: 'monthly',
+        canLogin: true,
+      ),
+    ),
     'worker_4': (
       password: '',
       user: const AppUser(
@@ -1042,6 +1054,12 @@ class MockUserRepository implements UserRepository {
     double salary = 0,
     String salaryType = 'monthly',
   }) async {
+    if (role == Role.ishBoshqaruvchi) {
+      final existingForeman = _s.users.values.any((e) => e.user.role == Role.ishBoshqaruvchi && e.user.isActive);
+      if (existingForeman) {
+        throw ApiException('Tizimda faqat 1 ta Ish boshqaruvchi akkaunti bo‘lishi mumkin', 400);
+      }
+    }
     final u = (canLogin && username != null && username.trim().isNotEmpty)
         ? username.trim()
         : 'worker_${_s.nextUserId}';
@@ -1079,6 +1097,12 @@ class MockUserRepository implements UserRepository {
       (e) => e.value.user.id == id,
       orElse: () => throw ApiException('Foydalanuvchi topilmadi', 404),
     );
+    if (role == Role.ishBoshqaruvchi && entry.value.user.role != Role.ishBoshqaruvchi) {
+      final existingForeman = _s.users.values.any((e) => e.user.role == Role.ishBoshqaruvchi && e.user.isActive && e.user.id != id);
+      if (existingForeman) {
+        throw ApiException('Tizimda faqat 1 ta Ish boshqaruvchi akkaunti bo‘lishi mumkin', 400);
+      }
+    }
     final oldUser = entry.value.user;
     final effectiveCanLogin = canLogin ?? oldUser.canLogin;
     final effectiveUsername = (effectiveCanLogin && username != null && username.isNotEmpty)

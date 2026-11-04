@@ -3,4 +3,5 @@ ADMIN = "admin"
 CASHIER = "kassir"
 WORKER = "ishchi"
 DRIVER = "haydovchi"
-ALL_ROLES = (ADMIN, CASHIER, WORKER, DRIVER)
+FOREMAN = "ish_boshqaruvchi"
+ALL_ROLES = (ADMIN, CASHIER, WORKER, DRIVER, FOREMAN)

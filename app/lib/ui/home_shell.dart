@@ -84,11 +84,12 @@ List<_Dest> _destinationsFor(Role role,
       actionLabel: '+ Mahsulot');
   const stock = _Dest('Ombor', Icons.warehouse_rounded, StockScreen.new,
       actionLabel: '+ Xarid kirimi');
+  final isManager = role == Role.admin || role == Role.ishBoshqaruvchi;
   final prod = _Dest(
     'Ishlab chiqarish',
     Icons.precision_manufacturing_rounded,
     ProductionScreen.new,
-    actionLabel: role == Role.admin ? '+ Topshiriq' : '',
+    actionLabel: isManager ? '+ Topshiriq' : '',
   );
   const staff = _Dest('Xodimlar', Icons.badge_rounded, UsersScreen.new,
       isGeneral: true, actionLabel: '+ Xodim');
@@ -120,6 +121,8 @@ List<_Dest> _destinationsFor(Role role,
       ];
     case Role.kassir:
       return [pos, orders, deliveries, salesHistory, customers, debts, products];
+    case Role.ishBoshqaruvchi:
+      return [prod, staff, products, stock];
     case Role.ishchi:
       return [prod];
     case Role.haydovchi:
@@ -1713,7 +1716,7 @@ class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
           repos.sales.listSales(limit: 50).catchError((_) => <SaleResult>[]);
       final fTasks =
           repos.production.list().catchError((_) => <ProductionTask>[]);
-      final fUsers = widget.userRole == Role.admin
+      final fUsers = (widget.userRole == Role.admin || widget.userRole == Role.ishBoshqaruvchi)
           ? repos.users.list().catchError((_) => <AppUser>[])
           : Future.value(<AppUser>[]);
 
@@ -1872,7 +1875,7 @@ class _GlobalSearchDialogState extends State<_GlobalSearchDialog> {
       'Nasiya',
       'Savdo',
       'Topshiriq',
-      if (widget.userRole == Role.admin) 'Xodim',
+      if (widget.userRole == Role.admin || widget.userRole == Role.ishBoshqaruvchi) 'Xodim',
     ];
 
     final displayItems = _selectedCategory == 'Barchasi'

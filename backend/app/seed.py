@@ -8,7 +8,7 @@ from sqlalchemy import select
 from . import models as m
 from . import roles
 from .config import settings
-from .database import Base, SessionLocal, engine
+from .database import Base, SessionLocal, engine, ensure_migrations
 from .security import hash_password
 from .services.stock import add_movement
 
@@ -25,6 +25,7 @@ SAMPLE = [  # nomi, birlik, dona_m2, narx, tannarx, boshlang'ich qoldiq
 
 def main() -> None:
     Base.metadata.create_all(engine)
+    ensure_migrations()
     with SessionLocal() as db:
         admin = db.scalar(select(m.User).where(m.User.username == settings.admin_username))
         if not admin:
@@ -47,6 +48,10 @@ def main() -> None:
             db.add(m.User(username="haydovchi", full_name="Farhod Haydovchi",
                           role=roles.DRIVER, password_hash=hash_password("haydovchi123")))
             print("Haydovchi yaratildi: haydovchi")
+        if not db.scalar(select(m.User).where(m.User.username == "boshqaruvchi")):
+            db.add(m.User(username="boshqaruvchi", full_name="Mansur Ish boshqaruvchi",
+                          role=roles.FOREMAN, password_hash=hash_password("boshqaruvchi123")))
+            print("Ish boshqaruvchi yaratildi: boshqaruvchi")
         for name, unit, dona, price, cost, stock in SAMPLE:
             if db.scalar(select(m.Product).where(m.Product.name == name)):
                 continue

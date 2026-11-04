@@ -38,7 +38,7 @@ class UserCreate(BaseModel):
     username: str | None = Field(default=None, max_length=64)
     full_name: str = Field(min_length=1, max_length=128)
     password: str | None = Field(default=None, max_length=128)
-    role: Literal["admin", "kassir", "ishchi", "haydovchi"]
+    role: Literal["admin", "kassir", "ishchi", "haydovchi", "ish_boshqaruvchi"]
     can_login: bool = True
     salary: Decimal = Field(default=Decimal(0), ge=0)
     salary_type: Literal["monthly", "daily", "hourly", "trip"] = "monthly"
@@ -48,7 +48,7 @@ class UserUpdate(BaseModel):
     full_name: str | None = None
     username: str | None = None
     password: str | None = Field(default=None, max_length=128)
-    role: Literal["admin", "kassir", "ishchi", "haydovchi"] | None = None
+    role: Literal["admin", "kassir", "ishchi", "haydovchi", "ish_boshqaruvchi"] | None = None
     can_login: bool | None = None
     salary: Decimal | None = Field(default=None, ge=0)
     salary_type: Literal["monthly", "daily", "hourly", "trip"] | None = None
