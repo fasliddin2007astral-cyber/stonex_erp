@@ -31,6 +31,16 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
   int _selectedTab = 0; // 0: Hisobot & Tahlil, 1: Kirim-chiqimlar jurnali
 
+  // Solishtirish davri parametrlari
+  String _comparisonPeriodKey = 'current_vs_prev';
+  DateTime? _compCurFrom;
+  DateTime? _compCurTo;
+  DateTime? _compPrevFrom;
+  DateTime? _compPrevTo;
+  String? _compCurLabel;
+  String? _compPrevLabel;
+  bool _compLoading = false;
+
   // Jurnal filtrlari
   String _filterType = 'Barchasi'; // 'Barchasi', 'income', 'expense'
   String _filterCategory = 'Barchasi';
@@ -67,6 +77,84 @@ class _FinanceScreenState extends State<FinanceScreen> {
     return _dateFilter == 'barchasi' ? null : DateTime.now();
   }
 
+  Future<MonthlyComparison> _fetchComparison(AppRepositories repos) {
+    DateTime? curFrom, curTo, prevFrom, prevTo;
+    String? curLabel, prevLabel;
+
+    final now = DateTime.now();
+    const monthNames = [
+      '', 'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
+      'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'
+    ];
+
+    if (_comparisonPeriodKey == 'current_vs_prev') {
+      // Standart: backend joriy oy va o'tgan oyni hisoblaydi
+    } else if (_comparisonPeriodKey == 'prev_vs_before') {
+      final lastMonth = DateTime(now.year, now.month - 1, 1);
+      final twoMonthsAgo = DateTime(now.year, now.month - 2, 1);
+      curFrom = lastMonth;
+      curTo = DateTime(now.year, now.month, 0);
+      prevFrom = twoMonthsAgo;
+      prevTo = DateTime(now.year, now.month - 1, 0);
+      curLabel = monthNames[lastMonth.month];
+      prevLabel = monthNames[twoMonthsAgo.month];
+    } else if (_comparisonPeriodKey == 'last30_vs_prev30') {
+      curFrom = now.subtract(const Duration(days: 29));
+      curTo = now;
+      prevFrom = now.subtract(const Duration(days: 59));
+      prevTo = now.subtract(const Duration(days: 30));
+      curLabel = 'Oxirgi 30 kun';
+      prevLabel = 'Oldingi 30 kun';
+    } else if (_comparisonPeriodKey == 'last7_vs_prev7') {
+      curFrom = now.subtract(const Duration(days: 6));
+      curTo = now;
+      prevFrom = now.subtract(const Duration(days: 13));
+      prevTo = now.subtract(const Duration(days: 7));
+      curLabel = 'Oxirgi 7 kun';
+      prevLabel = 'Oldingi 7 kun';
+    } else if (_comparisonPeriodKey == 'custom') {
+      curFrom = _compCurFrom;
+      curTo = _compCurTo;
+      prevFrom = _compPrevFrom;
+      prevTo = _compPrevTo;
+      curLabel = _compCurLabel;
+      prevLabel = _compPrevLabel;
+    }
+
+    return repos.finance.monthlyComparison(
+      curDateFrom: curFrom,
+      curDateTo: curTo,
+      prevDateFrom: prevFrom,
+      prevDateTo: prevTo,
+      curLabel: curLabel,
+      prevLabel: prevLabel,
+    );
+  }
+
+  Future<void> _reloadComparison() async {
+    setState(() => _compLoading = true);
+    try {
+      final repos = context.read<AppRepositories>();
+      final res = await _fetchComparison(repos);
+      if (mounted) {
+        setState(() {
+          _comparison = res;
+          _compLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _compLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFFEF4444),
+            content: Text('Solishtirishni yuklashda xatolik: $e'),
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _loadData() async {
     setState(() {
       _loading = true;
@@ -77,7 +165,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
       final repos = context.read<AppRepositories>();
       final results = await Future.wait([
         repos.finance.summary(),
-        repos.finance.monthlyComparison(),
+        _fetchComparison(repos),
         repos.finance.revenueBreakdown(dateFrom: _dateFrom, dateTo: _dateTo),
         repos.finance.listTransactions(
           type: _filterType == 'Barchasi' ? null : _filterType,
@@ -106,10 +194,49 @@ class _FinanceScreenState extends State<FinanceScreen> {
     }
   }
 
+  String _generateLocalCsv() {
+    final buf = StringBuffer();
+    buf.writeln('\uFEFF#;Sana;Turi;Kategoriya;To\'lov usuli;Summa (so\'m);Izoh;Mas\'ul');
+    var totalIn = 0.0;
+    var totalOut = 0.0;
+    for (var i = 0; i < _transactions.length; i++) {
+      final t = _transactions[i];
+      final dt = '${t.date.day.toString().padLeft(2, '0')}.${t.date.month.toString().padLeft(2, '0')}.${t.date.year} ${t.date.hour.toString().padLeft(2, '0')}:${t.date.minute.toString().padLeft(2, '0')}';
+      final typeStr = t.isIncome ? 'Kirim' : 'Chiqim';
+      final methodStr = t.paymentMethod == 'cash' ? 'Naqd' : (t.paymentMethod == 'card' ? 'Karta' : 'Bank');
+      final cleanNote = (t.note ?? '').replaceAll(';', ' ');
+      buf.writeln('${i + 1};$dt;$typeStr;${t.category};$methodStr;${t.amount.toInt()};$cleanNote;${t.createdByName ?? ''}');
+      if (t.isIncome) {
+        totalIn += t.amount;
+      } else {
+        totalOut += t.amount;
+      }
+    }
+    buf.writeln();
+    buf.writeln('MOLIYAVIY XULOSA:');
+    buf.writeln('Jami Kirim;${totalIn.toInt()} so\'m');
+    buf.writeln('Jami Chiqim;${totalOut.toInt()} so\'m');
+    buf.writeln('Sof Foyda;${(totalIn - totalOut).toInt()} so\'m');
+    return buf.toString();
+  }
+
   Future<void> _exportExcel() async {
     try {
       final repos = context.read<AppRepositories>();
-      final csv = await repos.finance.exportCsv(dateFrom: _dateFrom, dateTo: _dateTo);
+      String csv = '';
+      try {
+        csv = await repos.finance.exportCsv(dateFrom: _dateFrom, dateTo: _dateTo);
+      } catch (e) {
+        debugPrint('Export error from API: $e');
+      }
+
+      if (csv.isEmpty || csv.trim() == 'null') {
+        csv = _generateLocalCsv();
+      }
+
+      if (!csv.startsWith('\uFEFF')) {
+        csv = '\uFEFF$csv';
+      }
 
       final now = DateTime.now();
       final defaultFileName = 'Moliya_hisoboti_${now.year}_${now.month.toString().padLeft(2, '0')}_${now.day.toString().padLeft(2, '0')}.csv';
@@ -132,6 +259,14 @@ class _FinanceScreenState extends State<FinanceScreen> {
       }
 
       final savedPath = savedUri.scheme == 'file' ? savedUri.toFilePath() : savedUri.path;
+
+      // Desktop tizimlarda faylga to'g'ridan-to'g'ri yozilishini ta'minlash
+      try {
+        final f = File(savedPath);
+        await f.writeAsBytes(bytes, flush: true);
+      } catch (e) {
+        debugPrint('Fayl yozishda eslatma: $e');
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -511,7 +646,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'O‘tgan oy va bu oy o‘rtasida solishtirish',
+                            _comparisonPeriodKey == 'current_vs_prev'
+                                ? 'O‘tgan oy va bu oy o‘rtasida solishtirish'
+                                : 'Davrlarni solishtirish va dinamika',
                             style: TextStyle(
                               fontSize: 16.5,
                               fontWeight: FontWeight.w800,
@@ -519,12 +656,21 @@ class _FinanceScreenState extends State<FinanceScreen> {
                             ),
                           ),
                           Text(
-                            '${comp.current.monthName} vs ${comp.previous.monthName} oyi dinamikasi',
+                            '${comp.current.monthName} vs ${comp.previous.monthName} dinamikasi',
                             style: TextStyle(fontSize: 12, color: context.mutedColor),
                           ),
                         ],
                       ),
                     ),
+                    if (_compLoading) ...[
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    _buildComparisonPeriodButton(context, isDark),
                   ],
                 ),
                 const SizedBox(height: 18),
@@ -659,6 +805,327 @@ class _FinanceScreenState extends State<FinanceScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  String _getComparisonPeriodLabel() {
+    switch (_comparisonPeriodKey) {
+      case 'prev_vs_before':
+        return 'O‘tgan oy vs Undan oldingi';
+      case 'last30_vs_prev30':
+        return 'Oxirgi 30 kun vs Oldingi 30';
+      case 'last7_vs_prev7':
+        return 'Oxirgi 7 kun vs Oldingi 7';
+      case 'custom':
+        if (_compCurLabel != null && _compPrevLabel != null) {
+          return '$_compCurLabel vs $_compPrevLabel';
+        }
+        return 'Ixtiyoriy davr';
+      default:
+        return 'Joriy oy vs O‘tgan oy';
+    }
+  }
+
+  PopupMenuItem<String> _buildPeriodMenuItem(
+    String value,
+    String title,
+    IconData icon,
+    bool isDark,
+  ) {
+    final selected = _comparisonPeriodKey == value;
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: selected
+                ? (isDark ? AppColors.neonLime : const Color(0xFF0284C7))
+                : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                color: selected
+                    ? (isDark ? AppColors.neonLime : const Color(0xFF0284C7))
+                    : (isDark ? Colors.white : const Color(0xFF1E293B)),
+              ),
+            ),
+          ),
+          if (selected)
+            Icon(
+              Icons.check_rounded,
+              size: 16,
+              color: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildComparisonPeriodButton(BuildContext context, bool isDark) {
+    return PopupMenuButton<String>(
+      tooltip: 'Solishtirish davrini tanlash',
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: isDark ? const Color(0xFF1E232B) : Colors.white,
+      onSelected: (val) {
+        if (val == 'custom') {
+          _openCustomPeriodDialog(context, isDark);
+        } else {
+          setState(() {
+            _comparisonPeriodKey = val;
+          });
+          _reloadComparison();
+        }
+      },
+      itemBuilder: (ctx) => [
+        _buildPeriodMenuItem('current_vs_prev', 'Joriy oy vs O‘tgan oy', Icons.calendar_today_rounded, isDark),
+        _buildPeriodMenuItem('prev_vs_before', 'O‘tgan oy vs Undan oldingi oy', Icons.history_rounded, isDark),
+        _buildPeriodMenuItem('last30_vs_prev30', 'Oxirgi 30 kun vs Oldingi 30 kun', Icons.date_range_rounded, isDark),
+        _buildPeriodMenuItem('last7_vs_prev7', 'Oxirgi 7 kun vs Oldingi 7 kun', Icons.view_week_rounded, isDark),
+        const PopupMenuDivider(),
+        _buildPeriodMenuItem('custom', 'Ixtiyoriy davr tanlash...', Icons.edit_calendar_rounded, isDark),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF14181F) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isDark ? const Color(0xFF2D3748) : const Color(0xFFCBD5E1),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.tune_rounded,
+              size: 16,
+              color: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              _getComparisonPeriodLabel(),
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: context.inkColor,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.arrow_drop_down_rounded, size: 18, color: context.mutedColor),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openCustomPeriodDialog(BuildContext context, bool isDark) async {
+    final now = DateTime.now();
+    DateTimeRange curRange = DateTimeRange(
+      start: _compCurFrom ?? DateTime(now.year, now.month, 1),
+      end: _compCurTo ?? now,
+    );
+    DateTimeRange prevRange = DateTimeRange(
+      start: _compPrevFrom ?? DateTime(now.year, now.month - 1, 1),
+      end: _compPrevTo ?? DateTime(now.year, now.month, 0),
+    );
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (dialogCtx, setDialogState) {
+            String formatRange(DateTimeRange r) {
+              final s = '${r.start.day.toString().padLeft(2, '0')}.${r.start.month.toString().padLeft(2, '0')}.${r.start.year}';
+              final e = '${r.end.day.toString().padLeft(2, '0')}.${r.end.month.toString().padLeft(2, '0')}.${r.end.year}';
+              final days = r.duration.inDays + 1;
+              return '$s — $e ($days kun)';
+            }
+
+            return AlertDialog(
+              backgroundColor: isDark ? AppColors.darkCard : Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.date_range_rounded, color: Color(0xFF3B82F6), size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Solishtirish davrini tanlash',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 440,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Ikkita davrni tanlang va ularning daromadi, xarajati va foydasini o‘zaro taqqoslang.',
+                      style: TextStyle(fontSize: 13, color: context.mutedColor),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // 1-davr
+                    Text(
+                      '1-davr (Asosiy / Yangi davr):',
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: context.inkColor),
+                    ),
+                    const SizedBox(height: 6),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDateRangePicker(
+                          context: context,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2030),
+                          initialDateRange: curRange,
+                        );
+                        if (picked != null) {
+                          setDialogState(() {
+                            curRange = picked;
+                          });
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF14181F) : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: context.borderColor),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.event_rounded, size: 18, color: Color(0xFF10B981)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                formatRange(curRange),
+                                style: TextStyle(fontWeight: FontWeight.w700, color: context.inkColor, fontSize: 13),
+                              ),
+                            ),
+                            Icon(Icons.edit_calendar_rounded, size: 16, color: context.mutedColor),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 2-davr
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '2-davr (Taqqoslovchi / Avvalgi):',
+                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: context.inkColor),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            final duration = curRange.end.difference(curRange.start);
+                            final prevEnd = curRange.start.subtract(const Duration(days: 1));
+                            final prevStart = prevEnd.subtract(duration);
+                            setDialogState(() {
+                              prevRange = DateTimeRange(start: prevStart, end: prevEnd);
+                            });
+                          },
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text('Avvalgi teng muddat', style: TextStyle(fontSize: 11.5)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDateRangePicker(
+                          context: context,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2030),
+                          initialDateRange: prevRange,
+                        );
+                        if (picked != null) {
+                          setDialogState(() {
+                            prevRange = picked;
+                          });
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF14181F) : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: context.borderColor),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.history_rounded, size: 18, color: Color(0xFF3B82F6)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                formatRange(prevRange),
+                                style: TextStyle(fontWeight: FontWeight.w700, color: context.inkColor, fontSize: 13),
+                              ),
+                            ),
+                            Icon(Icons.edit_calendar_rounded, size: 16, color: context.mutedColor),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: const Text('Bekor qilish'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    Navigator.pop(dialogCtx);
+                    final s1 = '${curRange.start.day.toString().padLeft(2, '0')}.${curRange.start.month.toString().padLeft(2, '0')}';
+                    final e1 = '${curRange.end.day.toString().padLeft(2, '0')}.${curRange.end.month.toString().padLeft(2, '0')}';
+                    final s2 = '${prevRange.start.day.toString().padLeft(2, '0')}.${prevRange.start.month.toString().padLeft(2, '0')}';
+                    final e2 = '${prevRange.end.day.toString().padLeft(2, '0')}.${prevRange.end.month.toString().padLeft(2, '0')}';
+
+                    setState(() {
+                      _comparisonPeriodKey = 'custom';
+                      _compCurFrom = curRange.start;
+                      _compCurTo = curRange.end;
+                      _compPrevFrom = prevRange.start;
+                      _compPrevTo = prevRange.end;
+                      _compCurLabel = '$s1-$e1';
+                      _compPrevLabel = '$s2-$e2';
+                    });
+                    _reloadComparison();
+                  },
+                  child: const Text('Solishtirish'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

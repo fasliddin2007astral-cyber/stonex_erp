@@ -1,4 +1,4 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 import json
 import time as time_mod
@@ -199,30 +199,49 @@ def add_transaction(
 
 
 @router.get("/finance/monthly-comparison", response_model=MonthlyComparisonOut)
-def monthly_comparison(db: Session = Depends(get_db), _: m.User = Depends(_admin_or_cashier)):
-    """O'tgan oy va bu oy o'rtasida solishtirish."""
+def monthly_comparison(
+    cur_date_from: date | None = None,
+    cur_date_to: date | None = None,
+    prev_date_from: date | None = None,
+    prev_date_to: date | None = None,
+    cur_label: str | None = None,
+    prev_label: str | None = None,
+    db: Session = Depends(get_db),
+    _: m.User = Depends(_admin_or_cashier),
+):
+    """Davrlarni (oylik yoki ixtiyoriy tanlangan davr) o'rtasida solishtirish."""
     today = date.today()
-    # Bu oy boshlanishi
-    cur_start = date(today.year, today.month, 1)
-
-    # O'tgan oy boshlanishi va tugashi
-    if today.month == 1:
-        prev_start = date(today.year - 1, 12, 1)
-        prev_end = date(today.year - 1, 12, 31)
-    else:
-        prev_start = date(today.year, today.month - 1, 1)
-        # O'tgan oyning oxirgi kuni
-        next_month_start = date(today.year, today.month, 1)
-        from datetime import timedelta
-        prev_end = next_month_start - timedelta(days=1)
-
     month_names = {
         1: "Yanvar", 2: "Fevral", 3: "Mart", 4: "Aprel",
         5: "May", 6: "Iyun", 7: "Iyul", 8: "Avgust",
         9: "Sentyabr", 10: "Oktyabr", 11: "Noyabr", 12: "Dekabr"
     }
 
-    def calc_month(s_date: date, e_date: date, m_name: str, yr: int) -> MonthStats:
+    if cur_date_from and cur_date_to and prev_date_from and prev_date_to:
+        c_start, c_end = cur_date_from, cur_date_to
+        p_start, p_end = prev_date_from, prev_date_to
+        c_label = cur_label or f"{c_start.strftime('%d.%m')} - {c_end.strftime('%d.%m')}"
+        p_label = prev_label or f"{p_start.strftime('%d.%m')} - {p_end.strftime('%d.%m')}"
+        c_year = c_end.year
+        p_year = p_end.year
+    else:
+        # Default: Joriy oy vs O'tgan oy
+        c_start = date(today.year, today.month, 1)
+        c_end = today
+        c_label = cur_label or month_names[today.month]
+        c_year = today.year
+
+        if today.month == 1:
+            p_start = date(today.year - 1, 12, 1)
+            p_end = date(today.year - 1, 12, 31)
+        else:
+            p_start = date(today.year, today.month - 1, 1)
+            next_month_start = date(today.year, today.month, 1)
+            p_end = next_month_start - timedelta(days=1)
+        p_label = prev_label or month_names[p_start.month]
+        p_year = p_start.year
+
+    def calc_period(s_date: date, e_date: date, m_name: str, yr: int) -> MonthStats:
         cond_sales = [
             m.Sale.created_at >= datetime.combine(s_date, time.min),
             m.Sale.created_at <= datetime.combine(e_date, time.max)
@@ -249,13 +268,13 @@ def monthly_comparison(db: Session = Depends(get_db), _: m.User = Depends(_admin
             sales_count=int(sales_cnt)
         )
 
-    cur_stats = calc_month(cur_start, today, month_names[today.month], today.year)
-    prev_stats = calc_month(prev_start, prev_end, month_names[prev_start.month], prev_start.year)
+    cur_stats = calc_period(c_start, c_end, c_label, c_year)
+    prev_stats = calc_period(p_start, p_end, p_label, p_year)
 
     def calc_growth(cur: Decimal, prev: Decimal) -> float:
         if prev == 0:
-            return 100.0 if cur > 0 else 0.0
-        diff = float((cur - prev) / prev * 100)
+            return 100.0 if cur > 0 else (0.0 if cur == 0 else -100.0)
+        diff = float((cur - prev) / abs(prev) * 100)
         return round(diff, 1)
 
     rev_growth = calc_growth(cur_stats.revenue, prev_stats.revenue)

@@ -274,8 +274,23 @@ class ApiFinanceRepository implements FinanceRepository {
   }
 
   @override
-  Future<MonthlyComparison> monthlyComparison() async {
-    final res = await _api.get('/finance/monthly-comparison') as Map<String, dynamic>;
+  Future<MonthlyComparison> monthlyComparison({
+    DateTime? curDateFrom,
+    DateTime? curDateTo,
+    DateTime? prevDateFrom,
+    DateTime? prevDateTo,
+    String? curLabel,
+    String? prevLabel,
+  }) async {
+    final query = <String, String>{
+      if (curDateFrom != null) 'cur_date_from': curDateFrom.toIso8601String().substring(0, 10),
+      if (curDateTo != null) 'cur_date_to': curDateTo.toIso8601String().substring(0, 10),
+      if (prevDateFrom != null) 'prev_date_from': prevDateFrom.toIso8601String().substring(0, 10),
+      if (prevDateTo != null) 'prev_date_to': prevDateTo.toIso8601String().substring(0, 10),
+      if (curLabel != null) 'cur_label': curLabel,
+      if (prevLabel != null) 'prev_label': prevLabel,
+    };
+    final res = await _api.get('/finance/monthly-comparison', query: query.isEmpty ? null : query) as Map<String, dynamic>;
     return MonthlyComparison.fromJson(res);
   }
 
@@ -295,8 +310,7 @@ class ApiFinanceRepository implements FinanceRepository {
       if (dateFrom != null) 'date_from': dateFrom.toIso8601String().substring(0, 10),
       if (dateTo != null) 'date_to': dateTo.toIso8601String().substring(0, 10),
     };
-    final res = await _api.get('/finance/export', query: query);
-    return res.toString();
+    return _api.getText('/finance/export', query: query.isEmpty ? null : query);
   }
 }
 

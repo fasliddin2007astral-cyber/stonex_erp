@@ -68,7 +68,14 @@ abstract class FinanceRepository {
     int limit = 300,
   });
   Future<FinanceTransaction> addTransaction(FinanceTransaction tx);
-  Future<MonthlyComparison> monthlyComparison();
+  Future<MonthlyComparison> monthlyComparison({
+    DateTime? curDateFrom,
+    DateTime? curDateTo,
+    DateTime? prevDateFrom,
+    DateTime? prevDateTo,
+    String? curLabel,
+    String? prevLabel,
+  });
   Future<List<RevenueBreakdownItem>> revenueBreakdown({DateTime? dateFrom, DateTime? dateTo});
   Future<String> exportCsv({DateTime? dateFrom, DateTime? dateTo});
 }

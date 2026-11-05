@@ -1090,22 +1090,35 @@ class MockFinanceRepository implements FinanceRepository {
   }
 
   @override
-  Future<MonthlyComparison> monthlyComparison() async {
+  Future<MonthlyComparison> monthlyComparison({
+    DateTime? curDateFrom,
+    DateTime? curDateTo,
+    DateTime? prevDateFrom,
+    DateTime? prevDateTo,
+    String? curLabel,
+    String? prevLabel,
+  }) async {
     final now = DateTime.now();
+    final cName = curLabel ?? 'Noyabr';
+    final pName = prevLabel ?? 'Oktyabr';
     return MonthlyComparison(
       current: MonthStats(
-        monthName: 'Noyabr',
-        year: now.year,
+        monthName: cName,
+        year: curDateTo?.year ?? now.year,
         revenue: 38500000,
         expenses: 18830000,
+        cogs: 12500000,
+        operationalExpenses: 6330000,
         netProfit: 19670000,
         salesCount: 42,
       ),
       previous: MonthStats(
-        monthName: 'Oktyabr',
-        year: now.year,
+        monthName: pName,
+        year: prevDateTo?.year ?? now.year,
         revenue: 31200000,
         expenses: 16500000,
+        cogs: 10200000,
+        operationalExpenses: 6300000,
         netProfit: 14700000,
         salesCount: 35,
       ),

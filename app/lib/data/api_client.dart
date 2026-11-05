@@ -22,6 +22,27 @@ class ApiClient {
   Future<dynamic> patch(String path, {Object? body}) => _send('PATCH', path, body: body);
   Future<dynamic> delete(String path) => _send('DELETE', path);
 
+  Future<String> getText(String path, {Map<String, String>? query}) async {
+    baseUrl = AppConfig.apiBaseUrl;
+    final uri = Uri.parse('$baseUrl$path').replace(queryParameters: query);
+    final req = http.Request('GET', uri);
+    req.headers['Accept'] = '*/*';
+    if (token != null) req.headers['Authorization'] = 'Bearer $token';
+
+    http.Response res;
+    try {
+      res = await http.Response.fromStream(await req.send().timeout(const Duration(seconds: 15)));
+    } on Exception {
+      throw ApiException('Serverga ulanib bo‘lmadi. Internet va server manzilini tekshiring.');
+    }
+
+    final text = utf8.decode(res.bodyBytes);
+    if (res.statusCode >= 400) {
+      throw ApiException('Xatolik (${res.statusCode})', res.statusCode);
+    }
+    return text;
+  }
+
   Future<dynamic> uploadFile(String path, List<int> bytes, String filename, {String fieldName = 'file'}) async {
     baseUrl = AppConfig.apiBaseUrl;
     final uri = Uri.parse('$baseUrl$path');
@@ -43,7 +64,7 @@ class ApiClient {
       try {
         data = jsonDecode(text);
       } catch (_) {
-        data = null;
+        data = text;
       }
     }
     if (res.statusCode >= 400) {
@@ -95,7 +116,7 @@ class ApiClient {
       try {
         data = jsonDecode(text);
       } catch (_) {
-        data = null;
+        data = text;
       }
     }
     if (res.statusCode >= 400) {
