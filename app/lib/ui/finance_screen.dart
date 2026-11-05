@@ -2390,6 +2390,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
 
   final List<String> _expenseCategories = [
     'Ish haqi / Avans',
+    'Mukofot / Bonus',
     'Xom-ashyo (granit bloklar)',
     'Ijara to‘lovi',
     'Kommunal / Elektr',

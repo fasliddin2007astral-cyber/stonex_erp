@@ -33,6 +33,7 @@ _shift_config = {
 
 # To'langan oyliklar to'plami va summalari (in-memory + expense sinxronizatsiyasi)
 _paid_salaries: dict[str, Decimal] = {}  # "user_id:YYYY-MM" -> Decimal(amount)
+_manual_bonuses: dict[str, Decimal] = {}  # "user_id:YYYY-MM" -> Decimal(amount)
 
 
 def _today_str() -> str:
@@ -358,6 +359,42 @@ class SalaryPaymentIn(BaseModel):
     note: str | None = None
 
 
+class BonusIn(BaseModel):
+    user_id: int
+    month: str  # YYYY-MM
+    amount: Decimal
+    reason: str | None = None
+
+
+@router.post("/add-bonus")
+def add_bonus(
+    data: BonusIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(roles.ADMIN)),
+):
+    """Xodimga mukofot (bonus / premiya) qo'shish."""
+    u = db.get(User, data.user_id)
+    if not u:
+        raise HTTPException(404, "Xodim topilmadi")
+
+    key = f"{data.user_id}:{data.month}"
+    _manual_bonuses[key] = _manual_bonuses.get(key, Decimal(0)) + data.amount
+
+    # Chiqimlar jurnaliga qayd etish
+    exp = Expense(
+        type="expense",
+        category="Mukofot / Bonus",
+        amount=data.amount,
+        payment_method="cash",
+        note=f"Mukofot: {u.full_name} ({data.month})" + (f" — {data.reason}" if data.reason else ""),
+        created_by=current_user.id,
+    )
+    db.add(exp)
+    db.commit()
+
+    return {"ok": True, "user_id": data.user_id, "month": data.month, "amount": float(data.amount)}
+
+
 @router.get("/shift-config")
 def get_shift_config(_: User = Depends(get_current_user)):
     """Ish vaqti va davomat qoidalarini olish."""
@@ -465,6 +502,18 @@ def get_salary_report(
         mem_paid = _paid_salaries.get(pay_key, Decimal(0))
         paid_amount = max(expense_paid, mem_paid)
 
+        # Mukofotlar (Bonus / Premiya)
+        mem_bonus = _manual_bonuses.get(pay_key, Decimal(0))
+        bonus_expenses = db.scalars(
+            select(Expense).where(
+                Expense.type == "expense",
+                Expense.category.ilike("%mukofot%"),
+                Expense.note.ilike(f"%{u.full_name}%({month})%"),
+            )
+        ).all()
+        expense_bonus = sum((e.amount for e in bonus_expenses), Decimal(0))
+        total_manual_bonus = max(mem_bonus, expense_bonus)
+
         # Stavka bo'yicha stavka koeffitsientlari
         if total_working_days > 0:
             day_rate = base_sal / Decimal(total_working_days)
@@ -508,25 +557,25 @@ def get_salary_report(
                 calc_sal = sum((d.delivery_fee or Decimal(0) for d in month_deliveries), Decimal(0))
             days_worked = len(month_deliveries) if month_deliveries else days_worked
             deduction = Decimal(0)
-            bonus = Decimal(0)
-            net = calc_sal
+            bonus = total_manual_bonus
+            net = calc_sal + bonus
         elif sal_type == "daily":
             calc_sal = base_sal * Decimal(days_worked)
             deduction = Decimal(str(round(float(total_late_minutes * float(minute_rate)), 2))) if _shift_config.get("minute_penalty", True) else Decimal(str(round(float(base_sal * Decimal(0.1) * Decimal(days_late)), 2)))
-            bonus = Decimal(str(round(float(total_overtime_hours * hourly_rate), 2)))
+            bonus = Decimal(str(round(float(total_overtime_hours * hourly_rate), 2))) + total_manual_bonus
             net = max(Decimal(0), calc_sal + bonus - deduction)
         elif sal_type == "hourly":
             calc_sal = base_sal * hours_worked
             deduction = Decimal(str(round(float(total_late_minutes * float(minute_rate)), 2)))
-            bonus = Decimal(0)
-            net = max(Decimal(0), calc_sal - deduction)
+            bonus = total_manual_bonus
+            net = max(Decimal(0), calc_sal + bonus - deduction)
         else:  # monthly
             calc_sal = Decimal(str(round(float(day_rate * Decimal(days_worked)), 2)))
             if _shift_config.get("minute_penalty", True) and total_late_minutes > 0:
                 deduction = Decimal(str(round(float(Decimal(total_late_minutes) * minute_rate), 2)))
             else:
                 deduction = Decimal(str(round(float(day_rate * Decimal(0.1) * Decimal(days_late)), 2)))
-            bonus = Decimal(str(round(float(total_overtime_hours * hourly_rate), 2)))
+            bonus = Decimal(str(round(float(total_overtime_hours * hourly_rate), 2))) + total_manual_bonus
             net = max(Decimal(0), calc_sal + bonus - deduction)
 
         remaining_salary = max(Decimal(0), net - paid_amount)

@@ -21,6 +21,7 @@ class MockStore {
   int nextUserId = 10;
   int nextAttendanceId = 100;
   final Map<String, double> paidSalaries = {}; // "userId_YYYY-MM" -> to'langan jami summa
+  final Map<String, double> manualBonuses = {}; // "userId_YYYY-MM" -> berilgan mukofot (bonus) summasi
 
   final List<Product> products = [
     const Product(id: 1, name: 'Angola', category: 'Granit', qrCode: 'STX-ANGOLA', unit: 'm2', donaM2: 0.25, price: 180000, costPrice: 120000, stock: 200, imageUrl: 'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?w=600&auto=format&fit=crop&q=80'),
@@ -1618,7 +1619,8 @@ class MockAttendanceRepository implements AttendanceRepository {
 
       double calculated = 0;
       double deduction = 0;
-      double bonus = totalOvertimeBonus.roundToDouble();
+      final manualBonus = _s.manualBonuses[payKey] ?? 0.0;
+      double bonus = totalOvertimeBonus.roundToDouble() + manualBonus;
 
       if (u.salaryType == 'trip' || u.role == Role.haydovchi) {
         calculated = u.salary > 0 ? (u.salary * 12) : 1800000;
@@ -1664,6 +1666,12 @@ class MockAttendanceRepository implements AttendanceRepository {
   Future<void> paySalary(int userId, String month, double amount) async {
     final key = '${userId}_$month';
     _s.paidSalaries[key] = (_s.paidSalaries[key] ?? 0.0) + amount;
+  }
+
+  @override
+  Future<void> addBonus(int userId, String month, double amount, {String? reason}) async {
+    final key = '${userId}_$month';
+    _s.manualBonuses[key] = (_s.manualBonuses[key] ?? 0.0) + amount;
   }
 
   @override

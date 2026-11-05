@@ -2618,10 +2618,10 @@ class _UsersScreenState extends State<UsersScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.star_rounded, size: 14, color: Color(0xFFD97706)),
+                            const Icon(Icons.card_giftcard_rounded, size: 14, color: Color(0xFFD97706)),
                             const SizedBox(width: 4),
                             Text(
-                              '+${money(r.bonus)} (Qo‘shimcha ish)',
+                              '+${money(r.bonus)} (Mukofot / Bonus)',
                               style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
@@ -2721,6 +2721,34 @@ class _UsersScreenState extends State<UsersScreen> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: context.inkColor,
                   side: BorderSide(color: context.borderColor),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+
+              // Mukofot (Bonus / Premiya) berish tugmasi
+              FilledButton.tonalIcon(
+                onPressed: () async {
+                  final ok = await EmployeeBonusDialog.show(
+                    context,
+                    item: r,
+                    month: '${_selectedMonth.year}-${_selectedMonth.month.toString().padLeft(2, '0')}',
+                    attRepo: context.read<AppRepositories>().attendance,
+                  );
+                  if (ok == true && mounted) {
+                    showMessage(context, '✓ ${r.fullName} uchun mukofot muvaffaqiyatli qo‘shildi');
+                    _reloadSalary();
+                  }
+                },
+                icon: const Icon(Icons.card_giftcard_rounded, size: 14),
+                label: const Text(
+                  '🎁 + Mukofot',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.3 : 0.15),
+                  foregroundColor: const Color(0xFFD97706),
+                  side: const BorderSide(color: Color(0xFFF59E0B), width: 1.2),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
@@ -4206,6 +4234,332 @@ class _ShiftConfigDialogState extends State<ShiftConfigDialog> {
             onChanged: onChanged,
           ),
         ],
+      ),
+    );
+  }
+}
+
+
+/// Xodimga oylik hisobida Mukofot (Bonus / Premiya) berish dialogi
+class EmployeeBonusDialog extends StatefulWidget {
+  final SalaryReportItem item;
+  final String month;
+  final AttendanceRepository attRepo;
+
+  const EmployeeBonusDialog({
+    super.key,
+    required this.item,
+    required this.month,
+    required this.attRepo,
+  });
+
+  static Future<bool?> show(
+    BuildContext context, {
+    required SalaryReportItem item,
+    required String month,
+    required AttendanceRepository attRepo,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => EmployeeBonusDialog(
+        item: item,
+        month: month,
+        attRepo: attRepo,
+      ),
+    );
+  }
+
+  @override
+  State<EmployeeBonusDialog> createState() => _EmployeeBonusDialogState();
+}
+
+class _EmployeeBonusDialogState extends State<EmployeeBonusDialog> {
+  final _amountCtrl = TextEditingController();
+  final _reasonCtrl = TextEditingController();
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    _reasonCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final raw = _amountCtrl.text.replaceAll(' ', '').trim();
+    final amount = double.tryParse(raw);
+    if (amount == null || amount <= 0) {
+      setState(() => _error = 'Iltimos, noldan katta to‘g‘ri summa kiriting');
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+
+    try {
+      await widget.attRepo.addBonus(
+        widget.item.userId,
+        widget.month,
+        amount,
+        reason: _reasonCtrl.text.trim().isEmpty ? null : _reasonCtrl.text.trim(),
+      );
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Xatolik yuz berdi: $e';
+          _saving = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = context.isDark;
+    final r = widget.item;
+
+    return Dialog(
+      backgroundColor: context.cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 480,
+        padding: const EdgeInsets.all(22),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Sarlavha
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.card_giftcard_rounded, size: 24, color: Color(0xFFD97706)),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Xodimga Mukofot (Bonus) berish',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: context.inkColor,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${r.fullName} · ${widget.month} oyi uchun',
+                          style: TextStyle(fontSize: 12, color: context.mutedColor, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _saving ? null : () => Navigator.pop(context, false),
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    tooltip: 'Yopish',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Status paneli: Ishlagan qismi, Mavjud mukofot, To'lanadigan sof maosh
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: context.pillColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: context.borderColor),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Column(
+                      children: [
+                        Text('Ishlagan qismi', style: TextStyle(fontSize: 10.5, color: context.mutedColor, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 2),
+                        Text(money(r.calculatedSalary), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: context.inkColor)),
+                      ],
+                    ),
+                    Container(height: 24, width: 1, color: context.borderColor),
+                    Column(
+                      children: [
+                        Text('Mavjud mukofot', style: const TextStyle(fontSize: 10.5, color: Color(0xFFD97706), fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 2),
+                        Text('+${money(r.bonus)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFFD97706))),
+                      ],
+                    ),
+                    Container(height: 24, width: 1, color: context.borderColor),
+                    Column(
+                      children: [
+                        Text('To‘lanadigan sof', style: const TextStyle(fontSize: 10.5, color: Color(0xFF10B981), fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 2),
+                        Text(money(r.remainingSalary > 0 ? r.remainingSalary : r.netSalary), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF10B981))),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Summa kiritish
+              Text(
+                'Mukofot miqdori:',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: context.inkColor),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _amountCtrl,
+                keyboardType: TextInputType.number,
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: context.inkColor),
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.add_rounded, color: Color(0xFFD97706), size: 20),
+                  suffixText: "so'm",
+                  suffixStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
+                  hintText: 'Masalan: 500 000',
+                  filled: true,
+                  fillColor: context.pillColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFD97706), width: 1.8)),
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Tezkor summa tugmalari (Chips)
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final p in [100000, 200000, 500000, 1000000, 2000000])
+                    InkWell(
+                      onTap: () => setState(() => _amountCtrl.text = p.toString()),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.35)),
+                        ),
+                        child: Text(
+                          '+${p >= 1000000 ? "${p ~/ 1000000} mln" : "${p ~/ 1000} ming"}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFFD97706)),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Sababi / Izoh
+              Text(
+                'Mukofot sababi (izoh):',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: context.inkColor),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _reasonCtrl,
+                maxLines: 2,
+                style: TextStyle(fontSize: 13, color: context.inkColor),
+                decoration: InputDecoration(
+                  hintText: 'Masalan: Bayram munosabati bilan, Namunali mehnati uchun, Rejani oshirgani uchun',
+                  hintStyle: TextStyle(fontSize: 12, color: context.mutedColor),
+                  filled: true,
+                  fillColor: context.pillColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFD97706), width: 1.8)),
+                ),
+              ),
+              const SizedBox(height: 6),
+
+              // Tezkor sabablar
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final rText in [
+                    '🎉 Bayramona mukofot',
+                    '⭐ A’lo mehnati uchun',
+                    '🚀 Rejani bajargani uchun',
+                    '💪 Qo‘shimcha mehnat',
+                  ])
+                    InkWell(
+                      onTap: () => setState(() => _reasonCtrl.text = rText),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
+                        decoration: BoxDecoration(
+                          color: context.pillColor,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: context.borderColor),
+                        ),
+                        child: Text(
+                          rText,
+                          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: context.inkColor),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _error!,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.danger),
+                ),
+              ],
+              const SizedBox(height: 18),
+
+              // Pastki amallar
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: _saving ? null : () => Navigator.pop(context, false),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: Text('Bekor qilish', style: TextStyle(color: context.mutedColor, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: FilledButton.icon(
+                      onPressed: _saving ? null : _submit,
+                      icon: _saving
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.check_circle_rounded, size: 16),
+                      label: Text(_saving ? 'Saqlanmoqda...' : '🎁 Mukofotni tasdiqlash', style: const TextStyle(fontWeight: FontWeight.w800)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFD97706),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

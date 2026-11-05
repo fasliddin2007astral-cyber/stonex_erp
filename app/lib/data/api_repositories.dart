@@ -512,6 +512,16 @@ class ApiAttendanceRepository implements AttendanceRepository {
   }
 
   @override
+  Future<void> addBonus(int userId, String month, double amount, {String? reason}) async {
+    await _api.post('/attendance/add-bonus', body: {
+      'user_id': userId,
+      'month': month,
+      'amount': amount,
+      'reason': reason,
+    });
+  }
+
+  @override
   Future<Map<String, dynamic>> getShiftConfig() async {
     final j = await _api.get('/attendance/shift-config');
     return Map<String, dynamic>.from(j as Map);
