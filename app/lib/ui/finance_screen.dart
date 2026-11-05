@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -108,26 +111,27 @@ class _FinanceScreenState extends State<FinanceScreen> {
       final repos = context.read<AppRepositories>();
       final csv = await repos.finance.exportCsv(dateFrom: _dateFrom, dateTo: _dateTo);
 
-      String targetPath = '';
-      if (Platform.isWindows) {
-        final userProfile = Platform.environment['USERPROFILE'] ?? '';
-        final downloads = '$userProfile\\Downloads';
-        final desktop = '$userProfile\\Desktop';
-        if (Directory(downloads).existsSync()) {
-          targetPath = downloads;
-        } else if (Directory(desktop).existsSync()) {
-          targetPath = desktop;
-        } else {
-          targetPath = Directory.current.path;
-        }
-      } else {
-        targetPath = Directory.current.path;
+      final now = DateTime.now();
+      final defaultFileName = 'Moliya_hisoboti_${now.year}_${now.month.toString().padLeft(2, '0')}_${now.day.toString().padLeft(2, '0')}.csv';
+      final bytes = Uint8List.fromList(utf8.encode(csv));
+
+      Uri? savedUri;
+      try {
+        savedUri = await FilePicker.saveFile(
+          dialogTitle: 'Excel hisobotini saqlash joyini tanlang',
+          fileName: defaultFileName,
+          bytes: bytes,
+        );
+      } catch (_) {
+        savedUri = null;
       }
 
-      final now = DateTime.now();
-      final fileName = 'Moliya_hisoboti_${now.year}_${now.month.toString().padLeft(2, '0')}_${now.day.toString().padLeft(2, '0')}_${now.hour}${now.minute}.csv';
-      final file = File('$targetPath${Platform.pathSeparator}$fileName');
-      await file.writeAsString(csv);
+      // Agar foydalanuvchi oynani bekor qilsa
+      if (savedUri == null) {
+        return;
+      }
+
+      final savedPath = savedUri.scheme == 'file' ? savedUri.toFilePath() : savedUri.path;
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -149,7 +153,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         style: TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
                       ),
                       Text(
-                        file.path,
+                        savedPath,
                         style: const TextStyle(fontSize: 11, color: Colors.white70),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
