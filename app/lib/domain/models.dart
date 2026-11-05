@@ -962,6 +962,126 @@ class FinanceSummary {
       );
 }
 
+class FinanceTransaction {
+  final int id;
+  final String type; // 'income' | 'expense'
+  final String category;
+  final double amount;
+  final String paymentMethod; // 'cash' | 'card' | 'bank'
+  final String? note;
+  final DateTime date;
+  final String? createdByName;
+
+  const FinanceTransaction({
+    required this.id,
+    required this.type,
+    required this.category,
+    required this.amount,
+    this.paymentMethod = 'cash',
+    this.note,
+    required this.date,
+    this.createdByName,
+  });
+
+  bool get isIncome => type == 'income';
+  bool get isExpense => type == 'expense';
+
+  factory FinanceTransaction.fromJson(Map<String, dynamic> j) => FinanceTransaction(
+        id: (j['id'] as num?)?.toInt() ?? 0,
+        type: (j['type'] ?? 'expense').toString(),
+        category: (j['category'] ?? '').toString(),
+        amount: parseNum(j['amount']),
+        paymentMethod: (j['payment_method'] ?? 'cash').toString(),
+        note: j['note']?.toString(),
+        date: j['date'] != null ? DateTime.tryParse(j['date'].toString()) ?? DateTime.now() : DateTime.now(),
+        createdByName: j['created_by_name']?.toString(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'type': type,
+        'category': category,
+        'amount': amount,
+        'payment_method': paymentMethod,
+        'note': note,
+        'date': date.toIso8601String(),
+      };
+}
+
+class MonthStats {
+  final String monthName;
+  final int year;
+  final double revenue;
+  final double expenses;
+  final double netProfit;
+  final int salesCount;
+
+  const MonthStats({
+    required this.monthName,
+    required this.year,
+    required this.revenue,
+    required this.expenses,
+    required this.netProfit,
+    required this.salesCount,
+  });
+
+  factory MonthStats.fromJson(Map<String, dynamic> j) => MonthStats(
+        monthName: (j['month_name'] ?? '').toString(),
+        year: (j['year'] as num?)?.toInt() ?? DateTime.now().year,
+        revenue: parseNum(j['revenue']),
+        expenses: parseNum(j['expenses']),
+        netProfit: parseNum(j['net_profit']),
+        salesCount: (j['sales_count'] as num?)?.toInt() ?? 0,
+      );
+}
+
+class MonthlyComparison {
+  final MonthStats current;
+  final MonthStats previous;
+  final double revenueGrowthPercent;
+  final double expenseGrowthPercent;
+  final double netProfitGrowthPercent;
+
+  const MonthlyComparison({
+    required this.current,
+    required this.previous,
+    required this.revenueGrowthPercent,
+    required this.expenseGrowthPercent,
+    required this.netProfitGrowthPercent,
+  });
+
+  factory MonthlyComparison.fromJson(Map<String, dynamic> j) => MonthlyComparison(
+        current: MonthStats.fromJson(j['current'] as Map<String, dynamic>? ?? {}),
+        previous: MonthStats.fromJson(j['previous'] as Map<String, dynamic>? ?? {}),
+        revenueGrowthPercent: parseNum(j['revenue_growth_percent']),
+        expenseGrowthPercent: parseNum(j['expense_growth_percent']),
+        netProfitGrowthPercent: parseNum(j['net_profit_growth_percent']),
+      );
+}
+
+class RevenueBreakdownItem {
+  final String category;
+  final double amount;
+  final double percentage;
+  final int count;
+  final String colorHex;
+
+  const RevenueBreakdownItem({
+    required this.category,
+    required this.amount,
+    required this.percentage,
+    required this.count,
+    this.colorHex = '#10B981',
+  });
+
+  factory RevenueBreakdownItem.fromJson(Map<String, dynamic> j) => RevenueBreakdownItem(
+        category: (j['category'] ?? '').toString(),
+        amount: parseNum(j['amount']),
+        percentage: parseNum(j['percentage']),
+        count: (j['count'] as num?)?.toInt() ?? 0,
+        colorHex: (j['color_hex'] ?? '#10B981').toString(),
+      );
+}
+
 class ProductionTask {
   final int id;
   final int productId;

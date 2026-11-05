@@ -60,6 +60,17 @@ abstract class CustomerRepository {
 
 abstract class FinanceRepository {
   Future<FinanceSummary> summary();
+  Future<List<FinanceTransaction>> listTransactions({
+    String? type,
+    String? category,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    int limit = 300,
+  });
+  Future<FinanceTransaction> addTransaction(FinanceTransaction tx);
+  Future<MonthlyComparison> monthlyComparison();
+  Future<List<RevenueBreakdownItem>> revenueBreakdown({DateTime? dateFrom, DateTime? dateTo});
+  Future<String> exportCsv({DateTime? dateFrom, DateTime? dateTo});
 }
 
 abstract class ProductionRepository {

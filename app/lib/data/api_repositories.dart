@@ -247,6 +247,57 @@ class ApiFinanceRepository implements FinanceRepository {
   @override
   Future<FinanceSummary> summary() async =>
       FinanceSummary.fromJson(await _api.get('/finance/summary') as Map<String, dynamic>);
+
+  @override
+  Future<List<FinanceTransaction>> listTransactions({
+    String? type,
+    String? category,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    int limit = 300,
+  }) async {
+    final query = <String, String>{
+      'limit': limit.toString(),
+      if (type != null && type != 'Barchasi') 'type': type,
+      if (category != null && category != 'Barchasi') 'category': category,
+      if (dateFrom != null) 'date_from': dateFrom.toIso8601String().substring(0, 10),
+      if (dateTo != null) 'date_to': dateTo.toIso8601String().substring(0, 10),
+    };
+    final res = await _api.get('/finance/transactions', query: query) as List;
+    return res.map((e) => FinanceTransaction.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  @override
+  Future<FinanceTransaction> addTransaction(FinanceTransaction tx) async {
+    final res = await _api.post('/finance/transactions', body: tx.toJson()) as Map<String, dynamic>;
+    return FinanceTransaction.fromJson(res);
+  }
+
+  @override
+  Future<MonthlyComparison> monthlyComparison() async {
+    final res = await _api.get('/finance/monthly-comparison') as Map<String, dynamic>;
+    return MonthlyComparison.fromJson(res);
+  }
+
+  @override
+  Future<List<RevenueBreakdownItem>> revenueBreakdown({DateTime? dateFrom, DateTime? dateTo}) async {
+    final query = <String, String>{
+      if (dateFrom != null) 'date_from': dateFrom.toIso8601String().substring(0, 10),
+      if (dateTo != null) 'date_to': dateTo.toIso8601String().substring(0, 10),
+    };
+    final res = await _api.get('/finance/revenue-breakdown', query: query) as List;
+    return res.map((e) => RevenueBreakdownItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  @override
+  Future<String> exportCsv({DateTime? dateFrom, DateTime? dateTo}) async {
+    final query = <String, String>{
+      if (dateFrom != null) 'date_from': dateFrom.toIso8601String().substring(0, 10),
+      if (dateTo != null) 'date_to': dateTo.toIso8601String().substring(0, 10),
+    };
+    final res = await _api.get('/finance/export', query: query);
+    return res.toString();
+  }
 }
 
 class ApiProductionRepository implements ProductionRepository {
