@@ -2353,6 +2353,10 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
   bool _saving = false;
   String? _error;
 
+  List<AppUser> _allEmployees = [];
+  final Set<int> _selectedUserIds = {};
+  bool _loadingEmployees = false;
+
   final List<String> _expenseCategories = [
     'Ish haqi / Avans',
     'Xom-ashyo (granit bloklar)',
@@ -2368,6 +2372,47 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
     'Qarz qaytarilishi',
     'Boshqa kirim',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEmployees();
+  }
+
+  Future<void> _loadEmployees() async {
+    setState(() => _loadingEmployees = true);
+    try {
+      final repos = context.read<AppRepositories>();
+      final users = await repos.users.list();
+      if (mounted) {
+        setState(() {
+          _allEmployees = users;
+          _loadingEmployees = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadingEmployees = false);
+      }
+    }
+  }
+
+  List<AppUser> get _employees {
+    if (_allEmployees.isNotEmpty) return _allEmployees;
+    return const [
+      AppUser(id: 1, username: 'bobur', fullName: 'Bobur Yoqubov', role: Role.ishchi, salary: 4500000),
+      AppUser(id: 2, username: 'alisher', fullName: 'Alisher Saidov', role: Role.ishchi, salary: 4200000),
+      AppUser(id: 3, username: 'aziz', fullName: 'Aziz Kassir', role: Role.kassir, salary: 4000000),
+      AppUser(id: 4, username: 'jamshid', fullName: 'Jamshid Haydovchi', role: Role.haydovchi, salary: 3800000),
+      AppUser(id: 5, username: 'nodir', fullName: 'Nodir Boshqaruvchi', role: Role.ishBoshqaruvchi, salary: 6000000),
+    ];
+  }
+
+  double get _totalSelectedSalaries {
+    return _employees
+        .where((u) => _selectedUserIds.contains(u.id))
+        .fold(0.0, (acc, u) => acc + (u.salary > 0 ? u.salary : 0.0));
+  }
 
   @override
   void dispose() {
@@ -2389,6 +2434,24 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
       return;
     }
 
+    final isSalary = _type == 'expense' &&
+        (_category.toLowerCase().contains('ish haqi') ||
+            _category.toLowerCase().contains('oylik') ||
+            _category.toLowerCase().contains('avans'));
+
+    var noteText = _noteCtrl.text.trim();
+    if (isSalary && _selectedUserIds.isNotEmpty) {
+      final names = _employees
+          .where((u) => _selectedUserIds.contains(u.id))
+          .map((u) => u.fullName)
+          .join(', ');
+      if (noteText.isEmpty) {
+        noteText = 'Xodimlar: $names';
+      } else if (!noteText.contains('Xodimlar:')) {
+        noteText = '$noteText (Xodimlar: $names)';
+      }
+    }
+
     setState(() {
       _saving = true;
       _error = null;
@@ -2403,7 +2466,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
           category: _category,
           amount: amount,
           paymentMethod: _paymentMethod,
-          note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
+          note: noteText.isEmpty ? null : noteText,
           date: _date,
         ),
       );
@@ -2421,10 +2484,263 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
     }
   }
 
+  Widget _buildEmployeeSelector(BuildContext context, bool isDark) {
+    final list = _employees;
+    final totalSalary = _totalSelectedSalaries;
+    final amountVal = double.tryParse(_amountCtrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF14181F) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? const Color(0xFF2D3748) : const Color(0xFFCBD5E1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: (isDark ? AppColors.neonLime : const Color(0xFF0284C7)).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Icon(
+                  Icons.badge_rounded,
+                  size: 16,
+                  color: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Xodimlarni tanlang (Bir yoki bir nechtasini):',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: context.inkColor,
+                  ),
+                ),
+              ),
+              if (_selectedUserIds.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${_selectedUserIds.length} ta tanlandi',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF10B981)),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Tezkor amallar
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _selectedUserIds.clear();
+                    _selectedUserIds.addAll(list.map((u) => u.id));
+                  });
+                },
+                child: Text(
+                  'Barchasini tanlash',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
+                  ),
+                ),
+              ),
+              if (_selectedUserIds.isNotEmpty) ...[
+                InkWell(
+                  onTap: () => setState(() => _selectedUserIds.clear()),
+                  child: Text(
+                    'Tozalash',
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: context.mutedColor),
+                  ),
+                ),
+                if (totalSalary > 0)
+                  InkWell(
+                    onTap: () {
+                      _amountCtrl.text = totalSalary.toInt().toString();
+                      setState(() {});
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.flash_on_rounded, size: 13, color: Color(0xFF10B981)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Jami: ${money(totalSalary)}',
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF10B981)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Xodimlar ro'yxati (Scrollable)
+          SizedBox(
+            height: 150,
+            child: ListView.separated(
+              itemCount: list.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 6),
+              itemBuilder: (ctx, index) {
+                final u = list[index];
+                final isSelected = _selectedUserIds.contains(u.id);
+
+                return InkWell(
+                  onTap: () {
+                    setState(() {
+                      if (isSelected) {
+                        _selectedUserIds.remove(u.id);
+                      } else {
+                        _selectedUserIds.add(u.id);
+                      }
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? (isDark ? AppColors.neonLime.withValues(alpha: 0.12) : const Color(0xFFEFF6FF))
+                          : (isDark ? const Color(0xFF1E232B) : Colors.white),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected
+                            ? (isDark ? AppColors.neonLime : const Color(0xFF3B82F6))
+                            : (isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0)),
+                        width: isSelected ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Checkbox(
+                          value: isSelected,
+                          activeColor: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
+                          checkColor: isDark ? AppColors.ink : Colors.white,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                          onChanged: (val) {
+                            setState(() {
+                              if (val == true) {
+                                _selectedUserIds.add(u.id);
+                              } else {
+                                _selectedUserIds.remove(u.id);
+                              }
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 4),
+                        CircleAvatar(
+                          radius: 13,
+                          backgroundColor: isSelected
+                              ? (isDark ? AppColors.neonLime.withValues(alpha: 0.3) : const Color(0xFFDBEAFE))
+                              : (isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0)),
+                          child: Text(
+                            u.fullName.isNotEmpty ? u.fullName[0].toUpperCase() : '?',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: isSelected && isDark ? AppColors.neonLime : context.inkColor,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                u.fullName,
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+                                  color: context.inkColor,
+                                ),
+                              ),
+                              Text(
+                                '${u.role.label}${u.salary > 0 ? " · ${money(u.salary)}" : ""}',
+                                style: TextStyle(fontSize: 11, color: context.mutedColor),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isSelected)
+                          Icon(
+                            Icons.check_circle_rounded,
+                            size: 16,
+                            color: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Taxtimot izohi
+          if (_selectedUserIds.length > 1 && amountVal > 0) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: (isDark ? const Color(0xFF1E232B) : const Color(0xFFEFF6FF)),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF3B82F6)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Har bir xodimga o‘rtacha: ${money(amountVal / _selectedUserIds.length)}',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF3B82F6)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = context.isDark;
     final isExpense = _type == 'expense';
+    final isSalary = isExpense &&
+        (_category.toLowerCase().contains('ish haqi') ||
+            _category.toLowerCase().contains('oylik') ||
+            _category.toLowerCase().contains('avans'));
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -2603,6 +2919,10 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                         ),
                       ),
                     ),
+                    if (isSalary) ...[
+                      const SizedBox(height: 16),
+                      _buildEmployeeSelector(context, isDark),
+                    ],
                     const SizedBox(height: 16),
 
                     // Summa

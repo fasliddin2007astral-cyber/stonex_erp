@@ -1509,6 +1509,13 @@ void main() {
     expect(find.text('Chiqim (Xarajat)'), findsOneWidget);
     expect(find.text('Kirim (Qo‘shimcha)'), findsOneWidget);
 
+    // Ish haqi tanlanganda xodimlar ro'yxati chiqishi va tanlanishi
+    expect(find.textContaining('Xodimlarni tanlang'), findsOneWidget);
+    expect(find.textContaining('Ishchi Bobur'), findsOneWidget);
+    await tester.tap(find.textContaining('Ishchi Bobur'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('1 ta tanlandi'), findsOneWidget);
+
     // Summa kiritish
     await tester.enterText(find.widgetWithText(TextField, '0'), '500000');
     await tester.enterText(find.widgetWithText(TextField, 'Operatsiya sababi yoki hujjati haqida qisqacha izoh...'), 'Test xarajati');
