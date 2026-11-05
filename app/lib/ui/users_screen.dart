@@ -455,14 +455,14 @@ class _UsersScreenState extends State<UsersScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8.5),
                     decoration: BoxDecoration(
                       color: _currentTab == i
-                          ? (isDark ? AppColors.neonLime : AppColors.darkCard)
+                          ? (isDark ? const Color(0xFF10B981) : AppColors.darkCard)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(100),
                       boxShadow: _currentTab == i
                           ? [
                               BoxShadow(
-                                color: (isDark ? AppColors.neonLime : Colors.black).withValues(alpha: 0.18),
-                                blurRadius: 8,
+                                color: Colors.black.withValues(alpha: 0.15),
+                                blurRadius: 6,
                                 offset: const Offset(0, 2),
                               ),
                             ]
@@ -474,9 +474,7 @@ class _UsersScreenState extends State<UsersScreen> {
                         Icon(
                           tabs[i].$2,
                           size: 16,
-                          color: _currentTab == i
-                              ? (isDark ? AppColors.ink : Colors.white)
-                              : context.mutedColor,
+                          color: _currentTab == i ? Colors.white : context.mutedColor,
                         ),
                         const SizedBox(width: 8),
                         Text(
@@ -484,9 +482,7 @@ class _UsersScreenState extends State<UsersScreen> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: _currentTab == i ? FontWeight.w800 : FontWeight.w600,
-                            color: _currentTab == i
-                                ? (isDark ? AppColors.ink : Colors.white)
-                                : context.mutedColor,
+                            color: _currentTab == i ? Colors.white : context.mutedColor,
                           ),
                         ),
                       ],
@@ -2030,8 +2026,8 @@ class _UsersScreenState extends State<UsersScreen> {
                             style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
                           ),
                           style: FilledButton.styleFrom(
-                            backgroundColor: isDark ? AppColors.neonLime : AppColors.darkCard,
-                            foregroundColor: isDark ? AppColors.ink : Colors.white,
+                            backgroundColor: isDark ? const Color(0xFF10B981) : AppColors.darkCard,
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
@@ -2272,14 +2268,12 @@ class _UsersScreenState extends State<UsersScreen> {
                                   style: TextStyle(
                                     fontSize: 11.5,
                                     fontWeight: _salaryFilter == f ? FontWeight.w800 : FontWeight.w600,
-                                    color: _salaryFilter == f
-                                        ? (isDark ? AppColors.ink : Colors.white)
-                                        : context.inkColor,
+                                    color: _salaryFilter == f ? Colors.white : context.inkColor,
                                   ),
                                 ),
                                 selected: _salaryFilter == f,
                                 onSelected: (_) => setState(() => _salaryFilter = f),
-                                selectedColor: isDark ? AppColors.neonLime : AppColors.darkCard,
+                                selectedColor: isDark ? const Color(0xFF10B981) : AppColors.darkCard,
                                 backgroundColor: context.pillColor,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -2384,7 +2378,7 @@ class _UsersScreenState extends State<UsersScreen> {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w900,
-                    color: isDark ? (roleColor == AppColors.green ? AppColors.neonLime : roleColor) : roleColor,
+                    color: roleColor,
                   ),
                 ),
               ),
@@ -2476,18 +2470,14 @@ class _UsersScreenState extends State<UsersScreen> {
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 18,
-                        color: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
+                        color: isDark ? const Color(0xFF10B981) : const Color(0xFF16A34A),
                       ),
                     ),
                     Text(
                       'To‘lanadigan sof maosh',
                       style: TextStyle(fontSize: 10, color: context.mutedColor, fontWeight: FontWeight.w600),
                     ),
-                    if (r.paidAmount > 0)
-                      Text(
-                        'Qoldiq: ${money(r.remainingSalary)} · To‘langan: ${money(r.paidAmount)}',
-                        style: const TextStyle(fontSize: 10, color: Color(0xFF0284C7), fontWeight: FontWeight.w700),
-                      ),
+
                   ],
                 ],
               ),
@@ -2495,207 +2485,141 @@ class _UsersScreenState extends State<UsersScreen> {
           ),
           const SizedBox(height: 12),
 
-          // 2-Qator: Metrikalar paneli (Davomat, Ishlagan haqi, Kechikish, Qo'shimcha ish)
+          // 2-Qator: Tartibli va bosiq ko'rsatkichlar paneli (4 ta ustun)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: context.pillColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: context.borderColor.withValues(alpha: 0.7)),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: context.borderColor.withValues(alpha: 0.6)),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: Row(
               children: [
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 12,
-                  runSpacing: 8,
-                  children: [
-                    // Davomat ko'rsatkichi
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.event_available_rounded, size: 16, color: Color(0xFF3B82F6)),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Davomat: ',
-                          style: TextStyle(fontSize: 11.5, color: context.mutedColor, fontWeight: FontWeight.w600),
-                        ),
-                        Text(
-                          '${r.daysWorked}/$_totalWorkingDays kun ',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: context.inkColor),
-                        ),
-                        Text(
-                          '(${r.hoursWorked.toStringAsFixed(1)} soat)',
-                          style: TextStyle(fontSize: 11, color: context.mutedColor),
-                        ),
-                      ],
-                    ),
-
-                    // Ishlagani
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.work_history_rounded, size: 15, color: Color(0xFFD97706)),
-                        const SizedBox(width: 5),
-                        Text(
-                          'Ishlagan qismi: ',
-                          style: TextStyle(fontSize: 11.5, color: context.mutedColor, fontWeight: FontWeight.w600),
-                        ),
-                        Text(
-                          money(r.calculatedSalary),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: context.inkColor,
+                // 1. Davomat
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Davomat',
+                        style: TextStyle(fontSize: 11, color: context.mutedColor, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Text(
+                            '${r.daysWorked}/$_totalWorkingDays kun',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: context.inkColor),
                           ),
-                        ),
-                      ],
-                    ),
-
-                    // To'langan (Avans) agar mavjud bo'lsa
-                    if (r.paidAmount > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.credit_card_rounded, size: 13, color: Color(0xFF3B82F6)),
-                            const SizedBox(width: 4),
-                            Text(
-                              'To‘langan: ${money(r.paidAmount)}',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF2563EB),
-                              ),
-                            ),
-                          ],
+                          const SizedBox(width: 4),
+                          Text(
+                            '(${r.hoursWorked.toStringAsFixed(1)}s)',
+                            style: TextStyle(fontSize: 11, color: context.mutedColor),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        r.daysLate > 0
+                            ? '${r.daysLate} kun kechikdi'
+                            : 'Intizomli (kechikishsiz)',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: r.daysLate > 0 ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-
-                    // Qoldiq agar to'lovlar mavjud bo'lsa
-                    if (r.paidAmount > 0 && r.remainingSalary > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.hourglass_bottom_rounded, size: 13, color: Color(0xFF10B981)),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Qoldiq: ${money(r.remainingSalary)}',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF059669),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    // Qo'shimcha ish haqi (Overtime bonus)
-                    if (r.bonus > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.card_giftcard_rounded, size: 14, color: Color(0xFFD97706)),
-                            const SizedBox(width: 4),
-                            Text(
-                              '+${money(r.bonus)} (Mukofot / Bonus)',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFFD97706),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    // Kechikish / Jarima holati (0 bo'lsa -0 ko'rsatmaydi)
-                    if (r.daysLate > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppColors.danger.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.warning_amber_rounded, size: 13, color: AppColors.danger),
-                            const SizedBox(width: 4),
-                            Text(
-                              r.deduction > 0
-                                  ? '${r.daysLate} kun kechikdi (-${money(r.deduction)})'
-                                  : '${r.daysLate} kun kechikdi (jarimasiz)',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.danger,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppColors.green.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: AppColors.green.withValues(alpha: 0.3)),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.check_circle_rounded, size: 13, color: AppColors.green),
-                            SizedBox(width: 4),
-                            Text(
-                              'Intizomli (kechikishsiz)',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.green),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
+                Container(width: 1, height: 36, color: context.borderColor.withValues(alpha: 0.6), margin: const EdgeInsets.symmetric(horizontal: 8)),
 
-                const SizedBox(height: 8),
+                // 2. Ishlagan qismi
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Ishlagan qismi:',
+                        style: TextStyle(fontSize: 11, color: context.mutedColor, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        money(r.calculatedSalary),
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: context.inkColor),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        r.bonus > 0 ? 'Mukofot: +${money(r.bonus)}' : (r.deduction > 0 ? 'Jarima: -${money(r.deduction)}' : 'Hisoblangan maosh'),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: r.bonus > 0 ? const Color(0xFFD97706) : context.mutedColor,
+                          fontWeight: r.bonus > 0 ? FontWeight.w700 : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(width: 1, height: 36, color: context.borderColor.withValues(alpha: 0.6), margin: const EdgeInsets.symmetric(horizontal: 8)),
 
-                // Mini Davomat progress liniyasi
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 4,
-                    backgroundColor: context.borderColor.withValues(alpha: 0.5),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      progress >= 0.8
-                          ? const Color(0xFF10B981)
-                          : (progress >= 0.4 ? const Color(0xFF3B82F6) : const Color(0xFFF59E0B)),
-                    ),
+                // 3. To'langan (Avans)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'To‘langan',
+                        style: TextStyle(fontSize: 11, color: context.mutedColor, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        money(r.paidAmount),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: r.paidAmount > 0 ? context.inkColor : context.mutedColor,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        r.paidAmount > 0 ? 'Avans / To‘lovlar' : 'To‘lanmagan',
+                        style: TextStyle(fontSize: 10, color: context.mutedColor),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(width: 1, height: 36, color: context.borderColor.withValues(alpha: 0.6), margin: const EdgeInsets.symmetric(horizontal: 8)),
+
+                // 4. Qoldiq to'lov
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Qoldiq summa',
+                        style: TextStyle(fontSize: 11, color: context.mutedColor, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        money(r.remainingSalary > 0 ? r.remainingSalary : r.netSalary),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: (r.remainingSalary <= 0 && r.paidAmount > 0)
+                              ? const Color(0xFF10B981)
+                              : (isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7)),
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        (r.remainingSalary <= 0 && r.paidAmount > 0) ? 'To‘liq to‘langan' : 'To‘lanishi kerak',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: (r.remainingSalary <= 0 && r.paidAmount > 0) ? const Color(0xFF10B981) : context.mutedColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -2703,7 +2627,7 @@ class _UsersScreenState extends State<UsersScreen> {
           ),
           const SizedBox(height: 12),
 
-          // 3-Qator: Amallar tugmalari (Davomat, Mukofot va Oylik to'lash)
+          // 3-Qator: Amallar tugmalari (Bosiq, qulay va bir xil o'lchamda)
           Wrap(
             alignment: WrapAlignment.end,
             crossAxisAlignment: WrapCrossAlignment.center,
@@ -2713,7 +2637,7 @@ class _UsersScreenState extends State<UsersScreen> {
               // 1. Davomat tafsilotlari (kunlar)
               OutlinedButton.icon(
                 onPressed: () => _showEmployeeAttendanceDetails(r),
-                icon: const Icon(Icons.calendar_today_rounded, size: 14),
+                icon: Icon(Icons.calendar_today_rounded, size: 14, color: context.mutedColor),
                 label: const Text(
                   'Davomat kunlari',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
@@ -2741,14 +2665,13 @@ class _UsersScreenState extends State<UsersScreen> {
                   }
                 },
                 icon: const Icon(Icons.card_giftcard_rounded, size: 14, color: Color(0xFFD97706)),
-                label: const Text(
+                label: Text(
                   'Mukofot',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFFD97706)),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.inkColor),
                 ),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFD97706),
-                  side: const BorderSide(color: Color(0xFFF59E0B), width: 1.2),
-                  backgroundColor: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.12 : 0.06),
+                  foregroundColor: context.inkColor,
+                  side: BorderSide(color: context.borderColor),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
@@ -2777,14 +2700,14 @@ class _UsersScreenState extends State<UsersScreen> {
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
                 ),
                 style: FilledButton.styleFrom(
-                  backgroundColor: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
-                  foregroundColor: isDark ? AppColors.ink : Colors.white,
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
             ],
-          ),
+          )
         ],
       ),
     );
