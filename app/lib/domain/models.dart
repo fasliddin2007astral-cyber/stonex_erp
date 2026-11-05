@@ -1012,6 +1012,8 @@ class MonthStats {
   final int year;
   final double revenue;
   final double expenses;
+  final double cogs;
+  final double operationalExpenses;
   final double netProfit;
   final int salesCount;
 
@@ -1020,6 +1022,8 @@ class MonthStats {
     required this.year,
     required this.revenue,
     required this.expenses,
+    this.cogs = 0,
+    this.operationalExpenses = 0,
     required this.netProfit,
     required this.salesCount,
   });
@@ -1029,6 +1033,8 @@ class MonthStats {
         year: (j['year'] as num?)?.toInt() ?? DateTime.now().year,
         revenue: parseNum(j['revenue']),
         expenses: parseNum(j['expenses']),
+        cogs: parseNum(j['cogs']),
+        operationalExpenses: parseNum(j['operational_expenses']),
         netProfit: parseNum(j['net_profit']),
         salesCount: (j['sales_count'] as num?)?.toInt() ?? 0,
       );

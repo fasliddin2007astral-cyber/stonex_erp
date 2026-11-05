@@ -530,6 +530,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   builder: (context, constraints) {
                     final itemW = (constraints.maxWidth - 24) / 3;
                     return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(
                           width: itemW,
@@ -541,6 +542,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                             curMonth: comp.current.monthName,
                             prevMonth: comp.previous.monthName,
                             accentColor: const Color(0xFF10B981),
+                            icon: Icons.trending_up_rounded,
                             context: context,
                             isDark: isDark,
                           ),
@@ -549,15 +551,19 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         SizedBox(
                           width: itemW,
                           child: _buildComparisonCard(
-                            title: 'Chiqimlar',
+                            title: 'Jami Xarajatlar',
                             curVal: comp.current.expenses,
                             prevVal: comp.previous.expenses,
                             growthPct: comp.expenseGrowthPercent,
                             curMonth: comp.current.monthName,
                             prevMonth: comp.previous.monthName,
                             accentColor: const Color(0xFFEF4444),
+                            icon: Icons.trending_down_rounded,
                             context: context,
                             isDark: isDark,
+                            isExpenseCard: true,
+                            cogs: comp.current.cogs,
+                            opExp: comp.current.operationalExpenses,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -571,8 +577,10 @@ class _FinanceScreenState extends State<FinanceScreen> {
                             curMonth: comp.current.monthName,
                             prevMonth: comp.previous.monthName,
                             accentColor: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
+                            icon: Icons.auto_awesome_rounded,
                             context: context,
                             isDark: isDark,
+                            isProfitCard: true,
                           ),
                         ),
                       ],
@@ -658,24 +666,65 @@ class _FinanceScreenState extends State<FinanceScreen> {
     required String curMonth,
     required String prevMonth,
     required Color accentColor,
+    required IconData icon,
     required BuildContext context,
     required bool isDark,
+    bool isProfitCard = false,
+    bool isExpenseCard = false,
+    double cogs = 0,
+    double opExp = 0,
   }) {
+    final diff = curVal - prevVal;
     final isPos = growthPct >= 0;
+    final isLoss = isProfitCard && curVal < 0;
+
+    final maxVal = [curVal.abs(), prevVal.abs(), 1.0].reduce((a, b) => a > b ? a : b);
+    final curRatio = (curVal.abs() / maxVal).clamp(0.06, 1.0);
+    final prevRatio = (prevVal.abs() / maxVal).clamp(0.06, 1.0);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E232B) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: context.borderColor),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isLoss
+              ? AppColors.danger.withValues(alpha: 0.5)
+              : context.borderColor,
+          width: isLoss ? 1.5 : 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Sarlavha va O'sish / Pasayish nishoni
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: context.inkColor)),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: (isLoss ? AppColors.danger : accentColor).withValues(alpha: isDark ? 0.2 : 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  isLoss ? Icons.trending_down_rounded : icon,
+                  color: isLoss ? AppColors.danger : accentColor,
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: context.inkColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
@@ -704,32 +753,126 @@ class _FinanceScreenState extends State<FinanceScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            money(curVal),
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w900,
-              color: context.inkColor,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '$curMonth oyi (Joriy)',
-            style: TextStyle(fontSize: 11, color: context.mutedColor),
-          ),
-          const Divider(height: 18),
+          const SizedBox(height: 14),
+
+          // 1-Qator: Bu oy (Noyabr)
           Row(
             children: [
-              Expanded(
-                child: Text('$prevMonth:', style: TextStyle(fontSize: 11.5, color: context.mutedColor)),
+              SizedBox(
+                width: 78,
+                child: Text(
+                  '$curMonth (Joriy):',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    color: isLoss ? const Color(0xFFEF4444) : context.inkColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              const SizedBox(width: 6),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: curRatio,
+                    minHeight: 8,
+                    backgroundColor: isDark ? const Color(0xFF14181F) : const Color(0xFFE2E8F0),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      isLoss ? const Color(0xFFEF4444) : accentColor,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
               Text(
-                money(prevVal),
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.inkColor),
+                isLoss ? '-${money(curVal.abs())}' : money(curVal),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  color: isLoss ? const Color(0xFFEF4444) : context.inkColor,
+                ),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+
+          // 2-Qator: O'tgan oy (Oktyabr)
+          Row(
+            children: [
+              SizedBox(
+                width: 78,
+                child: Text(
+                  '$prevMonth (O‘tgan):',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: context.mutedColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: prevRatio,
+                    minHeight: 8,
+                    backgroundColor: isDark ? const Color(0xFF14181F) : const Color(0xFFE2E8F0),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      context.mutedColor.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                money(prevVal),
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: context.mutedColor,
+                ),
+              ),
+            ],
+          ),
+
+          const Divider(height: 16),
+
+          // Aniq izoh va Farq qatori
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF14181F) : const Color(0xFFEFF2F6),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isLoss ? Icons.warning_amber_rounded : Icons.info_outline_rounded,
+                  size: 14,
+                  color: isLoss ? const Color(0xFFEF4444) : context.mutedColor,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    isLoss
+                        ? 'Zarar: xarajatlar tushumdan ${money(curVal.abs())} ko‘p'
+                        : (isExpenseCard && (cogs > 0 || opExp > 0)
+                            ? 'Tannarx: ${money(cogs)} · Chiqim: ${money(opExp)}'
+                            : 'Farq: ${diff >= 0 ? '+' : ''}${money(diff)}'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: isLoss ? FontWeight.w800 : FontWeight.w600,
+                      color: isLoss ? const Color(0xFFEF4444) : context.mutedColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

@@ -236,12 +236,15 @@ def monthly_comparison(db: Session = Depends(get_db), _: m.User = Depends(_admin
         cogs = _sum(db, m.Sale.total_cost, *cond_sales)
         exp = _sum(db, m.Expense.amount, *cond_exp)
         sales_cnt = db.scalar(select(func.count(m.Sale.id)).where(*cond_sales)) or 0
-        net = rev - cogs - exp
+        total_exp = cogs + exp
+        net = rev - total_exp
         return MonthStats(
             month_name=m_name,
             year=yr,
             revenue=rev,
-            expenses=exp,
+            expenses=total_exp,
+            cogs=cogs,
+            operational_expenses=exp,
             net_profit=net,
             sales_count=int(sales_cnt)
         )
