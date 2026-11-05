@@ -308,8 +308,17 @@ class _FinanceScreenState extends State<FinanceScreen> {
     }
   }
 
-  Future<void> _openAddTransactionDialog() async {
-    final ok = await FinanceTransactionDialog.show(context);
+  Future<void> _openAddTransactionDialog({
+    String? initialCategory,
+    String? initialType,
+    bool autoPayAll = false,
+  }) async {
+    final ok = await FinanceTransactionDialog.show(
+      context,
+      initialCategory: initialCategory,
+      initialType: initialType,
+      autoPayAll: autoPayAll,
+    );
     if (ok == true) {
       _loadData();
     }
@@ -436,9 +445,26 @@ class _FinanceScreenState extends State<FinanceScreen> {
           ),
           const SizedBox(width: 10),
 
+          // Oylik to'lash tugmasi
+          FilledButton.icon(
+            onPressed: () => _openAddTransactionDialog(
+              initialCategory: 'Ish haqi / Avans',
+              initialType: 'expense',
+            ),
+            icon: const Icon(Icons.payments_rounded, size: 18),
+            label: const Text('Oylik to‘lash', style: TextStyle(fontWeight: FontWeight.w800)),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(width: 10),
+
           // Yangi Kirim / Chiqim qo'shish
           FilledButton.icon(
-            onPressed: _openAddTransactionDialog,
+            onPressed: () => _openAddTransactionDialog(),
             icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
             label: const Text('+ Chiqim / Kirim', style: TextStyle(fontWeight: FontWeight.w800)),
             style: FilledButton.styleFrom(
@@ -2326,14 +2352,32 @@ class _KpiData {
   });
 }
 
-/// Yangi Kirim yoki Chiqim qo'shish oynasi
+/// Yangi Kirim yoki Chiqim qo'shish oynasi (shu jumladan barchaga yoki individual xodimlarga oylik to'lash)
 class FinanceTransactionDialog extends StatefulWidget {
-  const FinanceTransactionDialog({super.key});
+  final String? initialCategory;
+  final String? initialType;
+  final bool autoPayAll;
 
-  static Future<bool?> show(BuildContext context) {
+  const FinanceTransactionDialog({
+    super.key,
+    this.initialCategory,
+    this.initialType,
+    this.autoPayAll = false,
+  });
+
+  static Future<bool?> show(
+    BuildContext context, {
+    String? initialCategory,
+    String? initialType,
+    bool autoPayAll = false,
+  }) {
     return showDialog<bool>(
       context: context,
-      builder: (_) => const FinanceTransactionDialog(),
+      builder: (_) => FinanceTransactionDialog(
+        initialCategory: initialCategory,
+        initialType: initialType,
+        autoPayAll: autoPayAll,
+      ),
     );
   }
 
@@ -2342,13 +2386,14 @@ class FinanceTransactionDialog extends StatefulWidget {
 }
 
 class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
-  String _type = 'expense'; // 'expense' yoki 'income'
-  String _category = 'Ish haqi / Avans';
+  late String _type; // 'expense' yoki 'income'
+  late String _category;
   String _paymentMethod = 'cash';
-  DateTime _date = DateTime.now();
+  final DateTime _date = DateTime.now();
 
   final _amountCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
+  final Map<int, TextEditingController> _employeeAmountCtrls = {};
 
   bool _saving = false;
   String? _error;
@@ -2376,7 +2421,54 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
   @override
   void initState() {
     super.initState();
+    _type = widget.initialType ?? 'expense';
+    _category = widget.initialCategory ?? 'Ish haqi / Avans';
     _loadEmployees();
+  }
+
+  TextEditingController _getEmployeeCtrl(AppUser u) {
+    if (!_employeeAmountCtrls.containsKey(u.id)) {
+      _employeeAmountCtrls[u.id] = TextEditingController(
+        text: u.salary > 0 ? u.salary.toInt().toString() : '',
+      );
+    }
+    return _employeeAmountCtrls[u.id]!;
+  }
+
+  void _recalculateTotalFromEmployees() {
+    double total = 0;
+    for (final u in _employees) {
+      if (_selectedUserIds.contains(u.id)) {
+        final ctrl = _getEmployeeCtrl(u);
+        final amt = double.tryParse(ctrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+        total += amt;
+      }
+    }
+    if (total > 0) {
+      _amountCtrl.text = total.toInt().toString();
+    } else if (_selectedUserIds.isEmpty) {
+      _amountCtrl.clear();
+    }
+    setState(() {});
+  }
+
+  void _payAllEmployeesFullSalary() {
+    setState(() {
+      _selectedUserIds.clear();
+      for (final u in _employees) {
+        _selectedUserIds.add(u.id);
+        final ctrl = _getEmployeeCtrl(u);
+        ctrl.text = u.salary > 0 ? u.salary.toInt().toString() : '0';
+      }
+    });
+    _recalculateTotalFromEmployees();
+  }
+
+  void _clearEmployeeSelection() {
+    setState(() {
+      _selectedUserIds.clear();
+      _amountCtrl.clear();
+    });
   }
 
   Future<void> _loadEmployees() async {
@@ -2389,10 +2481,22 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
           _allEmployees = users;
           _loadingEmployees = false;
         });
+        for (final u in users) {
+          _getEmployeeCtrl(u);
+        }
+        if (widget.autoPayAll) {
+          _payAllEmployeesFullSalary();
+        }
       }
     } catch (_) {
       if (mounted) {
         setState(() => _loadingEmployees = false);
+        for (final u in _employees) {
+          _getEmployeeCtrl(u);
+        }
+        if (widget.autoPayAll) {
+          _payAllEmployeesFullSalary();
+        }
       }
     }
   }
@@ -2409,15 +2513,24 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
   }
 
   double get _totalSelectedSalaries {
-    return _employees
-        .where((u) => _selectedUserIds.contains(u.id))
-        .fold(0.0, (acc, u) => acc + (u.salary > 0 ? u.salary : 0.0));
+    double sum = 0;
+    for (final u in _employees) {
+      if (_selectedUserIds.contains(u.id)) {
+        final ctrl = _getEmployeeCtrl(u);
+        final amt = double.tryParse(ctrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+        sum += amt;
+      }
+    }
+    return sum;
   }
 
   @override
   void dispose() {
     _amountCtrl.dispose();
     _noteCtrl.dispose();
+    for (final c in _employeeAmountCtrls.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -2428,28 +2541,80 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
   }
 
   Future<void> _save() async {
-    final amount = double.tryParse(_amountCtrl.text.replaceAll(RegExp(r'[^0-9]'), ''));
-    if (amount == null || amount <= 0) {
-      setState(() => _error = 'Iltimos, to‘g‘ri summa kiriting');
-      return;
-    }
-
     final isSalary = _type == 'expense' &&
         (_category.toLowerCase().contains('ish haqi') ||
             _category.toLowerCase().contains('oylik') ||
             _category.toLowerCase().contains('avans'));
 
-    var noteText = _noteCtrl.text.trim();
+    // Xodimlar tanlangan bo'lsa: Har bir xodim uchun alohida tranzaksiya yoziladi
     if (isSalary && _selectedUserIds.isNotEmpty) {
-      final names = _employees
-          .where((u) => _selectedUserIds.contains(u.id))
-          .map((u) => u.fullName)
-          .join(', ');
-      if (noteText.isEmpty) {
-        noteText = 'Xodimlar: $names';
-      } else if (!noteText.contains('Xodimlar:')) {
-        noteText = '$noteText (Xodimlar: $names)';
+      final itemsToPay = <(AppUser, double)>[];
+      for (final u in _employees) {
+        if (_selectedUserIds.contains(u.id)) {
+          final ctrl = _getEmployeeCtrl(u);
+          var amt = double.tryParse(ctrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          if (amt == 0 && _selectedUserIds.length == 1) {
+            amt = double.tryParse(_amountCtrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          }
+          if (amt > 0) {
+            itemsToPay.add((u, amt));
+          }
+        }
       }
+
+      if (itemsToPay.isEmpty) {
+        setState(() => _error = 'Kamida bitta xodim uchun to‘lov summasini kiriting (0 dan katta bo‘lsin)');
+        return;
+      }
+
+      setState(() {
+        _saving = true;
+        _error = null;
+      });
+
+      try {
+        final repos = context.read<AppRepositories>();
+        final customNote = _noteCtrl.text.trim();
+
+        for (final item in itemsToPay) {
+          final user = item.$1;
+          final empAmount = item.$2;
+          final note = customNote.isEmpty
+              ? 'Ish haqi: ${user.fullName} (${user.role.label})'
+              : 'Ish haqi: ${user.fullName} — $customNote';
+
+          await repos.finance.addTransaction(
+            FinanceTransaction(
+              id: 0,
+              type: 'expense',
+              category: _category,
+              amount: empAmount,
+              paymentMethod: _paymentMethod,
+              note: note,
+              date: _date,
+            ),
+          );
+        }
+
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _error = 'Saqlashda xatolik: $e';
+            _saving = false;
+          });
+        }
+      }
+      return;
+    }
+
+    // Standart yagona tranzaksiya
+    final amount = double.tryParse(_amountCtrl.text.replaceAll(RegExp(r'[^0-9]'), ''));
+    if (amount == null || amount <= 0) {
+      setState(() => _error = 'Iltimos, to‘g‘ri summa kiriting');
+      return;
     }
 
     setState(() {
@@ -2459,6 +2624,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
 
     try {
       final repos = context.read<AppRepositories>();
+      final noteText = _noteCtrl.text.trim();
       await repos.finance.addTransaction(
         FinanceTransaction(
           id: 0,
@@ -2487,13 +2653,12 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
   Widget _buildEmployeeSelector(BuildContext context, bool isDark) {
     final list = _employees;
     final totalSalary = _totalSelectedSalaries;
-    final amountVal = double.tryParse(_amountCtrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF14181F) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isDark ? const Color(0xFF2D3748) : const Color(0xFFCBD5E1),
         ),
@@ -2501,34 +2666,44 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Sarlavha paneli
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(5),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: (isDark ? AppColors.neonLime : const Color(0xFF0284C7)).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(7),
+                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  Icons.badge_rounded,
+                child: const Icon(
+                  Icons.payments_rounded,
                   size: 16,
-                  color: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
+                  color: Color(0xFF10B981),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  'Xodimlarni tanlang (Bir yoki bir nechtasini):',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    color: context.inkColor,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Xodimlarni tanlang (Bir yoki bir nechtasini):',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: context.inkColor,
+                      ),
+                    ),
+                    Text(
+                      'Har bir xodimga alohida summa kiritishingiz yoki birdaniga to‘lashingiz mumkin',
+                      style: TextStyle(fontSize: 11, color: context.mutedColor),
+                    ),
+                  ],
                 ),
               ),
               if (_selectedUserIds.isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: const Color(0xFF10B981).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
@@ -2540,189 +2715,303 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                 ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
-          // Tezkor amallar
+          // Tezkor harakatlar tugmalari
           Wrap(
             spacing: 8,
             runSpacing: 6,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              InkWell(
-                onTap: () {
-                  setState(() {
-                    _selectedUserIds.clear();
-                    _selectedUserIds.addAll(list.map((u) => u.id));
-                  });
-                },
-                child: Text(
-                  'Barchasini tanlash',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
-                  ),
+              // Barchasiga to'liq oylik to'lash tugmasi
+              FilledButton.icon(
+                onPressed: _payAllEmployeesFullSalary,
+                icon: const Icon(Icons.flash_on_rounded, size: 15),
+                label: const Text('Barchasiga to‘liq oylik to‘lash', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
-              if (_selectedUserIds.isNotEmpty) ...[
-                InkWell(
-                  onTap: () => setState(() => _selectedUserIds.clear()),
-                  child: Text(
-                    'Tozalash',
-                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: context.mutedColor),
+              if (_selectedUserIds.isNotEmpty)
+                OutlinedButton.icon(
+                  onPressed: _clearEmployeeSelection,
+                  icon: const Icon(Icons.close_rounded, size: 14),
+                  label: const Text('Tozalash', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: context.mutedColor,
+                    side: BorderSide(color: context.borderColor),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
-                if (totalSalary > 0)
-                  InkWell(
-                    onTap: () {
-                      _amountCtrl.text = totalSalary.toInt().toString();
-                      setState(() {});
-                    },
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.flash_on_rounded, size: 13, color: Color(0xFF10B981)),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Jami: ${money(totalSalary)}',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF10B981)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
-          // Xodimlar ro'yxati (Scrollable)
-          SizedBox(
-            height: 150,
-            child: ListView.separated(
-              itemCount: list.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 6),
-              itemBuilder: (ctx, index) {
-                final u = list[index];
-                final isSelected = _selectedUserIds.contains(u.id);
+          if (_loadingEmployees)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))),
+            )
+          else
+            // Xodimlar ro'yxati (Scrollable)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 250),
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: list.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (ctx, index) {
+                  final u = list[index];
+                  final isSelected = _selectedUserIds.contains(u.id);
+                  final ctrl = _getEmployeeCtrl(u);
 
-                return InkWell(
-                  onTap: () {
-                    setState(() {
-                      if (isSelected) {
-                        _selectedUserIds.remove(u.id);
-                      } else {
-                        _selectedUserIds.add(u.id);
-                      }
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(10),
-                  child: AnimatedContainer(
+                  return AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? (isDark ? AppColors.neonLime.withValues(alpha: 0.12) : const Color(0xFFEFF6FF))
+                          ? (isDark ? const Color(0xFF1B2A23) : const Color(0xFFF0FDF4))
                           : (isDark ? const Color(0xFF1E232B) : Colors.white),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isSelected
-                            ? (isDark ? AppColors.neonLime : const Color(0xFF3B82F6))
+                            ? const Color(0xFF10B981)
                             : (isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0)),
                         width: isSelected ? 1.5 : 1,
                       ),
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Checkbox(
-                          value: isSelected,
-                          activeColor: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
-                          checkColor: isDark ? AppColors.ink : Colors.white,
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: VisualDensity.compact,
-                          onChanged: (val) {
+                        // Xodim ma'lumoti
+                        InkWell(
+                          onTap: () {
                             setState(() {
-                              if (val == true) {
-                                _selectedUserIds.add(u.id);
-                              } else {
+                              if (isSelected) {
                                 _selectedUserIds.remove(u.id);
+                              } else {
+                                _selectedUserIds.add(u.id);
+                                if (_amountCtrl.text.isNotEmpty && _selectedUserIds.length == 1) {
+                                  ctrl.text = _amountCtrl.text;
+                                }
                               }
                             });
+                            _recalculateTotalFromEmployees();
                           },
-                        ),
-                        const SizedBox(width: 4),
-                        CircleAvatar(
-                          radius: 13,
-                          backgroundColor: isSelected
-                              ? (isDark ? AppColors.neonLime.withValues(alpha: 0.3) : const Color(0xFFDBEAFE))
-                              : (isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0)),
-                          child: Text(
-                            u.fullName.isNotEmpty ? u.fullName[0].toUpperCase() : '?',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: isSelected && isDark ? AppColors.neonLime : context.inkColor,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Row(
+                              children: [
+                                Checkbox(
+                                  value: isSelected,
+                                  activeColor: const Color(0xFF10B981),
+                                  checkColor: Colors.white,
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                  onChanged: (val) {
+                                    setState(() {
+                                      if (val == true) {
+                                        _selectedUserIds.add(u.id);
+                                        if (_amountCtrl.text.isNotEmpty && _selectedUserIds.length == 1) {
+                                          ctrl.text = _amountCtrl.text;
+                                        }
+                                      } else {
+                                        _selectedUserIds.remove(u.id);
+                                      }
+                                    });
+                                    _recalculateTotalFromEmployees();
+                                  },
+                                ),
+                                const SizedBox(width: 4),
+                                CircleAvatar(
+                                  radius: 13,
+                                  backgroundColor: isSelected
+                                      ? const Color(0xFF10B981).withValues(alpha: 0.25)
+                                      : (isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0)),
+                                  child: Text(
+                                    u.fullName.isNotEmpty ? u.fullName[0].toUpperCase() : '?',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: isSelected ? const Color(0xFF10B981) : context.inkColor,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        u.fullName,
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+                                          color: context.inkColor,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${u.role.label} · Bazaviy: ${u.salary > 0 ? money(u.salary) : "belgilanmagan"}',
+                                        style: TextStyle(fontSize: 10.5, color: context.mutedColor),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (!isSelected)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF2D3748) : const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      '+ Tanlash',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.inkColor),
+                                    ),
+                                  )
+                                else
+                                  const Icon(
+                                    Icons.check_circle_rounded,
+                                    size: 16,
+                                    color: Color(0xFF10B981),
+                                  ),
+                              ],
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                u.fullName,
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
-                                  color: context.inkColor,
+
+                        // Agar tanlangan bo'lsa: Alohida oylik kiritish maydoni
+                        if (isSelected) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF14181F) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text(
+                                  'To‘lanadigan summa:',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: context.inkColor,
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                '${u.role.label}${u.salary > 0 ? " · ${money(u.salary)}" : ""}',
-                                style: TextStyle(fontSize: 11, color: context.mutedColor),
-                              ),
-                            ],
+                                SizedBox(
+                                  width: 130,
+                                  height: 34,
+                                  child: TextField(
+                                    controller: ctrl,
+                                    keyboardType: TextInputType.number,
+                                    textAlign: TextAlign.end,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                      color: context.inkColor,
+                                    ),
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                                      suffixText: "so'm",
+                                      suffixStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.mutedColor),
+                                      hintText: u.salary > 0 ? money(u.salary) : "Summa",
+                                      filled: true,
+                                      fillColor: isDark ? const Color(0xFF1E232B) : Colors.white,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                        borderSide: BorderSide(color: context.borderColor),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                        borderSide: BorderSide(color: context.borderColor),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                        borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                                      ),
+                                    ),
+                                    onChanged: (val) => _recalculateTotalFromEmployees(),
+                                  ),
+                                ),
+                                if (u.salary > 0) ...[
+                                  InkWell(
+                                    onTap: () {
+                                      ctrl.text = u.salary.toInt().toString();
+                                      _recalculateTotalFromEmployees();
+                                    },
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text('To‘liq', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF10B981))),
+                                    ),
+                                  ),
+                                  InkWell(
+                                    onTap: () {
+                                      ctrl.text = (u.salary * 0.5).toInt().toString();
+                                      _recalculateTotalFromEmployees();
+                                    },
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text('50% avans', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF3B82F6))),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
-                        ),
-                        if (isSelected)
-                          Icon(
-                            Icons.check_circle_rounded,
-                            size: 16,
-                            color: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
-                          ),
+                        ],
                       ],
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
 
-          // Taxtimot izohi
-          if (_selectedUserIds.length > 1 && amountVal > 0) ...[
-            const SizedBox(height: 8),
+          // Jami oylik xulosa kartasi
+          if (_selectedUserIds.isNotEmpty) ...[
+            const SizedBox(height: 10),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: (isDark ? const Color(0xFF1E232B) : const Color(0xFFEFF6FF)),
-                borderRadius: BorderRadius.circular(8),
+                color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.25)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF3B82F6)),
-                  const SizedBox(width: 6),
+                  const Icon(Icons.check_circle_outline_rounded, size: 16, color: Color(0xFF10B981)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${_selectedUserIds.length} ta xodim uchun jami to‘lov:',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF10B981)),
+                    ),
+                  ),
                   Text(
-                    'Har bir xodimga o‘rtacha: ${money(amountVal / _selectedUserIds.length)}',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF3B82F6)),
+                    money(totalSalary),
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF10B981)),
                   ),
                 ],
               ),
@@ -2746,7 +3035,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
-        width: 520,
+        width: 580,
         decoration: BoxDecoration(
           color: context.dialogBg,
           borderRadius: BorderRadius.circular(22),
@@ -2926,35 +3215,72 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                     const SizedBox(height: 16),
 
                     // Summa
-                    Text('Summa (so‘m):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor)),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          isSalary && _selectedUserIds.isNotEmpty ? 'Jami to‘lov summasi (so‘m):' : 'Summa (so‘m):',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
+                        ),
+                        if (isSalary && _selectedUserIds.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'Individual summalar asosida',
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF10B981)),
+                            ),
+                          ),
+                      ],
+                    ),
                     const SizedBox(height: 6),
                     TextField(
                       controller: _amountCtrl,
                       keyboardType: TextInputType.number,
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: context.inkColor),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: isSalary && _selectedUserIds.isNotEmpty ? const Color(0xFF10B981) : context.inkColor,
+                      ),
+                      onChanged: (val) {
+                        if (isSalary && _selectedUserIds.length == 1) {
+                          final singleUser = _employees.firstWhere((e) => _selectedUserIds.contains(e.id));
+                          _getEmployeeCtrl(singleUser).text = val;
+                        }
+                        setState(() {});
+                      },
                       decoration: InputDecoration(
                         hintText: '0',
                         suffixText: "so'm",
                         filled: true,
                         fillColor: context.cardColor,
+                        helperText: isSalary && _selectedUserIds.isNotEmpty
+                            ? 'Ushbu umumiy summa yuqoridagi xodimlar uchun kiritilgan summalar yig‘indisidan olinadi.'
+                            : null,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: context.borderColor)),
                         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: context.borderColor)),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    if (!(isSalary && _selectedUserIds.isNotEmpty)) ...[
+                      const SizedBox(height: 8),
 
-                    // Tezkor summa tugmalari
-                    Row(
-                      children: [
-                        for (final chip in [
-                          (label: '+100k', val: 100000),
-                          (label: '+500k', val: 500000),
-                          (label: '+1 mln', val: 1000000),
-                          (label: '+5 mln', val: 5000000),
-                        ])
-                          Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: InkWell(
+                      // Tezkor summa tugmalari
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final chip in [
+                            (label: '+100k', val: 100000),
+                            (label: '+500k', val: 500000),
+                            (label: '+1 mln', val: 1000000),
+                            (label: '+5 mln', val: 5000000),
+                          ])
+                            InkWell(
                               onTap: () => _addQuickAmount(chip.val),
                               borderRadius: BorderRadius.circular(8),
                               child: Container(
@@ -2967,9 +3293,9 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                                 child: Text(chip.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.inkColor)),
                               ),
                             ),
-                          ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 16),
 
                     // To'lov usuli

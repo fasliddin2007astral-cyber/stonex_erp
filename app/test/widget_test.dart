@@ -1528,4 +1528,69 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
   });
+
+  testWidgets('FinanceScreen: Oylik to‘lash barchasiga birdaniga to‘lash va individual summa kiritish', (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    final authCtrl = AuthController(repos.auth);
+    await authCtrl.login('admin', 'admin123', Role.admin);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          Provider<AppRepositories>.value(value: repos),
+          ChangeNotifierProvider.value(value: authCtrl),
+          ChangeNotifierProvider(create: (_) => CartController(repos.sales)),
+          ChangeNotifierProvider(create: (_) => CurrencyController()),
+          ChangeNotifierProvider(create: (_) => ThemeController()),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: FinanceScreen()),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    // 1. "Oylik to'lash" tugmasi mavjudligi va bosilishi
+    expect(find.text('Oylik to‘lash'), findsOneWidget);
+    await tester.tap(find.text('Oylik to‘lash'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chiqim kiritish (Xarajat)'), findsOneWidget);
+    expect(find.text('Barchasiga to‘liq oylik to‘lash'), findsOneWidget);
+
+    // 2. "Barchasiga to‘liq oylik to‘lash" tugmasini bosish
+    await tester.tap(find.text('Barchasiga to‘liq oylik to‘lash'));
+    await tester.pumpAndSettle();
+
+    // Barcha xodimlar tanlanganini va jami to'lov hisoblanganini tekshirish
+    expect(find.textContaining('ta tanlandi'), findsOneWidget);
+    expect(find.textContaining('jami to‘lov:'), findsOneWidget);
+
+    // 3. Tozalash tugmasi
+    expect(find.text('Tozalash'), findsOneWidget);
+    await tester.tap(find.text('Tozalash'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('0 ta tanlandi'), findsNothing);
+
+    // 4. Bitta xodimni tanlab, individual avans/summa kiritish
+    await tester.tap(find.textContaining('Ishchi Bobur'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('1 ta tanlandi'), findsOneWidget);
+
+    // 50% avans tugmasini bosish
+    expect(find.text('50% avans'), findsOneWidget);
+    await tester.tap(find.text('50% avans'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    // Kiritish orqali operatsiyani saqlash
+    await tester.tap(find.text('Kiritish'));
+    await tester.pumpAndSettle();
+
+    // Dialog yopilganini tekshirish
+    expect(find.text('Chiqim kiritish (Xarajat)'), findsNothing);
+  });
 }
