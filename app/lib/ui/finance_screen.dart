@@ -928,200 +928,824 @@ class _FinanceScreenState extends State<FinanceScreen> {
 
   Future<void> _openCustomPeriodDialog(BuildContext context, bool isDark) async {
     final now = DateTime.now();
-    DateTimeRange curRange = DateTimeRange(
-      start: _compCurFrom ?? DateTime(now.year, now.month, 1),
-      end: _compCurTo ?? now,
-    );
-    DateTimeRange prevRange = DateTimeRange(
-      start: _compPrevFrom ?? DateTime(now.year, now.month - 1, 1),
-      end: _compPrevTo ?? DateTime(now.year, now.month, 0),
-    );
+
+    // Rejim: 0 = Oylar bo'yicha, 1 = Aniq kunlar (Sana oralig'i)
+    int selectedMode = 0;
+
+    // Oylar bo'yicha parametrlar
+    int year1 = _compCurTo?.year ?? now.year;
+    int month1 = _compCurTo?.month ?? now.month;
+
+    int year2 = _compPrevTo?.year ?? (now.month == 1 ? now.year - 1 : now.year);
+    int month2 = _compPrevTo?.month ?? (now.month == 1 ? 12 : now.month - 1);
+
+    // Kunlar bo'yicha parametrlar
+    DateTime curStart = _compCurFrom ?? DateTime(now.year, now.month, 1);
+    DateTime curEnd = _compCurTo ?? now;
+    DateTime prevStart = _compPrevFrom ?? (now.month == 1 ? DateTime(now.year - 1, 12, 1) : DateTime(now.year, now.month - 1, 1));
+    DateTime prevEnd = _compPrevTo ?? (now.month == 1 ? DateTime(now.year - 1, 12, 31) : DateTime(now.year, now.month, 0));
+
+    const uzMonths = [
+      'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
+      'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'
+    ];
+    const uzMonthsShort = [
+      'Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyun',
+      'Iyul', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'
+    ];
+
+    String formatD(DateTime d) =>
+        '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
 
     await showDialog(
       context: context,
-      builder: (ctx) {
+      barrierDismissible: true,
+      builder: (dialogCtx) {
         return StatefulBuilder(
-          builder: (dialogCtx, setDialogState) {
-            String formatRange(DateTimeRange r) {
-              final s = '${r.start.day.toString().padLeft(2, '0')}.${r.start.month.toString().padLeft(2, '0')}.${r.start.year}';
-              final e = '${r.end.day.toString().padLeft(2, '0')}.${r.end.month.toString().padLeft(2, '0')}.${r.end.year}';
-              final days = r.duration.inDays + 1;
-              return '$s — $e ($days kun)';
+          builder: (ctx, setDialogState) {
+            Future<void> pickDate({
+              required DateTime initial,
+              required ValueChanged<DateTime> onPicked,
+            }) async {
+              final res = await showDatePicker(
+                context: dialogCtx,
+                initialDate: initial,
+                firstDate: DateTime(2020),
+                lastDate: DateTime(2030),
+                helpText: 'Sanani tanlang',
+                cancelText: 'Bekor qilish',
+                confirmText: 'Tanlash',
+                builder: (c, child) {
+                  return Theme(
+                    data: isDark
+                        ? ThemeData.dark().copyWith(
+                            colorScheme: const ColorScheme.dark(
+                              primary: AppColors.neonLime,
+                              onPrimary: AppColors.ink,
+                              surface: Color(0xFF1E232B),
+                              onSurface: Colors.white,
+                            ),
+                          )
+                        : ThemeData.light().copyWith(
+                            colorScheme: const ColorScheme.light(
+                              primary: Color(0xFF0284C7),
+                              onPrimary: Colors.white,
+                            ),
+                          ),
+                    child: child!,
+                  );
+                },
+              );
+              if (res != null) {
+                setDialogState(() {
+                  onPicked(res);
+                });
+              }
             }
 
-            return AlertDialog(
-              backgroundColor: isDark ? AppColors.darkCard : Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.date_range_rounded, color: Color(0xFF3B82F6), size: 20),
-                  ),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Text(
-                      'Solishtirish davrini tanlash',
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                ],
-              ),
-              content: SizedBox(
-                width: 440,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Ikkita davrni tanlang va ularning daromadi, xarajati va foydasini o‘zaro taqqoslang.',
-                      style: TextStyle(fontSize: 13, color: context.mutedColor),
-                    ),
-                    const SizedBox(height: 18),
-
-                    // 1-davr
-                    Text(
-                      '1-davr (Asosiy / Yangi davr):',
-                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: context.inkColor),
-                    ),
-                    const SizedBox(height: 6),
-                    InkWell(
-                      onTap: () async {
-                        final picked = await showDateRangePicker(
-                          context: context,
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime(2030),
-                          initialDateRange: curRange,
-                        );
-                        if (picked != null) {
-                          setDialogState(() {
-                            curRange = picked;
-                          });
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF14181F) : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: context.borderColor),
+            // Oylar bo'yicha grid qatori
+            Widget buildMonthGrid({
+              required int selectedMonth,
+              required Color activeColor,
+              required ValueChanged<int> onSelect,
+            }) {
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: 12,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 6,
+                  mainAxisSpacing: 6,
+                  childAspectRatio: 2.1,
+                ),
+                itemBuilder: (c, idx) {
+                  final mNum = idx + 1;
+                  final isSel = mNum == selectedMonth;
+                  return InkWell(
+                    onTap: () => onSelect(mNum),
+                    borderRadius: BorderRadius.circular(8),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: isSel
+                            ? activeColor
+                            : (isDark ? const Color(0xFF14181F) : const Color(0xFFF1F5F9)),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isSel
+                              ? activeColor
+                              : (isDark ? const Color(0xFF2D3748) : const Color(0xFFCBD5E1)),
+                          width: isSel ? 1.5 : 1,
                         ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.event_rounded, size: 18, color: Color(0xFF10B981)),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                formatRange(curRange),
-                                style: TextStyle(fontWeight: FontWeight.w700, color: context.inkColor, fontSize: 13),
-                              ),
-                            ),
-                            Icon(Icons.edit_calendar_rounded, size: 16, color: context.mutedColor),
-                          ],
+                      ),
+                      child: Text(
+                        uzMonthsShort[idx],
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSel ? FontWeight.w900 : FontWeight.w600,
+                          color: isSel
+                              ? (isDark && activeColor == AppColors.neonLime ? AppColors.ink : Colors.white)
+                              : (isDark ? Colors.white : const Color(0xFF1E293B)),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                  );
+                },
+              );
+            }
 
-                    // 2-davr
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '2-davr (Taqqoslovchi / Avvalgi):',
-                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: context.inkColor),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            final duration = curRange.end.difference(curRange.start);
-                            final prevEnd = curRange.start.subtract(const Duration(days: 1));
-                            final prevStart = prevEnd.subtract(duration);
-                            setDialogState(() {
-                              prevRange = DateTimeRange(start: prevStart, end: prevEnd);
-                            });
-                          },
-                          style: TextButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            // Sana tanlash kartochkasi
+            Widget buildDateTile({
+              required String label,
+              required DateTime date,
+              required ValueChanged<DateTime> onDateChanged,
+            }) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF14181F) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            label,
+                            style: TextStyle(fontSize: 10.5, color: context.mutedColor, fontWeight: FontWeight.w600),
                           ),
-                          child: const Text('Avvalgi teng muddat', style: TextStyle(fontSize: 11.5)),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    InkWell(
-                      onTap: () async {
-                        final picked = await showDateRangePicker(
-                          context: context,
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime(2030),
-                          initialDateRange: prevRange,
-                        );
-                        if (picked != null) {
-                          setDialogState(() {
-                            prevRange = picked;
-                          });
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF14181F) : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: context.borderColor),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.history_rounded, size: 18, color: Color(0xFF3B82F6)),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                formatRange(prevRange),
-                                style: TextStyle(fontWeight: FontWeight.w700, color: context.inkColor, fontSize: 13),
-                              ),
+                          const SizedBox(height: 2),
+                          InkWell(
+                            onTap: () => pickDate(initial: date, onPicked: onDateChanged),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Row(
+                              children: [
+                                Icon(Icons.event_rounded, size: 15, color: isDark ? AppColors.neonLime : const Color(0xFF0284C7)),
+                                const SizedBox(width: 6),
+                                Text(
+                                  formatD(date),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: context.inkColor,
+                                  ),
+                                ),
+                              ],
                             ),
-                            Icon(Icons.edit_calendar_rounded, size: 16, color: context.mutedColor),
-                          ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    // [-] va [+] tugmalari
+                    InkWell(
+                      onTap: () => onDateChanged(date.subtract(const Duration(days: 1))),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E232B) : const Color(0xFFE2E8F0),
+                          borderRadius: BorderRadius.circular(6),
                         ),
+                        child: Icon(Icons.remove_rounded, size: 14, color: context.inkColor),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    InkWell(
+                      onTap: () => onDateChanged(date.add(const Duration(days: 1))),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E232B) : const Color(0xFFE2E8F0),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(Icons.add_rounded, size: 14, color: context.inkColor),
                       ),
                     ),
                   ],
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogCtx),
-                  child: const Text('Bekor qilish'),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    Navigator.pop(dialogCtx);
-                    final s1 = '${curRange.start.day.toString().padLeft(2, '0')}.${curRange.start.month.toString().padLeft(2, '0')}';
-                    final e1 = '${curRange.end.day.toString().padLeft(2, '0')}.${curRange.end.month.toString().padLeft(2, '0')}';
-                    final s2 = '${prevRange.start.day.toString().padLeft(2, '0')}.${prevRange.start.month.toString().padLeft(2, '0')}';
-                    final e2 = '${prevRange.end.day.toString().padLeft(2, '0')}.${prevRange.end.month.toString().padLeft(2, '0')}';
+              );
+            }
 
-                    setState(() {
-                      _comparisonPeriodKey = 'custom';
-                      _compCurFrom = curRange.start;
-                      _compCurTo = curRange.end;
-                      _compPrevFrom = prevRange.start;
-                      _compPrevTo = prevRange.end;
-                      _compCurLabel = '$s1-$e1';
-                      _compPrevLabel = '$s2-$e2';
-                    });
-                    _reloadComparison();
-                  },
-                  child: const Text('Solishtirish'),
+            return Dialog(
+              backgroundColor: isDark ? AppColors.darkCard : Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 620),
+                child: Padding(
+                  padding: const EdgeInsets.all(22),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Sarlavha va Yopish
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.compare_arrows_rounded, color: Color(0xFF3B82F6), size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Solishtirish davrini tanlash',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
+                                    color: context.inkColor,
+                                  ),
+                                ),
+                                Text(
+                                  'Ikkita davrni tanlang va dinamikani taqqoslang',
+                                  style: TextStyle(fontSize: 12, color: context.mutedColor),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded, size: 20),
+                            color: context.mutedColor,
+                            onPressed: () => Navigator.pop(dialogCtx),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Rejim tanlagich (Segmented bar)
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF14181F) : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: context.borderColor),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: InkWell(
+                                onTap: () => setDialogState(() => selectedMode = 0),
+                                borderRadius: BorderRadius.circular(9),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: selectedMode == 0
+                                        ? (isDark ? AppColors.neonLime : Colors.white)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(9),
+                                    boxShadow: selectedMode == 0
+                                        ? [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 4, offset: const Offset(0, 1))]
+                                        : null,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.calendar_month_rounded,
+                                        size: 16,
+                                        color: selectedMode == 0
+                                            ? (isDark ? AppColors.ink : const Color(0xFF0F172A))
+                                            : context.mutedColor,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Oylar bo‘yicha (Tezkor)',
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: selectedMode == 0 ? FontWeight.w800 : FontWeight.w600,
+                                          color: selectedMode == 0
+                                              ? (isDark ? AppColors.ink : const Color(0xFF0F172A))
+                                              : context.mutedColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: InkWell(
+                                onTap: () => setDialogState(() => selectedMode = 1),
+                                borderRadius: BorderRadius.circular(9),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: selectedMode == 1
+                                        ? (isDark ? AppColors.neonLime : Colors.white)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(9),
+                                    boxShadow: selectedMode == 1
+                                        ? [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 4, offset: const Offset(0, 1))]
+                                        : null,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.date_range_rounded,
+                                        size: 16,
+                                        color: selectedMode == 1
+                                            ? (isDark ? AppColors.ink : const Color(0xFF0F172A))
+                                            : context.mutedColor,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Kunbay / Aniq sanalar',
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: selectedMode == 1 ? FontWeight.w800 : FontWeight.w600,
+                                          color: selectedMode == 1
+                                              ? (isDark ? AppColors.ink : const Color(0xFF0F172A))
+                                              : context.mutedColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // ASOSIY KONTENT: Rejim 0 (Oylar bo'yicha)
+                      if (selectedMode == 0) ...[
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 1-davr oylari
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF1E232B) : const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: context.borderColor),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          '1-davr (Yangi):',
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: context.inkColor),
+                                        ),
+                                        // Yil steppri
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            InkWell(
+                                              onTap: () => setDialogState(() => year1--),
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(2),
+                                                child: Icon(Icons.chevron_left_rounded, size: 18, color: context.inkColor),
+                                              ),
+                                            ),
+                                            Text(
+                                              '$year1',
+                                              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: context.inkColor),
+                                            ),
+                                            InkWell(
+                                              onTap: () => setDialogState(() => year1++),
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(2),
+                                                child: Icon(Icons.chevron_right_rounded, size: 18, color: context.inkColor),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    buildMonthGrid(
+                                      selectedMonth: month1,
+                                      activeColor: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
+                                      onSelect: (m) => setDialogState(() => month1 = m),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            // O'rtadagi VS belgisi
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 60),
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Text(
+                                  'VS',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF3B82F6)),
+                                ),
+                              ),
+                            ),
+                            // 2-davr oylari
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF1E232B) : const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: context.borderColor),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          '2-davr (Taqqoslovchi):',
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: context.inkColor),
+                                        ),
+                                        // Yil steppri
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            InkWell(
+                                              onTap: () => setDialogState(() => year2--),
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(2),
+                                                child: Icon(Icons.chevron_left_rounded, size: 18, color: context.inkColor),
+                                              ),
+                                            ),
+                                            Text(
+                                              '$year2',
+                                              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: context.inkColor),
+                                            ),
+                                            InkWell(
+                                              onTap: () => setDialogState(() => year2++),
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(2),
+                                                child: Icon(Icons.chevron_right_rounded, size: 18, color: context.inkColor),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    buildMonthGrid(
+                                      selectedMonth: month2,
+                                      activeColor: const Color(0xFF8B5CF6),
+                                      onSelect: (m) => setDialogState(() => month2 = m),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // Tezkor oylar presetlari
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            ActionChip(
+                              label: const Text('Joriy vs O‘tgan oy', style: TextStyle(fontSize: 11)),
+                              avatar: const Icon(Icons.flash_on_rounded, size: 14),
+                              onPressed: () {
+                                setDialogState(() {
+                                  year1 = now.year;
+                                  month1 = now.month;
+                                  year2 = now.month == 1 ? now.year - 1 : now.year;
+                                  month2 = now.month == 1 ? 12 : now.month - 1;
+                                });
+                              },
+                            ),
+                            ActionChip(
+                              label: const Text('O‘tgan oy vs Undan oldingi', style: TextStyle(fontSize: 11)),
+                              onPressed: () {
+                                setDialogState(() {
+                                  final p1Month = now.month == 1 ? 12 : now.month - 1;
+                                  final p1Year = now.month == 1 ? now.year - 1 : now.year;
+                                  final p2Month = p1Month == 1 ? 12 : p1Month - 1;
+                                  final p2Year = p1Month == 1 ? p1Year - 1 : p1Year;
+                                  year1 = p1Year;
+                                  month1 = p1Month;
+                                  year2 = p2Year;
+                                  month2 = p2Month;
+                                });
+                              },
+                            ),
+                            ActionChip(
+                              label: const Text('O‘tgan yilgi shu oy bilan (YoY)', style: TextStyle(fontSize: 11)),
+                              onPressed: () {
+                                setDialogState(() {
+                                  year1 = now.year;
+                                  month1 = now.month;
+                                  year2 = now.year - 1;
+                                  month2 = now.month;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        // ASOSIY KONTENT: Rejim 1 (Kunbay sanalar)
+                        // Tezkor filtrlar
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            ActionChip(
+                              label: const Text('Oxirgi 7 kun', style: TextStyle(fontSize: 11)),
+                              onPressed: () {
+                                setDialogState(() {
+                                  curStart = now.subtract(const Duration(days: 6));
+                                  curEnd = now;
+                                  prevStart = now.subtract(const Duration(days: 13));
+                                  prevEnd = now.subtract(const Duration(days: 7));
+                                });
+                              },
+                            ),
+                            ActionChip(
+                              label: const Text('Oxirgi 30 kun', style: TextStyle(fontSize: 11)),
+                              onPressed: () {
+                                setDialogState(() {
+                                  curStart = now.subtract(const Duration(days: 29));
+                                  curEnd = now;
+                                  prevStart = now.subtract(const Duration(days: 59));
+                                  prevEnd = now.subtract(const Duration(days: 30));
+                                });
+                              },
+                            ),
+                            ActionChip(
+                              label: const Text('Joriy oy boshi — Bugun', style: TextStyle(fontSize: 11)),
+                              onPressed: () {
+                                setDialogState(() {
+                                  curStart = DateTime(now.year, now.month, 1);
+                                  curEnd = now;
+                                  final days = curEnd.difference(curStart).inDays;
+                                  prevEnd = curStart.subtract(const Duration(days: 1));
+                                  prevStart = prevEnd.subtract(Duration(days: days));
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 1-davr
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF1E232B) : const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: context.borderColor),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          '1-davr (Asosiy):',
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: context.inkColor),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            '${curEnd.difference(curStart).inDays + 1} kun',
+                                            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF10B981)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    buildDateTile(
+                                      label: 'Boshlanish sanasi',
+                                      date: curStart,
+                                      onDateChanged: (d) => setDialogState(() {
+                                        curStart = d;
+                                        if (curEnd.isBefore(curStart)) curEnd = curStart;
+                                      }),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    buildDateTile(
+                                      label: 'Tugash sanasi',
+                                      date: curEnd,
+                                      onDateChanged: (d) => setDialogState(() {
+                                        curEnd = d;
+                                        if (curStart.isAfter(curEnd)) curStart = curEnd;
+                                      }),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            // O'rtada VS
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 45),
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Text(
+                                  'VS',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF3B82F6)),
+                                ),
+                              ),
+                            ),
+                            // 2-davr
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF1E232B) : const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: context.borderColor),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          '2-davr (Taqqoslovchi):',
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: context.inkColor),
+                                        ),
+                                        InkWell(
+                                          onTap: () {
+                                            final dur = curEnd.difference(curStart);
+                                            setDialogState(() {
+                                              prevEnd = curStart.subtract(const Duration(days: 1));
+                                              prevStart = prevEnd.subtract(dur);
+                                            });
+                                          },
+                                          child: Text(
+                                            'Teng muddat',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    buildDateTile(
+                                      label: 'Boshlanish sanasi',
+                                      date: prevStart,
+                                      onDateChanged: (d) => setDialogState(() {
+                                        prevStart = d;
+                                        if (prevEnd.isBefore(prevStart)) prevEnd = prevStart;
+                                      }),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    buildDateTile(
+                                      label: 'Tugash sanasi',
+                                      date: prevEnd,
+                                      onDateChanged: (d) => setDialogState(() {
+                                        prevEnd = d;
+                                        if (prevStart.isAfter(prevEnd)) prevStart = prevEnd;
+                                      }),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 18),
+
+                      // Pastki xulosa va Harakat tugmalari
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF14181F) : const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isDark ? const Color(0xFF2D3748) : const Color(0xFFBFDBFE),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF3B82F6)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                selectedMode == 0
+                                    ? 'Tanlangan: ${uzMonths[month1 - 1]} $year1  vs  ${uzMonths[month2 - 1]} $year2'
+                                    : 'Tanlangan: ${formatD(curStart)}—${formatD(curEnd)} vs ${formatD(prevStart)}—${formatD(prevEnd)}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark ? Colors.white : const Color(0xFF1E3A8A),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => Navigator.pop(dialogCtx),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: context.inkColor,
+                              side: BorderSide(color: context.borderColor),
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: const Text('Bekor qilish'),
+                          ),
+                          const SizedBox(width: 10),
+                          FilledButton.icon(
+                            onPressed: () {
+                              Navigator.pop(dialogCtx);
+                              if (selectedMode == 0) {
+                                final s1 = DateTime(year1, month1, 1);
+                                final e1 = (year1 == now.year && month1 == now.month)
+                                    ? now
+                                    : DateTime(year1, month1 + 1, 0);
+
+                                final s2 = DateTime(year2, month2, 1);
+                                final e2 = DateTime(year2, month2 + 1, 0);
+
+                                final l1 = '${uzMonths[month1 - 1]}${year1 != now.year ? ' $year1' : ''}';
+                                final l2 = '${uzMonths[month2 - 1]}${year2 != now.year ? ' $year2' : ''}';
+
+                                setState(() {
+                                  _comparisonPeriodKey = 'custom';
+                                  _compCurFrom = s1;
+                                  _compCurTo = e1;
+                                  _compPrevFrom = s2;
+                                  _compPrevTo = e2;
+                                  _compCurLabel = l1;
+                                  _compPrevLabel = l2;
+                                });
+                              } else {
+                                final l1 = '${curStart.day.toString().padLeft(2, '0')}.${curStart.month.toString().padLeft(2, '0')}-${curEnd.day.toString().padLeft(2, '0')}.${curEnd.month.toString().padLeft(2, '0')}';
+                                final l2 = '${prevStart.day.toString().padLeft(2, '0')}.${prevStart.month.toString().padLeft(2, '0')}-${prevEnd.day.toString().padLeft(2, '0')}.${prevEnd.month.toString().padLeft(2, '0')}';
+
+                                setState(() {
+                                  _comparisonPeriodKey = 'custom';
+                                  _compCurFrom = curStart;
+                                  _compCurTo = curEnd;
+                                  _compPrevFrom = prevStart;
+                                  _compPrevTo = prevEnd;
+                                  _compCurLabel = l1;
+                                  _compPrevLabel = l2;
+                                });
+                              }
+                              _reloadComparison();
+                            },
+                            icon: const Icon(Icons.check_rounded, size: 16),
+                            label: const Text('Solishtirish', style: TextStyle(fontWeight: FontWeight.w800)),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
+                              foregroundColor: isDark ? AppColors.ink : Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ],
+              ),
             );
           },
         );
