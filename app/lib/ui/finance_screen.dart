@@ -2399,6 +2399,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
   String? _error;
 
   List<AppUser> _allEmployees = [];
+  Map<int, SalaryReportItem> _salaryReportMap = {};
   final Set<int> _selectedUserIds = {};
   bool _loadingEmployees = false;
 
@@ -2452,6 +2453,59 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
     setState(() {});
   }
 
+  double getEarnedSoFar(AppUser u) {
+    final rep = _salaryReportMap[u.id];
+    if (rep != null && rep.calculatedSalary > 0) {
+      return rep.calculatedSalary;
+    }
+    if (rep != null && rep.netSalary > 0) {
+      return rep.netSalary;
+    }
+    if (u.salary <= 0) return 0;
+
+    // Davomat yozilmagan bo'lsa: Joriy oyda bugungacha bo'lgan ish kunlari hisobi bo'yicha
+    final now = DateTime.now();
+    int passedWorkDays = 0;
+    for (int d = 1; d <= now.day; d++) {
+      final dt = DateTime(now.year, now.month, d);
+      if (dt.weekday != DateTime.sunday) {
+        passedWorkDays++;
+      }
+    }
+    passedWorkDays = passedWorkDays.clamp(1, 26);
+    final earned = (u.salary / 26) * passedWorkDays;
+    return ((earned / 1000).round() * 1000).toDouble();
+  }
+
+  int getDaysWorkedSoFar(AppUser u) {
+    final rep = _salaryReportMap[u.id];
+    if (rep != null && rep.daysWorked > 0) {
+      return rep.daysWorked;
+    }
+    final now = DateTime.now();
+    int passedWorkDays = 0;
+    for (int d = 1; d <= now.day; d++) {
+      final dt = DateTime(now.year, now.month, d);
+      if (dt.weekday != DateTime.sunday) {
+        passedWorkDays++;
+      }
+    }
+    return passedWorkDays.clamp(1, 26);
+  }
+
+  void _payAllEmployeesEarnedSalary() {
+    setState(() {
+      _selectedUserIds.clear();
+      for (final u in _employees) {
+        _selectedUserIds.add(u.id);
+        final ctrl = _getEmployeeCtrl(u);
+        final earned = getEarnedSoFar(u);
+        ctrl.text = earned > 0 ? earned.toInt().toString() : (u.salary > 0 ? u.salary.toInt().toString() : '0');
+      }
+    });
+    _recalculateTotalFromEmployees();
+  }
+
   void _payAllEmployeesFullSalary() {
     setState(() {
       _selectedUserIds.clear();
@@ -2473,31 +2527,37 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
 
   Future<void> _loadEmployees() async {
     setState(() => _loadingEmployees = true);
+    final repos = context.read<AppRepositories>();
     try {
-      final repos = context.read<AppRepositories>();
       final users = await repos.users.list();
       if (mounted) {
         setState(() {
           _allEmployees = users;
-          _loadingEmployees = false;
         });
         for (final u in users) {
           _getEmployeeCtrl(u);
         }
-        if (widget.autoPayAll) {
-          _payAllEmployeesFullSalary();
-        }
+      }
+    } catch (_) {}
+
+    try {
+      final now = DateTime.now();
+      final monthStr = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+      final reps = await repos.attendance.getSalaryReport(month: monthStr);
+      if (mounted) {
+        setState(() {
+          _salaryReportMap = {for (final r in reps) r.userId: r};
+          _loadingEmployees = false;
+        });
       }
     } catch (_) {
       if (mounted) {
         setState(() => _loadingEmployees = false);
-        for (final u in _employees) {
-          _getEmployeeCtrl(u);
-        }
-        if (widget.autoPayAll) {
-          _payAllEmployeesFullSalary();
-        }
       }
+    }
+
+    if (widget.autoPayAll) {
+      _payAllEmployeesFullSalary();
     }
   }
 
@@ -2563,7 +2623,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
       }
 
       if (itemsToPay.isEmpty) {
-        setState(() => _error = 'Kamida bitta xodim uchun to‘lov summasini kiriting (0 dan katta bo‘lsin)');
+        setState(() => _error = 'Kamida bitta xodim uchun to‘lov miqdorini kiriting (0 dan katta bo‘lsin)');
         return;
       }
 
@@ -2613,7 +2673,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
     // Standart yagona tranzaksiya
     final amount = double.tryParse(_amountCtrl.text.replaceAll(RegExp(r'[^0-9]'), ''));
     if (amount == null || amount <= 0) {
-      setState(() => _error = 'Iltimos, to‘g‘ri summa kiriting');
+      setState(() => _error = 'Iltimos, to‘g‘ri miqdor kiriting');
       return;
     }
 
@@ -2695,7 +2755,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                       ),
                     ),
                     Text(
-                      'Har bir xodimga alohida summa kiritishingiz yoki birdaniga to‘lashingiz mumkin',
+                      'Har bir xodimga alohida miqdor belgilashingiz yoki birdaniga to‘lashingiz mumkin',
                       style: TextStyle(fontSize: 11, color: context.mutedColor),
                     ),
                   ],
@@ -2731,7 +2791,19 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF10B981),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              // Barchasiga hozirgacha ishlagan haqini to'lash
+              FilledButton.icon(
+                onPressed: _payAllEmployeesEarnedSalary,
+                icon: const Icon(Icons.work_history_rounded, size: 15),
+                label: const Text('Ishlagan haqini to‘lash', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
+                style: FilledButton.styleFrom(
+                  backgroundColor: isDark ? const Color(0xFF065F46) : const Color(0xFF059669),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
@@ -2759,7 +2831,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
           else
             // Xodimlar ro'yxati (Scrollable)
             ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 250),
+              constraints: const BoxConstraints(maxHeight: 280),
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: list.length,
@@ -2768,6 +2840,8 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                   final u = list[index];
                   final isSelected = _selectedUserIds.contains(u.id);
                   final ctrl = _getEmployeeCtrl(u);
+                  final earned = getEarnedSoFar(u);
+                  final daysWorked = getDaysWorkedSoFar(u);
 
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
@@ -2855,9 +2929,36 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                                           color: context.inkColor,
                                         ),
                                       ),
-                                      Text(
-                                        '${u.role.label} · Bazaviy: ${u.salary > 0 ? money(u.salary) : "belgilanmagan"}',
-                                        style: TextStyle(fontSize: 10.5, color: context.mutedColor),
+                                      const SizedBox(height: 2),
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        crossAxisAlignment: WrapCrossAlignment.center,
+                                        children: [
+                                          Text(
+                                            '${u.role.label} · Oylik: ${u.salary > 0 ? money(u.salary) : "belgilanmagan"}',
+                                            style: TextStyle(fontSize: 10.5, color: context.mutedColor),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                            decoration: BoxDecoration(
+                                              color: isDark ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7),
+                                              borderRadius: BorderRadius.circular(5),
+                                              border: Border.all(
+                                                color: isDark ? const Color(0xFF059669) : const Color(0xFF86EFAC),
+                                                width: 0.8,
+                                              ),
+                                            ),
+                                            child: Text(
+                                              'Ishlagani: ${money(earned)} ($daysWorked kun)',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w800,
+                                                color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
@@ -2903,7 +3004,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                               crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
                                 Text(
-                                  'To‘lanadigan summa:',
+                                  'To‘lov:',
                                   style: TextStyle(
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.w700,
@@ -2911,7 +3012,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                                   ),
                                 ),
                                 SizedBox(
-                                  width: 130,
+                                  width: 125,
                                   height: 34,
                                   child: TextField(
                                     controller: ctrl,
@@ -2927,7 +3028,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                                       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
                                       suffixText: "so'm",
                                       suffixStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.mutedColor),
-                                      hintText: u.salary > 0 ? money(u.salary) : "Summa",
+                                      hintText: earned > 0 ? money(earned) : (u.salary > 0 ? money(u.salary) : "0"),
                                       filled: true,
                                       fillColor: isDark ? const Color(0xFF1E232B) : Colors.white,
                                       border: OutlineInputBorder(
@@ -2946,6 +3047,23 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                                     onChanged: (val) => _recalculateTotalFromEmployees(),
                                   ),
                                 ),
+                                if (earned > 0)
+                                  InkWell(
+                                    onTap: () {
+                                      ctrl.text = earned.toInt().toString();
+                                      _recalculateTotalFromEmployees();
+                                    },
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF10B981).withValues(alpha: 0.18),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                                      ),
+                                      child: const Text('Ishlagan haqi', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF10B981))),
+                                    ),
+                                  ),
                                 if (u.salary > 0) ...[
                                   InkWell(
                                     onTap: () {
@@ -2956,10 +3074,10 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                        color: isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
-                                      child: const Text('To‘liq', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF10B981))),
+                                      child: const Text('To‘liq', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800)),
                                     ),
                                   ),
                                   InkWell(
@@ -3214,14 +3332,14 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                     ],
                     const SizedBox(height: 16),
 
-                    // Summa
+                    // To'lov miqdori
                     Wrap(
                       spacing: 8,
                       runSpacing: 4,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
-                          isSalary && _selectedUserIds.isNotEmpty ? 'Jami to‘lov summasi (so‘m):' : 'Summa (so‘m):',
+                          isSalary && _selectedUserIds.isNotEmpty ? 'Jami to‘lov miqdori (so‘m):' : 'To‘lov miqdori (so‘m):',
                           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
                         ),
                         if (isSalary && _selectedUserIds.isNotEmpty)
@@ -3232,7 +3350,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: const Text(
-                              'Individual summalar asosida',
+                              'Xodimlar hisobi bo‘yicha',
                               style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF10B981)),
                             ),
                           ),
@@ -3260,7 +3378,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                         filled: true,
                         fillColor: context.cardColor,
                         helperText: isSalary && _selectedUserIds.isNotEmpty
-                            ? 'Ushbu umumiy summa yuqoridagi xodimlar uchun kiritilgan summalar yig‘indisidan olinadi.'
+                            ? 'Ushbu to‘lov yuqoridagi xodimlar uchun kiritilgan hisoblar yig‘indisidan olinadi.'
                             : null,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: context.borderColor)),
                         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: context.borderColor)),

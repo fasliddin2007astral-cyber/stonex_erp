@@ -1561,6 +1561,8 @@ void main() {
 
     expect(find.text('Chiqim kiritish (Xarajat)'), findsOneWidget);
     expect(find.text('Barchasiga to‘liq oylik to‘lash'), findsOneWidget);
+    expect(find.text('Ishlagan haqini to‘lash'), findsOneWidget);
+    expect(find.textContaining('Ishlagani:'), findsWidgets);
 
     // 2. "Barchasiga to‘liq oylik to‘lash" tugmasini bosish
     await tester.tap(find.text('Barchasiga to‘liq oylik to‘lash'));
