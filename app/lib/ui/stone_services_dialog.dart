@@ -162,6 +162,11 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
   // Kesish va o'lchamlar uchun controllerlar
   // Bo'yi metr kvadratda (m2) metrda (m), metrda (meter) esa santimetrda (sm) kiritiladi.
   // Eni esa har doim metrda (m) kiritiladi va hisoblanadi.
+  // Kesiladigan mahsulot o'lchamlari (Kenglik sm va jami Uzunlik metr)
+  final _cutWidthCtrl = TextEditingController(text: '15'); // Kesiladigan kenglik (sm)
+  final _cutLengthCtrl = TextEditingController(text: '4.8'); // Kesiladigan jami uzunlik (m)
+  bool _isSyncingCutDimensions = false;
+
   final _lengthCtrl = TextEditingController(text: '1.2'); // Bo'yi (m) - boshlang'ich m2 uchun
   final _widthCtrl = TextEditingController(text: '0.6');   // Eni (m)
   final _piecesCtrl = TextEditingController(text: '1');
@@ -188,6 +193,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
   @override
   void initState() {
     super.initState();
+    _recalcFromCutWidth();
     if (widget.product != null) {
       _applyProduct(widget.product!, initial: true);
     }
@@ -316,6 +322,8 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
 
   @override
   void dispose() {
+    _cutWidthCtrl.dispose();
+    _cutLengthCtrl.dispose();
     _lengthCtrl.dispose();
     _widthCtrl.dispose();
     _piecesCtrl.dispose();
@@ -335,6 +343,68 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
   int _parsePieces() {
     final v = int.tryParse(_piecesCtrl.text.trim());
     return (v != null && v > 0) ? v : 1;
+  }
+
+  double get _effectiveLengthCm {
+    final raw = _parseVal(_lengthCtrl);
+    if (raw <= 0) return 0.0;
+    return raw < 20 ? (raw * 100.0) : raw;
+  }
+
+  /// 1 ta plitadan chiqadigan bo'laklar soni (10-lar xonasigacha yaxlitlangan)
+  double get _stripsCount {
+    final hSm = _effectiveLengthCm;
+    final cutWSm = _parseVal(_cutWidthCtrl);
+    if (hSm <= 0 || cutWSm <= 0) return 0.0;
+    final ratio = hSm / cutWSm;
+    return (ratio * 10).round() / 10.0;
+  }
+
+  String _formatNumber(double val) {
+    if (val <= 0) return '0';
+    return val % 1 == 0 ? val.toInt().toString() : val.toStringAsFixed(1);
+  }
+
+  void _recalcFromCutWidth() {
+    if (_isSyncingCutDimensions) return;
+    _isSyncingCutDimensions = true;
+    try {
+      final hSm = _effectiveLengthCm;
+      final cutWSm = _parseVal(_cutWidthCtrl);
+      final rawW = _parseVal(_widthCtrl);
+      final pieces = _parsePieces();
+
+      if (hSm > 0 && cutWSm > 0 && rawW > 0) {
+        final ratio = (hSm / cutWSm * 10).round() / 10.0;
+        final totalLengthM = ratio * rawW * pieces;
+        final roundedM = (totalLengthM * 100).round() / 100.0;
+        _cutLengthCtrl.text = roundedM % 1 == 0 ? roundedM.toInt().toString() : roundedM.toString();
+      }
+    } finally {
+      _isSyncingCutDimensions = false;
+    }
+  }
+
+  void _recalcFromCutLength() {
+    if (_isSyncingCutDimensions) return;
+    _isSyncingCutDimensions = true;
+    try {
+      final hSm = _effectiveLengthCm;
+      final rawW = _parseVal(_widthCtrl);
+      final totalLengthM = _parseVal(_cutLengthCtrl);
+      final pieces = _parsePieces();
+
+      if (hSm > 0 && rawW > 0 && totalLengthM > 0 && pieces > 0) {
+        final ratioNeeded = totalLengthM / (rawW * pieces);
+        if (ratioNeeded > 0) {
+          final cutWSm = hSm / ratioNeeded;
+          final roundedWSm = (cutWSm * 10).round() / 10.0;
+          _cutWidthCtrl.text = roundedWSm % 1 == 0 ? roundedWSm.toInt().toString() : roundedWSm.toString();
+        }
+      }
+    } finally {
+      _isSyncingCutDimensions = false;
+    }
   }
 
   double get _effectiveLengthM {
@@ -464,6 +534,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
   }
 
   void _adjustPieces(int delta) {
+    _recalcFromCutWidth();
     final cur = _parsePieces();
     final next = (cur + delta).clamp(1, 9999);
     _piecesCtrl.text = next.toString();
@@ -1132,7 +1203,92 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                             ),
                             const SizedBox(height: 14),
 
-                            // Bo'yi va Eni kiritish qatori (ikkala rejimda ham bo'yi va eni kiritiladi)
+                            // 1-Qator: Kesiladigan mahsulot o'lchamlari (Kenglik bo'yining tepasida, Uzunlik enining tepasida)
+                            Row(
+                              children: [
+                                // Kenglik (kesiladigan mahsulot kengligi, sm da) - Bo'yining tepasida
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Kenglik (kesiladigan):',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: context.mutedColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      TextField(
+                                        controller: _cutWidthCtrl,
+                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: context.inkColor),
+                                        decoration: InputDecoration(
+                                          filled: true,
+                                          fillColor: context.cardColor,
+                                          isDense: true,
+                                          hintText: '15',
+                                          suffixText: 'sm',
+                                          suffixStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5)),
+                                        ),
+                                        onChanged: (_) {
+                                          _recalcFromCutWidth();
+                                          setState(() {});
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+
+                                // Uzunlik (kesiladigan mahsulot jami uzunligi, m da) - Enining tepasida
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Uzunlik (kesiladigan):',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: context.mutedColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      TextField(
+                                        controller: _cutLengthCtrl,
+                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: context.inkColor),
+                                        decoration: InputDecoration(
+                                          filled: true,
+                                          fillColor: context.cardColor,
+                                          isDense: true,
+                                          hintText: '4.8',
+                                          suffixText: 'm',
+                                          suffixStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
+                                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5)),
+                                        ),
+                                        onChanged: (_) {
+                                          _recalcFromCutLength();
+                                          setState(() {});
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+
+                            // 2-Qator: Ishlatiladigan mahsulotning bo'yi va eni
                             Row(
                               children: [
                                 // Bo'yi (m2 rejimida metrda, metr rejimida sm da)
@@ -1165,6 +1321,7 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
                                         ),
                                         onChanged: (_) {
+                                          _recalcFromCutWidth();
                                           final lenM = _effectiveLengthM;
                                           if (lenM > 0) {
                                             final lenMStr = lenM % 1 == 0 ? lenM.toInt().toString() : lenM.toString();
@@ -1209,7 +1366,10 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
                                           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
                                         ),
-                                        onChanged: (_) => setState(() {}),
+                                        onChanged: (_) {
+                                          _recalcFromCutWidth();
+                                          setState(() {});
+                                        },
                                       ),
                                     ],
                                   ),
@@ -1217,7 +1377,35 @@ class _StoneServicesDialogState extends State<StoneServicesDialog> {
                               ],
                             ),
 
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 10),
+                            if (_stripsCount > 0)
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 10),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF14181F) : const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: context.borderColor.withValues(alpha: 0.8)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.architecture_rounded, size: 15, color: Color(0xFF10B981)),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        '1 ta plitadan: ${_effectiveLengthCm.toInt()} sm ÷ ${_cutWidthCtrl.text} sm = ${_formatNumber(_stripsCount)} ta bo‘lak × Eni (${_parseVal(_widthCtrl)} m) → ${_cutLengthCtrl.text} metr',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: context.inkColor,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             // Jonli hisob tafsiloti va o‘ng tomonda sonini kiritish qismi
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
