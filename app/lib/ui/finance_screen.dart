@@ -2807,40 +2807,38 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
             runSpacing: 6,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              // Barchasiga to'liq oylik to'lash tugmasi
-              FilledButton.icon(
-                onPressed: _payAllEmployeesFullSalary,
-                icon: const Icon(Icons.flash_on_rounded, size: 15),
-                label: const Text('Barchasiga to‘liq oylik to‘lash', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF10B981),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-              ),
-              // Barchasiga hozirgacha ishlagan haqini to'lash
+              // Barchasiga hozirgacha ishlagan / qoldiq haqini to'lash (Asosiy qulay tugma)
               FilledButton.icon(
                 onPressed: _payAllEmployeesEarnedSalary,
                 icon: const Icon(Icons.work_history_rounded, size: 15),
                 label: const Text('Ishlagan haqini to‘lash', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
                 style: FilledButton.styleFrom(
-                  backgroundColor: isDark ? const Color(0xFF065F46) : const Color(0xFF059669),
-                  foregroundColor: Colors.white,
+                  backgroundColor: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
+                  foregroundColor: isDark ? AppColors.ink : Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              // Barchasiga to'liq oylik to'lash tugmasi (Secondary)
+              OutlinedButton.icon(
+                onPressed: _payAllEmployeesFullSalary,
+                icon: const Icon(Icons.flash_on_rounded, size: 15),
+                label: const Text('Barchasiga to‘liq oylik to‘lash', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: context.inkColor,
+                  side: BorderSide(color: context.borderColor),
                   padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
               if (_selectedUserIds.isNotEmpty)
-                OutlinedButton.icon(
+                TextButton.icon(
                   onPressed: _clearEmployeeSelection,
                   icon: const Icon(Icons.close_rounded, size: 14),
                   label: const Text('Tozalash', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: context.mutedColor,
-                    side: BorderSide(color: context.borderColor),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.danger,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   ),
                 ),
             ],
@@ -2871,12 +2869,12 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
 
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: isSelected
                           ? (isDark ? const Color(0xFF1B2A23) : const Color(0xFFF0FDF4))
                           : (isDark ? const Color(0xFF1E232B) : Colors.white),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: isSelected
                             ? const Color(0xFF10B981)
@@ -2887,7 +2885,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Xodim ma'lumoti
+                        // 1. Xodim asosiy qatori (Avatar, Ism, Lavozim va Tanlash holati)
                         InkWell(
                           onTap: () {
                             setState(() {
@@ -2903,325 +2901,397 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                             _recalculateTotalFromEmployees();
                           },
                           borderRadius: BorderRadius.circular(8),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: Row(
-                              children: [
-                                Checkbox(
-                                  value: isSelected,
-                                  activeColor: const Color(0xFF10B981),
-                                  checkColor: Colors.white,
-                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  visualDensity: VisualDensity.compact,
-                                  onChanged: (val) {
-                                    setState(() {
-                                      if (val == true) {
-                                        _selectedUserIds.add(u.id);
-                                        if (_amountCtrl.text.isNotEmpty && _selectedUserIds.length == 1) {
-                                          ctrl.text = _amountCtrl.text;
-                                        }
-                                      } else {
-                                        _selectedUserIds.remove(u.id);
+                          child: Row(
+                            children: [
+                              Checkbox(
+                                value: isSelected,
+                                activeColor: const Color(0xFF10B981),
+                                checkColor: Colors.white,
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: VisualDensity.compact,
+                                onChanged: (val) {
+                                  setState(() {
+                                    if (val == true) {
+                                      _selectedUserIds.add(u.id);
+                                      if (_amountCtrl.text.isNotEmpty && _selectedUserIds.length == 1) {
+                                        ctrl.text = _amountCtrl.text;
                                       }
-                                    });
-                                    _recalculateTotalFromEmployees();
-                                  },
-                                ),
-                                const SizedBox(width: 4),
-                                CircleAvatar(
-                                  radius: 13,
-                                  backgroundColor: isSelected
-                                      ? const Color(0xFF10B981).withValues(alpha: 0.25)
-                                      : (isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0)),
-                                  child: Text(
-                                    u.fullName.isNotEmpty ? u.fullName[0].toUpperCase() : '?',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      color: isSelected ? const Color(0xFF10B981) : context.inkColor,
-                                    ),
+                                    } else {
+                                      _selectedUserIds.remove(u.id);
+                                    }
+                                  });
+                                  _recalculateTotalFromEmployees();
+                                },
+                              ),
+                              const SizedBox(width: 4),
+                              CircleAvatar(
+                                radius: 14,
+                                backgroundColor: isSelected
+                                    ? const Color(0xFF10B981).withValues(alpha: 0.25)
+                                    : (isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0)),
+                                child: Text(
+                                  u.fullName.isNotEmpty ? u.fullName[0].toUpperCase() : '?',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: isSelected ? const Color(0xFF10B981) : context.inkColor,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            u.fullName,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+                                              color: context.inkColor,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                          decoration: BoxDecoration(
+                                            color: isDark ? const Color(0xFF2D3748) : const Color(0xFFF1F5F9),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            u.role.label,
+                                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: context.mutedColor),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 1),
+                                    Text(
+                                      u.salary > 0 ? 'Stavka: ${money(u.salary)} / oy' : 'Stavka belgilanmagan',
+                                      style: TextStyle(fontSize: 10.5, color: context.mutedColor, fontWeight: FontWeight.w500),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              if (!isSelected)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF2D3748) : const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '+ Tanlash',
+                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.inkColor),
+                                  ),
+                                )
+                              else
+                                const Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 18,
+                                  color: Color(0xFF10B981),
+                                ),
+                            ],
+                          ),
+                        ),
+
+                        // 2. Aniq 3 ustunli moliyaviy hisobot paneli (Yozuvlar aralashib ketmaydi!)
+                        Container(
+                          margin: const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF14181F) : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: context.borderColor.withValues(alpha: 0.6)),
+                          ),
+                          child: Row(
+                            children: [
+                              // 1-ustun: Ishlagani
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Ishlagani: ($daysWorked kun)',
+                                      style: TextStyle(fontSize: 9.5, color: context.mutedColor, fontWeight: FontWeight.w600),
+                                    ),
+                                    const SizedBox(height: 1),
+                                    Text(
+                                      money(earned),
+                                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: context.inkColor),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(width: 1, height: 24, color: context.borderColor.withValues(alpha: 0.7)),
+                              // 2-ustun: To'langan (Avans)
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        u.fullName,
-                                        style: TextStyle(
-                                          fontSize: 12.5,
-                                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
-                                          color: context.inkColor,
-                                        ),
+                                        'To‘langan',
+                                        style: TextStyle(fontSize: 9.5, color: context.mutedColor, fontWeight: FontWeight.w600),
                                       ),
-                                      const SizedBox(height: 2),
-                                      Wrap(
-                                        spacing: 6,
-                                        runSpacing: 4,
-                                        crossAxisAlignment: WrapCrossAlignment.center,
-                                        children: [
-                                          Text(
-                                            '${u.role.label} · Oylik: ${u.salary > 0 ? money(u.salary) : "belgilanmagan"}',
-                                            style: TextStyle(fontSize: 10.5, color: context.mutedColor),
-                                          ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                            decoration: BoxDecoration(
-                                              color: isDark ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7),
-                                              borderRadius: BorderRadius.circular(5),
-                                              border: Border.all(
-                                                color: isDark ? const Color(0xFF059669) : const Color(0xFF86EFAC),
-                                                width: 0.8,
-                                              ),
-                                            ),
-                                            child: Text(
-                                              'Ishlagani: ${money(earned)} ($daysWorked kun)',
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w800,
-                                                color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
-                                              ),
-                                            ),
-                                          ),
-                                          if (paid > 0)
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                              decoration: BoxDecoration(
-                                                color: isDark ? const Color(0xFF1E3A8A) : const Color(0xFFDBEAFE),
-                                                borderRadius: BorderRadius.circular(5),
-                                                border: Border.all(
-                                                  color: isDark ? const Color(0xFF3B82F6) : const Color(0xFF93C5FD),
-                                                  width: 0.8,
-                                                ),
-                                              ),
-                                              child: Text(
-                                                'To‘langan: ${money(paid)}',
-                                                style: TextStyle(
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
-                                                ),
-                                              ),
-                                            ),
-                                          if (paid > 0)
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                              decoration: BoxDecoration(
-                                                color: isDark
-                                                    ? (remaining > 0 ? const Color(0xFF064E3B) : const Color(0xFF374151))
-                                                    : (remaining > 0 ? const Color(0xFFDCFCE7) : const Color(0xFFF3F4F6)),
-                                                borderRadius: BorderRadius.circular(5),
-                                              ),
-                                              child: Text(
-                                                remaining > 0 ? 'Qoldiq: ${money(remaining)}' : 'To‘liq to‘langan',
-                                                style: TextStyle(
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: remaining > 0
-                                                      ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
-                                                      : context.mutedColor,
-                                                ),
-                                              ),
-                                            ),
-                                        ],
+                                      const SizedBox(height: 1),
+                                      Text(
+                                        paid > 0 ? money(paid) : '0 so‘m',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: paid > 0 ? (isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB)) : context.mutedColor,
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
-                                if (!isSelected)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF2D3748) : const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      '+ Tanlash',
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.inkColor),
-                                    ),
-                                  )
-                                else
-                                  const Icon(
-                                    Icons.check_circle_rounded,
-                                    size: 16,
-                                    color: Color(0xFF10B981),
+                              ),
+                              Container(width: 1, height: 24, color: context.borderColor.withValues(alpha: 0.7)),
+                              // 3-ustun: Qoldiq maosh
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(left: 8),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Qoldiq',
+                                        style: TextStyle(fontSize: 9.5, color: context.mutedColor, fontWeight: FontWeight.w600),
+                                      ),
+                                      const SizedBox(height: 1),
+                                      Text(
+                                        remaining > 0 ? money(remaining) : (paid > 0 ? 'To‘liq to‘langan' : '0 so‘m'),
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w900,
+                                          color: remaining > 0
+                                              ? (isDark ? AppColors.neonLime : const Color(0xFF16A34A))
+                                              : (paid > 0 ? const Color(0xFF10B981) : context.mutedColor),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                              ],
-                            ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
 
-                        // Agar tanlangan bo'lsa: Alohida oylik kiritish maydoni
+                        // 3. Agar tanlangan bo'lsa: Qulay to'lov va tezkor tanlash maydoni
                         if (isSelected) ...[
                           const SizedBox(height: 8),
                           Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF14181F) : const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(8),
+                              color: isDark ? const Color(0xFF13171E) : Colors.white,
+                              borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0),
+                                color: isDark ? const Color(0xFF2D3748) : const Color(0xFFCBD5E1),
                               ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
                             ),
-                            child: Wrap(
-                              spacing: 8,
-                              runSpacing: 6,
-                              crossAxisAlignment: WrapCrossAlignment.center,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                Text(
-                                  'To‘lov / Avans:',
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: context.inkColor,
-                                  ),
+                                // Qator 1: To'lov miqdorini kiritish
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.payments_rounded,
+                                      size: 16,
+                                      color: isDark ? AppColors.neonLime : const Color(0xFF10B981),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'To‘lov / Avans summasi:',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: context.inkColor,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    SizedBox(
+                                      width: 145,
+                                      height: 35,
+                                      child: TextField(
+                                        controller: ctrl,
+                                        keyboardType: TextInputType.number,
+                                        textAlign: TextAlign.end,
+                                        style: TextStyle(
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w900,
+                                          color: context.inkColor,
+                                        ),
+                                        decoration: InputDecoration(
+                                          isDense: true,
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                          suffixText: "so'm",
+                                          suffixStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.mutedColor),
+                                          hintText: remaining > 0 ? money(remaining) : (earned > 0 ? money(earned) : "0"),
+                                          filled: true,
+                                          fillColor: isDark ? const Color(0xFF1E232B) : const Color(0xFFF8FAFC),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                            borderSide: BorderSide(color: context.borderColor),
+                                          ),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                            borderSide: BorderSide(color: context.borderColor),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                            borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                                          ),
+                                        ),
+                                        onChanged: (val) => _recalculateTotalFromEmployees(),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                SizedBox(
-                                  width: 135,
-                                  height: 34,
-                                  child: TextField(
-                                    controller: ctrl,
-                                    keyboardType: TextInputType.number,
-                                    textAlign: TextAlign.end,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w900,
-                                      color: context.inkColor,
-                                    ),
-                                    decoration: InputDecoration(
-                                      isDense: true,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-                                      suffixText: "so'm",
-                                      suffixStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.mutedColor),
-                                      hintText: remaining > 0 ? money(remaining) : (earned > 0 ? money(earned) : "0"),
-                                      filled: true,
-                                      fillColor: isDark ? const Color(0xFF1E232B) : Colors.white,
-                                      border: OutlineInputBorder(
+                                const SizedBox(height: 8),
+
+                                // Qator 2: Tezkor tugmalar (Presets)
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    if (remaining > 0)
+                                      InkWell(
+                                        onTap: () {
+                                          ctrl.text = remaining.toInt().toString();
+                                          _recalculateTotalFromEmployees();
+                                        },
                                         borderRadius: BorderRadius.circular(6),
-                                        borderSide: BorderSide(color: context.borderColor),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF10B981).withValues(alpha: 0.16),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.check_rounded, size: 12, color: Color(0xFF10B981)),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Qoldiq (${money(remaining)})',
+                                                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF10B981)),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
-                                      enabledBorder: OutlineInputBorder(
+                                    if (earned > 0 && earned != remaining)
+                                      InkWell(
+                                        onTap: () {
+                                          ctrl.text = earned.toInt().toString();
+                                          _recalculateTotalFromEmployees();
+                                        },
                                         borderRadius: BorderRadius.circular(6),
-                                        borderSide: BorderSide(color: context.borderColor),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
+                                          ),
+                                          child: const Text('Ishlagan haqi', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF3B82F6))),
+                                        ),
                                       ),
-                                      focusedBorder: OutlineInputBorder(
+                                    if (u.salary > 0) ...[
+                                      InkWell(
+                                        onTap: () {
+                                          ctrl.text = (u.salary * 0.5).toInt().toString();
+                                          _recalculateTotalFromEmployees();
+                                        },
                                         borderRadius: BorderRadius.circular(6),
-                                        borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
+                                          ),
+                                          child: const Text('50% avans', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF6366F1))),
+                                        ),
                                       ),
-                                    ),
-                                    onChanged: (val) => _recalculateTotalFromEmployees(),
-                                  ),
-                                ),
-                                if (remaining > 0)
-                                  InkWell(
-                                    onTap: () {
-                                      ctrl.text = remaining.toInt().toString();
-                                      _recalculateTotalFromEmployees();
-                                    },
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF10B981).withValues(alpha: 0.18),
+                                      InkWell(
+                                        onTap: () {
+                                          ctrl.text = u.salary.toInt().toString();
+                                          _recalculateTotalFromEmployees();
+                                        },
                                         borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color: isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: const Text('To‘liq stavka', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800)),
+                                        ),
                                       ),
-                                      child: Text(
-                                        'Qoldiq (${money(remaining)})',
-                                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF10B981)),
-                                      ),
-                                    ),
-                                  ),
-                                if (earned > 0 && earned != remaining)
-                                  InkWell(
-                                    onTap: () {
-                                      ctrl.text = earned.toInt().toString();
-                                      _recalculateTotalFromEmployees();
-                                    },
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
-                                      ),
-                                      child: const Text('Ishlagan haqi', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF3B82F6))),
-                                    ),
-                                  ),
-                                InkWell(
-                                  onTap: () {
-                                    final currentVal = int.tryParse(ctrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-                                    ctrl.text = (currentVal + 500000).toString();
-                                    _recalculateTotalFromEmployees();
-                                  },
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-                                    decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0),
+                                    ],
+                                    InkWell(
+                                      onTap: () {
+                                        final currentVal = int.tryParse(ctrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+                                        ctrl.text = (currentVal + 500000).toString();
+                                        _recalculateTotalFromEmployees();
+                                      },
                                       borderRadius: BorderRadius.circular(6),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? const Color(0xFF2D3748) : const Color(0xFFF1F5F9),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: context.borderColor),
+                                        ),
+                                        child: const Text('+500 ming', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700)),
+                                      ),
                                     ),
-                                    child: const Text('+500 ming', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800)),
-                                  ),
-                                ),
-                                InkWell(
-                                  onTap: () {
-                                    final currentVal = int.tryParse(ctrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-                                    ctrl.text = (currentVal + 1000000).toString();
-                                    _recalculateTotalFromEmployees();
-                                  },
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-                                    decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0),
+                                    InkWell(
+                                      onTap: () {
+                                        final currentVal = int.tryParse(ctrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+                                        ctrl.text = (currentVal + 1000000).toString();
+                                        _recalculateTotalFromEmployees();
+                                      },
                                       borderRadius: BorderRadius.circular(6),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? const Color(0xFF2D3748) : const Color(0xFFF1F5F9),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: context.borderColor),
+                                        ),
+                                        child: const Text('+1 mln', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700)),
+                                      ),
                                     ),
-                                    child: const Text('+1 mln', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800)),
-                                  ),
+                                  ],
                                 ),
-                                if (u.salary > 0) ...[
-                                  InkWell(
-                                    onTap: () {
-                                      ctrl.text = u.salary.toInt().toString();
-                                      _recalculateTotalFromEmployees();
-                                    },
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-                                      decoration: BoxDecoration(
-                                        color: isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Text('To‘liq stavka', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800)),
-                                    ),
-                                  ),
-                                  InkWell(
-                                    onTap: () {
-                                      ctrl.text = (u.salary * 0.5).toInt().toString();
-                                      _recalculateTotalFromEmployees();
-                                    },
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Text('50% avans', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF3B82F6))),
-                                    ),
-                                  ),
-                                ],
                               ],
                             ),
                           ),
                         ],
                       ],
                     ),
-                  );
-                },
+                  );                },
               ),
             ),
 
