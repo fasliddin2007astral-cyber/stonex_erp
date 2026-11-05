@@ -2462,6 +2462,19 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
     return ((earned / 1000).round() * 1000).toDouble();
   }
 
+  double getPaidSoFar(AppUser u) {
+    final rep = _salaryReportMap[u.id];
+    return rep?.paidAmount ?? 0.0;
+  }
+
+  double getRemainingSoFar(AppUser u) {
+    final rep = _salaryReportMap[u.id];
+    if (rep != null) {
+      return rep.remainingSalary;
+    }
+    return getEarnedSoFar(u);
+  }
+
   int getDaysWorkedSoFar(AppUser u) {
     final rep = _salaryReportMap[u.id];
     if (rep != null && rep.daysWorked > 0) {
@@ -2484,8 +2497,8 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
       for (final u in _employees) {
         _selectedUserIds.add(u.id);
         final ctrl = _getEmployeeCtrl(u);
-        final earned = getEarnedSoFar(u);
-        ctrl.text = earned > 0 ? earned.toInt().toString() : (u.salary > 0 ? u.salary.toInt().toString() : '0');
+        final rem = getRemainingSoFar(u);
+        ctrl.text = rem > 0 ? rem.toInt().toString() : '0';
       }
     });
     _recalculateTotalFromEmployees();
@@ -2542,7 +2555,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
     }
 
     if (widget.autoPayAll) {
-      _payAllEmployeesFullSalary();
+      _payAllEmployeesEarnedSalary();
     } else if (widget.initialUserId != null) {
       _selectedUserIds.clear();
       for (final u in _employees) {
@@ -2552,8 +2565,8 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
           if (widget.initialAmount != null && widget.initialAmount! > 0) {
             ctrl.text = widget.initialAmount!.toInt().toString();
           } else {
-            final earned = getEarnedSoFar(u);
-            ctrl.text = earned > 0 ? earned.toInt().toString() : (u.salary > 0 ? u.salary.toInt().toString() : '0');
+            final rem = getRemainingSoFar(u);
+            ctrl.text = rem > 0 ? rem.toInt().toString() : '';
           }
           break;
         }
@@ -2643,9 +2656,10 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
         for (final item in itemsToPay) {
           final user = item.$1;
           final empAmount = item.$2;
+          final mStr = '${_date.year}-${_date.month.toString().padLeft(2, '0')}';
           final note = customNote.isEmpty
-              ? 'Ish haqi: ${user.fullName} (${user.role.label})'
-              : 'Ish haqi: ${user.fullName} — $customNote';
+              ? 'Ish haqi / Avans: ${user.fullName} ($mStr)'
+              : 'Ish haqi / Avans: ${user.fullName} ($mStr) — $customNote';
 
           await repos.finance.addTransaction(
             FinanceTransaction(
@@ -2852,6 +2866,8 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                   final ctrl = _getEmployeeCtrl(u);
                   final earned = getEarnedSoFar(u);
                   final daysWorked = getDaysWorkedSoFar(u);
+                  final paid = getPaidSoFar(u);
+                  final remaining = getRemainingSoFar(u);
 
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
@@ -2968,6 +2984,46 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                                               ),
                                             ),
                                           ),
+                                          if (paid > 0)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                              decoration: BoxDecoration(
+                                                color: isDark ? const Color(0xFF1E3A8A) : const Color(0xFFDBEAFE),
+                                                borderRadius: BorderRadius.circular(5),
+                                                border: Border.all(
+                                                  color: isDark ? const Color(0xFF3B82F6) : const Color(0xFF93C5FD),
+                                                  width: 0.8,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                'To‘langan: ${money(paid)}',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
+                                                ),
+                                              ),
+                                            ),
+                                          if (paid > 0)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                              decoration: BoxDecoration(
+                                                color: isDark
+                                                    ? (remaining > 0 ? const Color(0xFF064E3B) : const Color(0xFF374151))
+                                                    : (remaining > 0 ? const Color(0xFFDCFCE7) : const Color(0xFFF3F4F6)),
+                                                borderRadius: BorderRadius.circular(5),
+                                              ),
+                                              child: Text(
+                                                remaining > 0 ? 'Qoldiq: ${money(remaining)}' : 'To‘liq to‘langan',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: remaining > 0
+                                                      ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
+                                                      : context.mutedColor,
+                                                ),
+                                              ),
+                                            ),
                                         ],
                                       ),
                                     ],
@@ -3014,7 +3070,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                               crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
                                 Text(
-                                  'To‘lov:',
+                                  'To‘lov / Avans:',
                                   style: TextStyle(
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.w700,
@@ -3022,7 +3078,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                                   ),
                                 ),
                                 SizedBox(
-                                  width: 125,
+                                  width: 135,
                                   height: 34,
                                   child: TextField(
                                     controller: ctrl,
@@ -3038,7 +3094,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                                       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
                                       suffixText: "so'm",
                                       suffixStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.mutedColor),
-                                      hintText: earned > 0 ? money(earned) : (u.salary > 0 ? money(u.salary) : "0"),
+                                      hintText: remaining > 0 ? money(remaining) : (earned > 0 ? money(earned) : "0"),
                                       filled: true,
                                       fillColor: isDark ? const Color(0xFF1E232B) : Colors.white,
                                       border: OutlineInputBorder(
@@ -3057,10 +3113,10 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                                     onChanged: (val) => _recalculateTotalFromEmployees(),
                                   ),
                                 ),
-                                if (earned > 0)
+                                if (remaining > 0)
                                   InkWell(
                                     onTap: () {
-                                      ctrl.text = earned.toInt().toString();
+                                      ctrl.text = remaining.toInt().toString();
                                       _recalculateTotalFromEmployees();
                                     },
                                     borderRadius: BorderRadius.circular(6),
@@ -3071,9 +3127,61 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                                         borderRadius: BorderRadius.circular(6),
                                         border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
                                       ),
-                                      child: const Text('Ishlagan haqi', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF10B981))),
+                                      child: Text(
+                                        'Qoldiq (${money(remaining)})',
+                                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF10B981)),
+                                      ),
                                     ),
                                   ),
+                                if (earned > 0 && earned != remaining)
+                                  InkWell(
+                                    onTap: () {
+                                      ctrl.text = earned.toInt().toString();
+                                      _recalculateTotalFromEmployees();
+                                    },
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
+                                      ),
+                                      child: const Text('Ishlagan haqi', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF3B82F6))),
+                                    ),
+                                  ),
+                                InkWell(
+                                  onTap: () {
+                                    final currentVal = int.tryParse(ctrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+                                    ctrl.text = (currentVal + 500000).toString();
+                                    _recalculateTotalFromEmployees();
+                                  },
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Text('+500 ming', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800)),
+                                  ),
+                                ),
+                                InkWell(
+                                  onTap: () {
+                                    final currentVal = int.tryParse(ctrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+                                    ctrl.text = (currentVal + 1000000).toString();
+                                    _recalculateTotalFromEmployees();
+                                  },
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Text('+1 mln', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800)),
+                                  ),
+                                ),
                                 if (u.salary > 0) ...[
                                   InkWell(
                                     onTap: () {
@@ -3087,7 +3195,7 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                                         color: isDark ? const Color(0xFF2D3748) : const Color(0xFFE2E8F0),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
-                                      child: const Text('To‘liq', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800)),
+                                      child: const Text('To‘liq stavka', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800)),
                                     ),
                                   ),
                                   InkWell(

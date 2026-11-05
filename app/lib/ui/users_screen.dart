@@ -1796,6 +1796,8 @@ class _UsersScreenState extends State<UsersScreen> {
         final totalNet = reports.fold(0.0, (sum, r) => sum + r.netSalary);
         final totalBase = reports.fold(0.0, (sum, r) => sum + r.baseSalary);
         final totalCalculated = reports.fold(0.0, (sum, r) => sum + r.calculatedSalary);
+        final totalPaid = reports.fold(0.0, (sum, r) => sum + r.paidAmount);
+        final totalRemaining = reports.fold(0.0, (sum, r) => sum + r.remainingSalary);
         final totalDeductions = reports.fold(0.0, (sum, r) => sum + r.deduction);
         final lateCount = reports.where((r) => r.daysLate > 0).length;
 
@@ -2050,8 +2052,8 @@ class _UsersScreenState extends State<UsersScreen> {
                   final kpiList = [
                     _KpiItem(
                       label: 'Jami Sof Oylik',
-                      value: money(totalNet),
-                      subtext: 'To‘lanadigan yakuniy hisob',
+                      value: money(totalRemaining > 0 ? totalRemaining : totalNet),
+                      subtext: totalPaid > 0 ? 'Qoldiq: ${money(totalRemaining)} (${money(totalPaid)} to‘langan)' : 'To‘lanadigan yakuniy hisob',
                       icon: Icons.payments_rounded,
                       color: AppColors.green,
                     ),
@@ -2435,11 +2437,11 @@ class _UsersScreenState extends State<UsersScreen> {
               ),
               const SizedBox(width: 12),
 
-              // To'lanadigan sof maosh
+              // To'lanadigan sof maosh / Qoldiq
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  if (r.isPaid) ...[
+                  if (r.remainingSalary <= 0 && r.paidAmount > 0) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
                       decoration: BoxDecoration(
@@ -2453,7 +2455,7 @@ class _UsersScreenState extends State<UsersScreen> {
                           Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF10B981)),
                           SizedBox(width: 4),
                           Text(
-                            'To‘langan',
+                            'To‘liq to‘langan',
                             style: TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w900,
@@ -2465,12 +2467,12 @@ class _UsersScreenState extends State<UsersScreen> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '0 so‘m (To‘langan)',
+                      'To‘langan: ${money(r.paidAmount)}',
                       style: TextStyle(fontSize: 11, color: context.mutedColor, fontWeight: FontWeight.w700),
                     ),
                   ] else ...[
                     Text(
-                      money(r.netSalary),
+                      money(r.remainingSalary > 0 ? r.remainingSalary : r.netSalary),
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 18,
@@ -2481,6 +2483,11 @@ class _UsersScreenState extends State<UsersScreen> {
                       'To‘lanadigan sof maosh',
                       style: TextStyle(fontSize: 10, color: context.mutedColor, fontWeight: FontWeight.w600),
                     ),
+                    if (r.paidAmount > 0)
+                      Text(
+                        'Qoldiq: ${money(r.remainingSalary)} · To‘langan: ${money(r.paidAmount)}',
+                        style: const TextStyle(fontSize: 10, color: Color(0xFF0284C7), fontWeight: FontWeight.w700),
+                      ),
                   ],
                 ],
               ),
@@ -2526,7 +2533,7 @@ class _UsersScreenState extends State<UsersScreen> {
                       ],
                     ),
 
-                    // Ishlagani (To'langandan keyin 0 ga tushadi)
+                    // Ishlagani
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -2537,18 +2544,70 @@ class _UsersScreenState extends State<UsersScreen> {
                           style: TextStyle(fontSize: 11.5, color: context.mutedColor, fontWeight: FontWeight.w600),
                         ),
                         Text(
-                          r.isPaid ? '0 so‘m (To‘langan)' : money(r.calculatedSalary),
+                          money(r.calculatedSalary),
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
-                            color: r.isPaid ? const Color(0xFF10B981) : context.inkColor,
+                            color: context.inkColor,
                           ),
                         ),
                       ],
                     ),
 
+                    // To'langan (Avans) agar mavjud bo'lsa
+                    if (r.paidAmount > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.credit_card_rounded, size: 13, color: Color(0xFF3B82F6)),
+                            const SizedBox(width: 4),
+                            Text(
+                              'To‘langan: ${money(r.paidAmount)}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF2563EB),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Qoldiq agar to'lovlar mavjud bo'lsa
+                    if (r.paidAmount > 0 && r.remainingSalary > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.hourglass_bottom_rounded, size: 13, color: Color(0xFF10B981)),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Qoldiq: ${money(r.remainingSalary)}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF059669),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     // Qo'shimcha ish haqi (Overtime bonus)
-                    if (r.bonus > 0 && !r.isPaid)
+                    if (r.bonus > 0)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
@@ -2574,7 +2633,7 @@ class _UsersScreenState extends State<UsersScreen> {
                       ),
 
                     // Kechikish / Jarima holati (0 bo'lsa -0 ko'rsatmaydi)
-                    if (r.daysLate > 0 && !r.isPaid)
+                    if (r.daysLate > 0)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
@@ -2600,7 +2659,7 @@ class _UsersScreenState extends State<UsersScreen> {
                           ],
                         ),
                       )
-                    else if (!r.isPaid)
+                    else
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
@@ -2644,9 +2703,12 @@ class _UsersScreenState extends State<UsersScreen> {
           ),
           const SizedBox(height: 12),
 
-          // 3-Qator: Amallar tugmalari (Davomat kunlari va To'lov qilish)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+          // 3-Qator: Amallar tugmalari (Davomat kunlari, Qoldiq to'lash, va Avans berish)
+          Wrap(
+            alignment: WrapAlignment.end,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 6,
             children: [
               // Davomat tafsilotlari (kunlar)
               OutlinedButton.icon(
@@ -2663,30 +2725,9 @@ class _UsersScreenState extends State<UsersScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
-              const SizedBox(width: 8),
 
-              // To'lov qilish tugmasi yoki To'langan ko'rsatkichi
-              if (r.isPaid)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.check_circle_rounded, size: 15, color: Color(0xFF10B981)),
-                      SizedBox(width: 6),
-                      Text(
-                        'To‘langan',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF10B981)),
-                      ),
-                    ],
-                  ),
-                )
-              else
+              // Qoldiq bo'lsa yoki to'lanmagan bo'lsa: Oylik to'lash tugmasi
+              if (r.remainingSalary > 0 || !r.isPaid)
                 FilledButton.icon(
                   onPressed: () async {
                     final ok = await FinanceTransactionDialog.show(
@@ -2694,7 +2735,9 @@ class _UsersScreenState extends State<UsersScreen> {
                       initialCategory: 'Ish haqi / Avans',
                       initialType: 'expense',
                       initialUserId: r.userId,
-                      initialAmount: r.netSalary > 0 ? r.netSalary : r.calculatedSalary,
+                      initialAmount: r.remainingSalary > 0
+                          ? r.remainingSalary
+                          : (r.netSalary > 0 ? r.netSalary : r.calculatedSalary),
                     );
                     if (ok == true && mounted) {
                       showMessage(context, '✓ ${r.fullName} uchun oylik to‘lovi moliya bo‘limiga saqlandi');
@@ -2713,6 +2756,38 @@ class _UsersScreenState extends State<UsersScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
+
+              // Har doim: Qo'lda avans kiritish yoki qo'shimcha to'lash tugmasi (HECH QACHON BLOKLANMAYDI!)
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final ok = await FinanceTransactionDialog.show(
+                    context,
+                    initialCategory: 'Ish haqi / Avans',
+                    initialType: 'expense',
+                    initialUserId: r.userId,
+                    initialAmount: null, // foydalanuvchi xohlagan summani qo'lda kiritadi
+                  );
+                  if (ok == true && mounted) {
+                    showMessage(context, '✓ ${r.fullName} uchun to‘lov saqlandi');
+                    _reloadSalary();
+                  }
+                },
+                icon: const Icon(Icons.add_card_rounded, size: 14),
+                label: Text(
+                  r.remainingSalary <= 0 ? '+ Avans berish (Qo‘lda)' : '+ Avans',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
+                  side: BorderSide(
+                    color: isDark
+                        ? AppColors.neonLime.withValues(alpha: 0.5)
+                        : const Color(0xFF0284C7).withValues(alpha: 0.5),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
             ],
           ),
         ],

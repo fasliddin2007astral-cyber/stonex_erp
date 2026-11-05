@@ -31,8 +31,8 @@ _shift_config = {
     "auto_checkout": True,
 }
 
-# To'langan oyliklar to'plami (in-memory + expense sinxronizatsiyasi)
-_paid_salaries: set[str] = set()  # "user_id:YYYY-MM"
+# To'langan oyliklar to'plami va summalari (in-memory + expense sinxronizatsiyasi)
+_paid_salaries: dict[str, Decimal] = {}  # "user_id:YYYY-MM" -> Decimal(amount)
 
 
 def _today_str() -> str:
@@ -399,7 +399,7 @@ def pay_salary(
         raise HTTPException(404, "Xodim topilmadi")
 
     key = f"{data.user_id}:{data.month}"
-    _paid_salaries.add(key)
+    _paid_salaries[key] = _paid_salaries.get(key, Decimal(0)) + data.amount
 
     # Chiqimlar jurnaliga qayd etish
     exp = Expense(
@@ -407,7 +407,7 @@ def pay_salary(
         category="Ish haqi / Avans",
         amount=data.amount,
         payment_method="cash",
-        note=f"Oylik to‘lovi: {u.full_name} ({data.month})",
+        note=data.note or f"Oylik / Avans to‘lovi: {u.full_name} ({data.month})",
         created_by=current_user.id,
     )
     db.add(exp)
@@ -452,21 +452,18 @@ def get_salary_report(
         base_sal = u.salary or Decimal(0)
         sal_type = u.salary_type or "monthly"
 
-        # Oylik to'langanligini tekshirish
+        # Oylik to'langanligini tekshirish (jami to'langan summa)
         pay_key = f"{u.id}:{month}"
-        is_paid = pay_key in _paid_salaries
-        if not is_paid:
-            # Expense jurnalida qayd etilganligini tekshirish
-            matching_exp = db.scalar(
-                select(Expense).where(
-                    Expense.type == "expense",
-                    Expense.category.ilike("%ish haqi%"),
-                    Expense.note.ilike(f"%{u.full_name}%({month})%"),
-                )
+        paid_expenses = db.scalars(
+            select(Expense).where(
+                Expense.type == "expense",
+                Expense.category.ilike("%ish haqi%"),
+                Expense.note.ilike(f"%{u.full_name}%({month})%"),
             )
-            if matching_exp:
-                is_paid = True
-                _paid_salaries.add(pay_key)
+        ).all()
+        expense_paid = sum((e.amount for e in paid_expenses), Decimal(0))
+        mem_paid = _paid_salaries.get(pay_key, Decimal(0))
+        paid_amount = max(expense_paid, mem_paid)
 
         # Stavka bo'yicha stavka koeffitsientlari
         if total_working_days > 0:
@@ -532,13 +529,8 @@ def get_salary_report(
             bonus = Decimal(str(round(float(total_overtime_hours * hourly_rate), 2)))
             net = max(Decimal(0), calc_sal + bonus - deduction)
 
-        # Oylik to'langandan keyin ishlagan qismi va to'lanadigan qismi 0 ga tushadi!
-        if is_paid:
-            final_calc = Decimal(0)
-            final_net = Decimal(0)
-        else:
-            final_calc = calc_sal
-            final_net = net
+        remaining_salary = max(Decimal(0), net - paid_amount)
+        is_paid = (paid_amount >= net and net > 0) or (paid_amount > 0 and remaining_salary == 0)
 
         report.append(
             SalaryReportItem(
@@ -550,10 +542,12 @@ def get_salary_report(
                 days_worked=days_worked,
                 hours_worked=hours_worked,
                 days_late=days_late,
-                calculated_salary=final_calc,
+                calculated_salary=calc_sal,
                 bonus=bonus,
                 deduction=deduction,
-                net_salary=final_net,
+                net_salary=net,
+                paid_amount=paid_amount,
+                remaining_salary=remaining_salary,
                 is_paid=is_paid,
             )
         )

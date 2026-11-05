@@ -20,7 +20,7 @@ class MockStore {
   int nextId = 100;
   int nextUserId = 10;
   int nextAttendanceId = 100;
-  final Set<String> paidSalaries = {}; // "userId_YYYY-MM"
+  final Map<String, double> paidSalaries = {}; // "userId_YYYY-MM" -> to'langan jami summa
 
   final List<Product> products = [
     const Product(id: 1, name: 'Angola', category: 'Granit', qrCode: 'STX-ANGOLA', unit: 'm2', donaM2: 0.25, price: 180000, costPrice: 120000, stock: 200, imageUrl: 'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?w=600&auto=format&fit=crop&q=80'),
@@ -1591,7 +1591,8 @@ class MockAttendanceRepository implements AttendanceRepository {
       final hoursWorked = worked.fold(0.0, (sum, a) => sum + a.workedHours);
       final daysLate = uList.where((a) => a.status == 'late').length;
 
-      final isPaid = _s.paidSalaries.contains('${u.id}_$month');
+      final payKey = '${u.id}_$month';
+      final paidAmount = _s.paidSalaries[payKey] ?? 0.0;
 
       final baseSal = u.salary;
       final dayRate = totalWorkingDays > 0 ? (baseSal / totalWorkingDays) : 0.0;
@@ -1635,10 +1636,8 @@ class MockAttendanceRepository implements AttendanceRepository {
       }
 
       final rawNet = (calculated + bonus - deduction).clamp(0.0, double.infinity);
-
-      // Oylik to'langandan keyin ishlagan qismi va to'lanadigan qismi 0 ga tushadi!
-      final finalCalc = isPaid ? 0.0 : calculated;
-      final finalNet = isPaid ? 0.0 : rawNet;
+      final remainingSalary = (rawNet - paidAmount).clamp(0.0, double.infinity);
+      final isPaid = (paidAmount >= rawNet && rawNet > 0) || (paidAmount > 0 && remainingSalary == 0);
 
       reportItems.add(SalaryReportItem(
         userId: u.id,
@@ -1649,10 +1648,12 @@ class MockAttendanceRepository implements AttendanceRepository {
         daysWorked: daysWorked > 0 ? daysWorked : totalWorkingDays,
         hoursWorked: hoursWorked > 0 ? hoursWorked : (totalWorkingDays * 8.0),
         daysLate: daysLate,
-        calculatedSalary: finalCalc,
-        bonus: isPaid ? 0.0 : bonus,
-        deduction: isPaid ? 0.0 : deduction,
-        netSalary: finalNet,
+        calculatedSalary: calculated,
+        bonus: bonus,
+        deduction: deduction,
+        netSalary: rawNet,
+        paidAmount: paidAmount,
+        remainingSalary: remainingSalary,
         isPaid: isPaid,
       ));
     }
@@ -1661,7 +1662,8 @@ class MockAttendanceRepository implements AttendanceRepository {
 
   @override
   Future<void> paySalary(int userId, String month, double amount) async {
-    _s.paidSalaries.add('${userId}_$month');
+    final key = '${userId}_$month';
+    _s.paidSalaries[key] = (_s.paidSalaries[key] ?? 0.0) + amount;
   }
 
   @override

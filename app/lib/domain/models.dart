@@ -201,6 +201,8 @@ class SalaryReportItem {
   double bonus;
   double deduction;
   final double netSalary;
+  final double paidAmount;
+  final double remainingSalary;
   bool isPaid;
 
   SalaryReportItem({
@@ -216,6 +218,8 @@ class SalaryReportItem {
     this.bonus = 0,
     this.deduction = 0,
     required this.netSalary,
+    this.paidAmount = 0,
+    this.remainingSalary = 0,
     this.isPaid = false,
   });
 
@@ -232,6 +236,8 @@ class SalaryReportItem {
         bonus: parseNum(j['bonus']),
         deduction: parseNum(j['deduction']),
         netSalary: parseNum(j['net_salary']),
+        paidAmount: parseNum(j['paid_amount']),
+        remainingSalary: parseNum(j['remaining_salary']),
         isPaid: (j['is_paid'] ?? false) as bool,
       );
 
@@ -248,6 +254,8 @@ class SalaryReportItem {
         'bonus': bonus,
         'deduction': deduction,
         'net_salary': netSalary,
+        'paid_amount': paidAmount,
+        'remaining_salary': remainingSalary,
         'is_paid': isPaid,
       };
 }

@@ -117,6 +117,8 @@ class SalaryReportItem(BaseModel):
     bonus: Decimal = Decimal(0)
     deduction: Decimal = Decimal(0)
     net_salary: Decimal
+    paid_amount: Decimal = Decimal(0)
+    remaining_salary: Decimal = Decimal(0)
     is_paid: bool = False
 
 
