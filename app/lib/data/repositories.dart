@@ -133,6 +133,8 @@ abstract class AttendanceRepository {
   Future<AttendanceRecord> saveRecord(AttendanceRecord record);
   Future<List<SalaryReportItem>> getSalaryReport({required String month, int totalWorkingDays = 26});
   Future<void> paySalary(int userId, String month, double amount);
+  Future<Map<String, dynamic>> getShiftConfig();
+  Future<void> updateShiftConfig(Map<String, dynamic> config);
 }
 
 abstract class StockRepository {

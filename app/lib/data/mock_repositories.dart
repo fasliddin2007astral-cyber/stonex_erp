@@ -20,6 +20,7 @@ class MockStore {
   int nextId = 100;
   int nextUserId = 10;
   int nextAttendanceId = 100;
+  final Set<String> paidSalaries = {}; // "userId_YYYY-MM"
 
   final List<Product> products = [
     const Product(id: 1, name: 'Angola', category: 'Granit', qrCode: 'STX-ANGOLA', unit: 'm2', donaM2: 0.25, price: 180000, costPrice: 120000, stock: 200, imageUrl: 'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?w=600&auto=format&fit=crop&q=80'),
@@ -1426,6 +1427,16 @@ class MockAttendanceRepository implements AttendanceRepository {
   MockAttendanceRepository(this._s);
   final MockStore _s;
 
+  final Map<String, dynamic> _shiftConfig = {
+    'start_time': '09:00',
+    'end_time': '18:00',
+    'daily_hours': 8,
+    'grace_minutes': 10,
+    'minute_penalty': true,
+    'overtime_enabled': true,
+    'auto_checkout': true,
+  };
+
   @override
   Future<List<AttendanceRecord>> list({String? date, String? month, int? userId}) async {
     var items = List<AttendanceRecord>.from(_s.attendances);
@@ -1437,6 +1448,32 @@ class MockAttendanceRepository implements AttendanceRepository {
     if (userId != null) {
       items = items.where((a) => a.userId == userId).toList();
     }
+
+    // Ketdi qilinmasa kechgacha ketadigan vaqtgacha (18:00) avtomatik ketdi qiladi
+    final now = DateTime.now();
+    final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    for (int i = 0; i < items.length; i++) {
+      final a = items[i];
+      if (a.checkIn != null && a.checkOut == null) {
+        final parsedDate = DateTime.tryParse(a.date);
+        if (parsedDate != null) {
+          final shiftEnd = DateTime(parsedDate.year, parsedDate.month, parsedDate.day, 18, 0);
+          if (a.date.compareTo(todayStr) < 0 || (a.date == todayStr && now.isAfter(shiftEnd))) {
+            final diffMins = shiftEnd.difference(a.checkIn!).inMinutes;
+            final worked = (diffMins / 60.0).clamp(0.0, 24.0);
+            final updated = a.copyWith(
+              checkOut: shiftEnd,
+              workedHours: double.parse(worked.toStringAsFixed(1)),
+              note: a.note != null ? '${a.note} · Avtomatik ketdi (18:00)' : 'Avtomatik ketdi (18:00)',
+            );
+            items[i] = updated;
+            final sIdx = _s.attendances.indexWhere((x) => x.id == a.id);
+            if (sIdx >= 0) _s.attendances[sIdx] = updated;
+          }
+        }
+      }
+    }
+
     items.sort((a, b) => b.date.compareTo(a.date));
     return items;
   }
@@ -1537,15 +1574,16 @@ class MockAttendanceRepository implements AttendanceRepository {
 
   @override
   Future<List<SalaryReportItem>> getSalaryReport({required String month, int totalWorkingDays = 26}) async {
-    final users = _s.users.values.map((e) => e.user).where((u) => u.isActive).toList();
-    final atts = _s.attendances.where((a) => a.date.startsWith(month)).toList();
+    // Xo'jayinga (admin) oylik to'lanmaydi!
+    final users = _s.users.values.map((e) => e.user).where((u) => u.isActive && u.role != Role.admin).toList();
+    final atts = await list(month: month);
 
     final userAtts = <int, List<AttendanceRecord>>{};
     for (final a in atts) {
       userAtts.putIfAbsent(a.userId, () => []).add(a);
     }
 
-    final list = <SalaryReportItem>[];
+    final reportItems = <SalaryReportItem>[];
     for (final u in users) {
       final uList = userAtts[u.id] ?? [];
       final worked = uList.where((a) => a.status != 'absent').toList();
@@ -1553,29 +1591,56 @@ class MockAttendanceRepository implements AttendanceRepository {
       final hoursWorked = worked.fold(0.0, (sum, a) => sum + a.workedHours);
       final daysLate = uList.where((a) => a.status == 'late').length;
 
+      final isPaid = _s.paidSalaries.contains('${u.id}_$month');
+
+      final baseSal = u.salary;
+      final dayRate = totalWorkingDays > 0 ? (baseSal / totalWorkingDays) : 0.0;
+      final hourlyRate = dayRate / 8.0;
+      final minuteRate = hourlyRate / 60.0;
+
+      // Minutbay kechikish va overtime (qo'shimcha ish) hisobi
+      double totalLateDeduction = 0;
+      double totalOvertimeBonus = 0;
+
+      for (final a in worked) {
+        if (a.checkIn != null) {
+          final expectedStart = DateTime(a.checkIn!.year, a.checkIn!.month, a.checkIn!.day, 9, 0);
+          final diffMins = a.checkIn!.difference(expectedStart).inMinutes;
+          if (diffMins > 10) {
+            totalLateDeduction += diffMins * minuteRate;
+          }
+        }
+        if (a.workedHours > 8.0) {
+          totalOvertimeBonus += (a.workedHours - 8.0) * hourlyRate;
+        }
+      }
+
       double calculated = 0;
       double deduction = 0;
+      double bonus = totalOvertimeBonus.roundToDouble();
+
       if (u.salaryType == 'trip' || u.role == Role.haydovchi) {
         calculated = u.salary > 0 ? (u.salary * 12) : 1800000;
         deduction = 0;
+        bonus = 0;
       } else if (u.salaryType == 'daily') {
         calculated = u.salary * daysWorked;
-        final dayRate = u.salary;
-        deduction = (dayRate * 0.1 * daysLate).roundToDouble();
+        deduction = totalLateDeduction > 0 ? totalLateDeduction.roundToDouble() : (u.salary * 0.1 * daysLate).roundToDouble();
       } else if (u.salaryType == 'hourly') {
         calculated = u.salary * hoursWorked;
-        final dayRate = u.salary * 8;
-        deduction = (dayRate * 0.1 * daysLate).roundToDouble();
+        deduction = totalLateDeduction.roundToDouble();
       } else {
-        final perDay = totalWorkingDays > 0 ? (u.salary / totalWorkingDays) : 0;
-        calculated = (perDay * (daysWorked > 0 ? daysWorked : totalWorkingDays)).roundToDouble();
-        final dayRate = totalWorkingDays > 0 ? (u.salary / totalWorkingDays) : 0;
-        deduction = (dayRate * 0.1 * daysLate).roundToDouble();
+        calculated = (dayRate * (daysWorked > 0 ? daysWorked : totalWorkingDays)).roundToDouble();
+        deduction = totalLateDeduction > 0 ? totalLateDeduction.roundToDouble() : (dayRate * 0.1 * daysLate).roundToDouble();
       }
 
-      final net = (calculated - deduction).clamp(0.0, double.infinity);
+      final rawNet = (calculated + bonus - deduction).clamp(0.0, double.infinity);
 
-      list.add(SalaryReportItem(
+      // Oylik to'langandan keyin ishlagan qismi va to'lanadigan qismi 0 ga tushadi!
+      final finalCalc = isPaid ? 0.0 : calculated;
+      final finalNet = isPaid ? 0.0 : rawNet;
+
+      reportItems.add(SalaryReportItem(
         userId: u.id,
         fullName: u.fullName,
         role: u.role.label,
@@ -1584,18 +1649,27 @@ class MockAttendanceRepository implements AttendanceRepository {
         daysWorked: daysWorked > 0 ? daysWorked : totalWorkingDays,
         hoursWorked: hoursWorked > 0 ? hoursWorked : (totalWorkingDays * 8.0),
         daysLate: daysLate,
-        calculatedSalary: calculated,
-        deduction: deduction,
-        netSalary: net,
-        isPaid: false,
+        calculatedSalary: finalCalc,
+        bonus: isPaid ? 0.0 : bonus,
+        deduction: isPaid ? 0.0 : deduction,
+        netSalary: finalNet,
+        isPaid: isPaid,
       ));
     }
-    return list;
+    return reportItems;
   }
 
   @override
   Future<void> paySalary(int userId, String month, double amount) async {
-    // To'lov amalga oshirildi deb belgilash
+    _s.paidSalaries.add('${userId}_$month');
+  }
+
+  @override
+  Future<Map<String, dynamic>> getShiftConfig() async => Map<String, dynamic>.from(_shiftConfig);
+
+  @override
+  Future<void> updateShiftConfig(Map<String, dynamic> config) async {
+    _shiftConfig.addAll(config);
   }
 }
 

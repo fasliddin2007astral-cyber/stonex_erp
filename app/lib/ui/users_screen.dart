@@ -857,13 +857,34 @@ class _UsersScreenState extends State<UsersScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // 1. Sana boshqaruvi (O‘ng tomonga yopishtirilgan, yaxlit va qulay zamonaviy kapsula)
-              Align(
-                alignment: Alignment.centerRight,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  child: Container(
+              // 1. Sana boshqaruvi va Ish vaqti sozlamalari
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 10,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final changed = await ShiftConfigDialog.show(context, _attRepo);
+                      if (changed == true && mounted) {
+                        showMessage(context, '✓ Ish vaqti sozlamalari yangilandi');
+                        _reloadAll();
+                      }
+                    },
+                    icon: const Icon(Icons.more_time_rounded, size: 16),
+                    label: const Text('Ish vaqti sozlamalari', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: context.inkColor,
+                      side: BorderSide(color: context.borderColor),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                    ),
+                  ),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3.5),
                     decoration: BoxDecoration(
                       color: context.cardColor,
@@ -989,8 +1010,9 @@ class _UsersScreenState extends State<UsersScreen> {
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
+              ],
+            ),
+            const SizedBox(height: 12),
 
               // 2. KPI statistika kartalari
               Row(
@@ -1765,7 +1787,12 @@ class _UsersScreenState extends State<UsersScreen> {
           return ErrorView(message: snap.error.toString(), onRetry: _reloadSalary);
         }
 
-        final reports = snap.data ?? [];
+        final allReports = snap.data ?? [];
+        // Xo'jayinga (admin) oylik to'lanmaydi! Malik Abduxalilov va boshqa adminlar chiqarilmaydi
+        final reports = allReports.where((r) {
+          final roleLower = r.role.toLowerCase();
+          return roleLower != 'admin' && roleLower != 'ta’sischi' && !roleLower.contains('admin');
+        }).toList();
         final totalNet = reports.fold(0.0, (sum, r) => sum + r.netSalary);
         final totalBase = reports.fold(0.0, (sum, r) => sum + r.baseSalary);
         final totalCalculated = reports.fold(0.0, (sum, r) => sum + r.calculatedSalary);
@@ -1934,9 +1961,34 @@ class _UsersScreenState extends State<UsersScreen> {
                     ),
 
                     // Tezkor amallar: Barchasiga oylik to'lash va Excel yuklash
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
+                        // Ish vaqti sozlamalari
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final changed = await ShiftConfigDialog.show(context, _attRepo);
+                            if (changed == true && mounted) {
+                              showMessage(context, '✓ Ish vaqti sozlamalari yangilandi');
+                              _reloadAll();
+                            }
+                          },
+                          icon: const Icon(Icons.more_time_rounded, size: 16),
+                          label: const Text(
+                            'Ish vaqti',
+                            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: context.inkColor,
+                            side: BorderSide(color: context.borderColor),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+
                         // Excel export tugmasi
                         OutlinedButton.icon(
                           onPressed: reports.isEmpty ? null : () => _exportSalaryCsv(reports),
@@ -2387,25 +2439,56 @@ class _UsersScreenState extends State<UsersScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    money(r.netSalary),
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 18,
-                      color: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
+                  if (r.isPaid) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.25 : 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.5)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF10B981)),
+                          SizedBox(width: 4),
+                          Text(
+                            'To‘langan',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF10B981),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Text(
-                    'To‘lanadigan sof maosh',
-                    style: TextStyle(fontSize: 10, color: context.mutedColor, fontWeight: FontWeight.w600),
-                  ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '0 so‘m (To‘langan)',
+                      style: TextStyle(fontSize: 11, color: context.mutedColor, fontWeight: FontWeight.w700),
+                    ),
+                  ] else ...[
+                    Text(
+                      money(r.netSalary),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                        color: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
+                      ),
+                    ),
+                    Text(
+                      'To‘lanadigan sof maosh',
+                      style: TextStyle(fontSize: 10, color: context.mutedColor, fontWeight: FontWeight.w600),
+                    ),
+                  ],
                 ],
               ),
             ],
           ),
           const SizedBox(height: 12),
 
-          // 2-Qator: Metrikalar paneli (Davomat, Ishlagan haqi, Kechikish)
+          // 2-Qator: Metrikalar paneli (Davomat, Ishlagan haqi, Kechikish, Qo'shimcha ish)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
@@ -2443,7 +2526,7 @@ class _UsersScreenState extends State<UsersScreen> {
                       ],
                     ),
 
-                    // Ishlagani
+                    // Ishlagani (To'langandan keyin 0 ga tushadi)
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -2454,14 +2537,44 @@ class _UsersScreenState extends State<UsersScreen> {
                           style: TextStyle(fontSize: 11.5, color: context.mutedColor, fontWeight: FontWeight.w600),
                         ),
                         Text(
-                          money(r.calculatedSalary),
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: context.inkColor),
+                          r.isPaid ? '0 so‘m (To‘langan)' : money(r.calculatedSalary),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: r.isPaid ? const Color(0xFF10B981) : context.inkColor,
+                          ),
                         ),
                       ],
                     ),
 
+                    // Qo'shimcha ish haqi (Overtime bonus)
+                    if (r.bonus > 0 && !r.isPaid)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star_rounded, size: 14, color: Color(0xFFD97706)),
+                            const SizedBox(width: 4),
+                            Text(
+                              '+${money(r.bonus)} (Qo‘shimcha ish)',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFFD97706),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     // Kechikish / Jarima holati (0 bo'lsa -0 ko'rsatmaydi)
-                    if (r.daysLate > 0)
+                    if (r.daysLate > 0 && !r.isPaid)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
@@ -2487,7 +2600,7 @@ class _UsersScreenState extends State<UsersScreen> {
                           ],
                         ),
                       )
-                    else
+                    else if (!r.isPaid)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
@@ -2552,33 +2665,54 @@ class _UsersScreenState extends State<UsersScreen> {
               ),
               const SizedBox(width: 8),
 
-              // To'lov qilish tugmasi
-              FilledButton.icon(
-                onPressed: () async {
-                  final ok = await FinanceTransactionDialog.show(
-                    context,
-                    initialCategory: 'Ish haqi / Avans',
-                    initialType: 'expense',
-                    initialUserId: r.userId,
-                    initialAmount: r.netSalary > 0 ? r.netSalary : r.calculatedSalary,
-                  );
-                  if (ok == true && mounted) {
-                    showMessage(context, '✓ ${r.fullName} uchun oylik to‘lovi moliya bo‘limiga saqlandi');
-                    _reloadSalary();
-                  }
-                },
-                icon: const Icon(Icons.payments_rounded, size: 14),
-                label: const Text(
-                  'Oylik to‘lash',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                ),
-                style: FilledButton.styleFrom(
-                  backgroundColor: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
-                  foregroundColor: isDark ? AppColors.ink : Colors.white,
+              // To'lov qilish tugmasi yoki To'langan ko'rsatkichi
+              if (r.isPaid)
+                Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle_rounded, size: 15, color: Color(0xFF10B981)),
+                      SizedBox(width: 6),
+                      Text(
+                        'To‘langan',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF10B981)),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                FilledButton.icon(
+                  onPressed: () async {
+                    final ok = await FinanceTransactionDialog.show(
+                      context,
+                      initialCategory: 'Ish haqi / Avans',
+                      initialType: 'expense',
+                      initialUserId: r.userId,
+                      initialAmount: r.netSalary > 0 ? r.netSalary : r.calculatedSalary,
+                    );
+                    if (ok == true && mounted) {
+                      showMessage(context, '✓ ${r.fullName} uchun oylik to‘lovi moliya bo‘limiga saqlandi');
+                      _reloadSalary();
+                    }
+                  },
+                  icon: const Icon(Icons.payments_rounded, size: 14),
+                  label: const Text(
+                    'Oylik to‘lash',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
+                    foregroundColor: isDark ? AppColors.ink : Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
                 ),
-              ),
             ],
           ),
         ],
@@ -2730,20 +2864,32 @@ class _UsersScreenState extends State<UsersScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Row(
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 2,
+                                        crossAxisAlignment: WrapCrossAlignment.center,
                                         children: [
-                                          Icon(Icons.login_rounded, size: 13, color: isLate ? AppColors.danger : AppColors.green),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            'Kirish: $inTime',
-                                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: dialogCtx.inkColor),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.login_rounded, size: 13, color: isLate ? AppColors.danger : AppColors.green),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Kirish: $inTime',
+                                                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: dialogCtx.inkColor),
+                                              ),
+                                            ],
                                           ),
-                                          const SizedBox(width: 12),
-                                          Icon(Icons.logout_rounded, size: 13, color: att.checkOut != null ? const Color(0xFF3B82F6) : dialogCtx.mutedColor),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            'Chiqish: $outTime',
-                                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: dialogCtx.inkColor),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.logout_rounded, size: 13, color: att.checkOut != null ? const Color(0xFF3B82F6) : dialogCtx.mutedColor),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Chiqish: $outTime',
+                                                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: dialogCtx.inkColor),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
@@ -3540,410 +3686,451 @@ class _AttendanceDialogState extends State<AttendanceDialog> {
 
 
 // ---------------------------------------------------------------------------
-// Stonex ERP Maxsus Zamonaviy Sana Tanlash Dialogi (StonexDatePickerDialog)
+// Ish vaqti va Davomat sozlamalari dialogi (ShiftConfigDialog)
 // ---------------------------------------------------------------------------
 
-class StonexDatePickerDialog extends StatefulWidget {
-  final DateTime initialDate;
-  final DateTime firstDate;
-  final DateTime lastDate;
+class ShiftConfigDialog extends StatefulWidget {
+  final AttendanceRepository repo;
+  const ShiftConfigDialog({super.key, required this.repo});
 
-  const StonexDatePickerDialog({
-    super.key,
-    required this.initialDate,
-    required this.firstDate,
-    required this.lastDate,
-  });
-
-  static Future<DateTime?> show({
-    required BuildContext context,
-    required DateTime initialDate,
-    DateTime? firstDate,
-    DateTime? lastDate,
-  }) {
-    return showDialog<DateTime>(
+  static Future<bool?> show(BuildContext context, AttendanceRepository repo) {
+    return showDialog<bool>(
       context: context,
       barrierDismissible: true,
-      builder: (_) => StonexDatePickerDialog(
-        initialDate: initialDate,
-        firstDate: firstDate ?? DateTime(2025),
-        lastDate: lastDate ?? DateTime(2030),
-      ),
+      builder: (_) => ShiftConfigDialog(repo: repo),
     );
   }
 
   @override
-  State<StonexDatePickerDialog> createState() => _StonexDatePickerDialogState();
+  State<ShiftConfigDialog> createState() => _ShiftConfigDialogState();
 }
 
-class _StonexDatePickerDialogState extends State<StonexDatePickerDialog> {
-  late DateTime _selected;
-  late DateTime _viewMonth;
+class _ShiftConfigDialogState extends State<ShiftConfigDialog> {
+  bool _loading = true;
+  bool _saving = false;
+
+  String _startTime = '09:00';
+  String _endTime = '18:00';
+  int _dailyHours = 8;
+  int _graceMinutes = 10;
+  bool _minutePenalty = true;
+  bool _overtimeEnabled = true;
+  bool _autoCheckout = true;
 
   @override
   void initState() {
     super.initState();
-    _selected = widget.initialDate;
-    _viewMonth = DateTime(_selected.year, _selected.month, 1);
+    _loadConfig();
   }
 
-  void _prevMonth() {
-    setState(() {
-      _viewMonth = DateTime(_viewMonth.year, _viewMonth.month - 1, 1);
-    });
+  Future<void> _loadConfig() async {
+    try {
+      final cfg = await widget.repo.getShiftConfig();
+      if (mounted) {
+        setState(() {
+          _startTime = (cfg['start_time'] ?? '09:00').toString();
+          _endTime = (cfg['end_time'] ?? '18:00').toString();
+          _dailyHours = (cfg['daily_hours'] as num?)?.toInt() ?? 8;
+          _graceMinutes = (cfg['grace_minutes'] as num?)?.toInt() ?? 10;
+          _minutePenalty = cfg['minute_penalty'] as bool? ?? true;
+          _overtimeEnabled = cfg['overtime_enabled'] as bool? ?? true;
+          _autoCheckout = cfg['auto_checkout'] as bool? ?? true;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
-  void _nextMonth() {
-    setState(() {
-      _viewMonth = DateTime(_viewMonth.year, _viewMonth.month + 1, 1);
-    });
+  Future<void> _pickTime({required bool isStart}) async {
+    final curParts = (isStart ? _startTime : _endTime).split(':');
+    final initial = TimeOfDay(
+      hour: int.tryParse(curParts[0]) ?? (isStart ? 9 : 18),
+      minute: int.tryParse(curParts[1]) ?? 0,
+    );
+
+    final res = await showTimePicker(
+      context: context,
+      initialTime: initial,
+      helpText: isStart ? 'Smena boshlanish vaqti' : 'Smena tugash vaqti',
+      cancelText: 'Bekor',
+      confirmText: 'Tanlash',
+    );
+    if (res != null) {
+      final h = res.hour.toString().padLeft(2, '0');
+      final m = res.minute.toString().padLeft(2, '0');
+      setState(() {
+        if (isStart) {
+          _startTime = '$h:$m';
+        } else {
+          _endTime = '$h:$m';
+        }
+      });
+    }
   }
 
-  bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
-
-  String _monthNameUz(int m) {
-    const months = [
-      'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
-      'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'
-    ];
-    return months[m - 1];
-  }
-
-  String _formatFullDate(DateTime dt) {
-    const weekdays = [
-      'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba', 'Yakshanba'
-    ];
-    final wName = weekdays[dt.weekday - 1];
-    final mName = _monthNameUz(dt.month).toLowerCase();
-    final now = DateTime.now();
-    final isToday = _isSameDay(dt, now);
-    final isYesterday = _isSameDay(dt, now.subtract(const Duration(days: 1)));
-    final suffix = isToday ? ' · Bugun' : (isYesterday ? ' · Kecha' : '');
-    return '${dt.day}-$mName, ${dt.year} ($wName)$suffix';
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      await widget.repo.updateShiftConfig({
+        'start_time': _startTime,
+        'end_time': _endTime,
+        'daily_hours': _dailyHours,
+        'grace_minutes': _graceMinutes,
+        'minute_penalty': _minutePenalty,
+        'overtime_enabled': _overtimeEnabled,
+        'auto_checkout': _autoCheckout,
+      });
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        showMessage(context, 'Xatolik: $e', error: true);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = context.isDark;
-    final now = DateTime.now();
-    final daysInMonth = DateTime(_viewMonth.year, _viewMonth.month + 1, 0).day;
-    final startOffset = _viewMonth.weekday - 1; // 0 for Mon .. 6 for Sun
-    final totalCells = startOffset + daysInMonth;
-    final rowCount = (totalCells / 7).ceil();
 
     return Dialog(
       backgroundColor: context.cardColor,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      child: Container(
-        width: 360,
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // 1. Sarlavha va yopish tugmasi
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.neonLime.withValues(alpha: 0.15) : const Color(0xFFDCFCE7),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.calendar_month_rounded,
-                    size: 18,
-                    color: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Sana tanlash',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: context.inkColor,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 20),
-                  onPressed: () => Navigator.pop(context),
-                  splashRadius: 18,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // 2. Tanlangan sana ko'rsatgichi
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF161E28) : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: isDark
-                      ? AppColors.neonLime.withValues(alpha: 0.3)
-                      : const Color(0xFF22C55E).withValues(alpha: 0.3),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Tanlangan sana:',
-                    style: TextStyle(fontSize: 10.5, color: context.mutedColor, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _formatFullDate(_selected),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? AppColors.neonLime : const Color(0xFF15803D),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // 3. Tezkor tugmalar (Presets)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: Row(
-                children: [
-                  _presetButton('Bugun', now),
-                  const SizedBox(width: 6),
-                  _presetButton('Kecha', now.subtract(const Duration(days: 1))),
-                  const SizedBox(width: 6),
-                  _presetButton('2 kun oldin', now.subtract(const Duration(days: 2))),
-                  const SizedBox(width: 6),
-                  _presetButton('Hafta boshi (Du)', now.subtract(Duration(days: now.weekday - 1))),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // 4. Oy va Yil almashtirish navigatori
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              decoration: BoxDecoration(
-                color: context.pillColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left_rounded, size: 22),
-                    onPressed: _prevMonth,
-                    tooltip: 'Oldingi oy',
-                    splashRadius: 18,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  Text(
-                    '${_monthNameUz(_viewMonth.month)} ${_viewMonth.year}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: context.inkColor,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right_rounded, size: 22),
-                    onPressed: _nextMonth,
-                    tooltip: 'Keyingi oy',
-                    splashRadius: 18,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            // 5. Hafta kunlari sarlavhasi
-            Row(
-              children: const ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh', 'Ya'].map((d) {
-                final isWeekend = d == 'Sh' || d == 'Ya';
-                return Expanded(
-                  child: Center(
-                    child: Text(
-                      d,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: isWeekend ? AppColors.danger : context.mutedColor,
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 6),
-
-            // 6. Kalendar kunlari panjarasi (Grid)
-            Column(
-              children: [
-                for (var r = 0; r < rowCount; r++)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2.5),
-                    child: Row(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: _loading
+              ? const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Sarlavha
+                    Row(
                       children: [
-                        for (var c = 0; c < 7; c++) ...[
-                          Expanded(
-                            child: _buildDayCell(r * 7 + c, startOffset, daysInMonth, now),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.neonLime.withValues(alpha: 0.15) : const Color(0xFFE0F2FE),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                        ],
+                          child: Icon(
+                            Icons.more_time_rounded,
+                            size: 20,
+                            color: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Ish vaqti sozlamalari',
+                                style: TextStyle(
+                                  fontSize: 16.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: context.inkColor,
+                                ),
+                              ),
+                              Text(
+                                'Smena vaqtlari, jarima va avtomatlashtirish',
+                                style: TextStyle(fontSize: 11.5, color: context.mutedColor),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 20),
+                          onPressed: () => Navigator.pop(context),
+                          splashRadius: 18,
+                        ),
                       ],
                     ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
+                    const SizedBox(height: 18),
 
-            // 7. Amallar: Bekor qilish va Tanlash
-            Row(
+                    Flexible(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // 1. Smena boshlanish va tugash vaqti
+                            Text(
+                              'Smena vaqtlari:',
+                              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: context.inkColor),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () => _pickTime(isStart: true),
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                      decoration: BoxDecoration(
+                                        color: context.pillColor,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: context.borderColor),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.login_rounded, size: 16, color: isDark ? AppColors.neonLime : const Color(0xFF16A34A)),
+                                          const SizedBox(width: 8),
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text('Ish boshlanishi', style: TextStyle(fontSize: 10, color: context.mutedColor, fontWeight: FontWeight.w600)),
+                                              Text(_startTime, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: context.inkColor)),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () => _pickTime(isStart: false),
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                      decoration: BoxDecoration(
+                                        color: context.pillColor,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: context.borderColor),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.logout_rounded, size: 16, color: isDark ? AppColors.neonLime : const Color(0xFFD97706)),
+                                          const SizedBox(width: 8),
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text('Ish tugashi', style: TextStyle(fontSize: 10, color: context.mutedColor, fontWeight: FontWeight.w600)),
+                                              Text(_endTime, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: context.inkColor)),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+
+                            // 2. Kunlik ish soati va Kechikish chegarasi
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: context.pillColor,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: context.borderColor),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Kunlik ish normasi', style: TextStyle(fontSize: 10, color: context.mutedColor, fontWeight: FontWeight.w600)),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            Text('$_dailyHours soat', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: context.inkColor)),
+                                            const Spacer(),
+                                            IconButton(
+                                              icon: const Icon(Icons.remove_circle_outline_rounded, size: 18),
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(),
+                                              onPressed: _dailyHours > 4 ? () => setState(() => _dailyHours--) : null,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            IconButton(
+                                              icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(),
+                                              onPressed: _dailyHours < 16 ? () => setState(() => _dailyHours++) : null,
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: context.pillColor,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: context.borderColor),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Ruxsat etilgan kechikish', style: TextStyle(fontSize: 10, color: context.mutedColor, fontWeight: FontWeight.w600)),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            Text('$_graceMinutes daqiqa', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: context.inkColor)),
+                                            const Spacer(),
+                                            IconButton(
+                                              icon: const Icon(Icons.remove_circle_outline_rounded, size: 18),
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(),
+                                              onPressed: _graceMinutes > 0 ? () => setState(() => _graceMinutes -= 5) : null,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            IconButton(
+                                              icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(),
+                                              onPressed: _graceMinutes < 60 ? () => setState(() => _graceMinutes += 5) : null,
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+
+                            // 3. Qoidalar (Switches)
+                            Text(
+                              'Hisob-kitob va Avtomatlashtirish qoidalari:',
+                              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: context.inkColor),
+                            ),
+                            const SizedBox(height: 8),
+
+                            // Switch 1: Minutbay jarima
+                            _buildRuleSwitch(
+                              icon: Icons.timer_off_rounded,
+                              iconColor: AppColors.danger,
+                              title: 'Kech qolsa minutiga qarab jarima',
+                              subtitle: 'Har bir kechikkan minut uchun oylikdan minutlik stavka bo‘yicha chegiriladi',
+                              value: _minutePenalty,
+                              onChanged: (v) => setState(() => _minutePenalty = v),
+                            ),
+                            const SizedBox(height: 8),
+
+                            // Switch 2: Overtime (ko'p ishlasa ish haqi qo'shiladi)
+                            _buildRuleSwitch(
+                              icon: Icons.more_time_rounded,
+                              iconColor: const Color(0xFF10B981),
+                              title: 'Ko‘p ishlasa ish haqi qo‘shilsin',
+                              subtitle: 'Kunlik standart soatdan ($_dailyHours soat) ortiq ishlangan vaqt uchun qo‘shimcha oylik hisoblanadi',
+                              value: _overtimeEnabled,
+                              onChanged: (v) => setState(() => _overtimeEnabled = v),
+                            ),
+                            const SizedBox(height: 8),
+
+                            // Switch 3: Avtomatik ketdi qilish (18:00)
+                            _buildRuleSwitch(
+                              icon: Icons.auto_mode_rounded,
+                              iconColor: const Color(0xFF3B82F6),
+                              title: 'Ketdi qilinmasa avtomatik ketdi qilish',
+                              subtitle: 'Agar xodim ketishni belgilamasa, smena tugash vaqtida ($_endTime) avtomatik smena yopiladi',
+                              value: _autoCheckout,
+                              onChanged: (v) => setState(() => _autoCheckout = v),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Tugmalar
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: Text('Bekor qilish', style: TextStyle(color: context.mutedColor, fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: _saving ? null : _save,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: isDark ? AppColors.neonLime : AppColors.darkCard,
+                              foregroundColor: isDark ? AppColors.ink : Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: _saving
+                                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                                : const Text('Saqlash', style: TextStyle(fontWeight: FontWeight.w800)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRuleSwitch({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: context.pillColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.borderColor),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: iconColor),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-                    ),
-                    child: Text('Bekor qilish', style: TextStyle(color: context.mutedColor, fontWeight: FontWeight.w700)),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () => Navigator.pop(context, _selected),
-                    icon: const Icon(Icons.check_rounded, size: 16),
-                    label: const Text('Tanlash', style: TextStyle(fontWeight: FontWeight.w800)),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: isDark ? AppColors.neonLime : AppColors.darkCard,
-                      foregroundColor: isDark ? AppColors.ink : Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-                    ),
-                  ),
-                ),
+                Text(title, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: context.inkColor)),
+                const SizedBox(height: 1),
+                Text(subtitle, style: TextStyle(fontSize: 10, color: context.mutedColor)),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDayCell(int cellIndex, int startOffset, int daysInMonth, DateTime now) {
-    final dayNum = cellIndex - startOffset + 1;
-    if (dayNum < 1 || dayNum > daysInMonth) {
-      return const SizedBox(height: 34);
-    }
-
-    final cellDate = DateTime(_viewMonth.year, _viewMonth.month, dayNum);
-    final isSel = _isSameDay(cellDate, _selected);
-    final isToday = _isSameDay(cellDate, now);
-    final isWeekend = cellDate.weekday == DateTime.saturday || cellDate.weekday == DateTime.sunday;
-    final isDark = context.isDark;
-
-    return Center(
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _selected = cellDate;
-          });
-        },
-        borderRadius: BorderRadius.circular(100),
-        child: Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isSel
-                ? (isDark ? AppColors.neonLime : AppColors.darkCard)
-                : (isToday
-                    ? (isDark ? AppColors.neonLime.withValues(alpha: 0.15) : const Color(0xFFDCFCE7))
-                    : Colors.transparent),
-            border: isToday && !isSel
-                ? Border.all(
-                    color: isDark ? AppColors.neonLime : const Color(0xFF22C55E),
-                    width: 1.4,
-                  )
-                : null,
-            boxShadow: isSel
-                ? [
-                    BoxShadow(
-                      color: (isDark ? AppColors.neonLime : Colors.black).withValues(alpha: 0.25),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
           ),
-          child: Center(
-            child: Text(
-              '$dayNum',
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: (isSel || isToday) ? FontWeight.w900 : FontWeight.w600,
-                color: isSel
-                    ? (isDark ? AppColors.ink : Colors.white)
-                    : (isToday
-                        ? (isDark ? AppColors.neonLime : const Color(0xFF15803D))
-                        : (isWeekend ? AppColors.danger.withValues(alpha: 0.8) : context.inkColor)),
-              ),
-            ),
+          Switch(
+            value: value,
+            activeColor: context.isDark ? AppColors.neonLime : AppColors.darkCard,
+            onChanged: onChanged,
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _presetButton(String label, DateTime targetDate) {
-    final isSel = _isSameDay(_selected, targetDate);
-    final isDark = context.isDark;
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _selected = targetDate;
-          _viewMonth = DateTime(targetDate.year, targetDate.month, 1);
-        });
-      },
-      borderRadius: BorderRadius.circular(100),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-        decoration: BoxDecoration(
-          color: isSel
-              ? (isDark ? AppColors.neonLime : AppColors.darkCard)
-              : context.pillColor,
-          borderRadius: BorderRadius.circular(100),
-          border: Border.all(
-            color: isSel
-                ? (isDark ? AppColors.neonLime : AppColors.darkCard)
-                : context.borderColor,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
-            color: isSel
-                ? (isDark ? AppColors.ink : Colors.white)
-                : context.mutedColor,
-          ),
-        ),
+        ],
       ),
     );
   }

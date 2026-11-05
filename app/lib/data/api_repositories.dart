@@ -504,7 +504,22 @@ class ApiAttendanceRepository implements AttendanceRepository {
 
   @override
   Future<void> paySalary(int userId, String month, double amount) async {
-    // API to'lov
+    await _api.post('/attendance/pay-salary', body: {
+      'user_id': userId,
+      'month': month,
+      'amount': amount,
+    });
+  }
+
+  @override
+  Future<Map<String, dynamic>> getShiftConfig() async {
+    final j = await _api.get('/attendance/shift-config');
+    return Map<String, dynamic>.from(j as Map);
+  }
+
+  @override
+  Future<void> updateShiftConfig(Map<String, dynamic> config) async {
+    await _api.post('/attendance/shift-config', body: config);
   }
 }
 

@@ -1,13 +1,14 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, time as dt_time
 from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import roles
 from ..database import get_db
 from ..deps import get_current_user, require_roles
-from ..models import Attendance, User, Delivery
+from ..models import Attendance, User, Delivery, Expense
 from ..schemas import (
     AttendanceBulkCheckIn,
     AttendanceCheckIn,
@@ -18,6 +19,20 @@ from ..schemas import (
 )
 
 router = APIRouter(prefix="/attendance", tags=["attendance"])
+
+# Standart smena va ish vaqti parametrlari
+_shift_config = {
+    "start_time": "09:00",
+    "end_time": "18:00",
+    "daily_hours": 8,
+    "grace_minutes": 10,
+    "minute_penalty": True,
+    "overtime_enabled": True,
+    "auto_checkout": True,
+}
+
+# To'langan oyliklar to'plami (in-memory + expense sinxronizatsiyasi)
+_paid_salaries: set[str] = set()  # "user_id:YYYY-MM"
 
 
 def _today_str() -> str:
@@ -32,6 +47,38 @@ def _calc_hours(check_in: datetime | None, check_out: datetime | None) -> Decima
     diff = (cout - cin).total_seconds()
     hours = max(0.0, diff / 3600.0)
     return Decimal(str(round(hours, 2)))
+
+
+def _apply_auto_checkout(db: Session, records: list[Attendance]) -> None:
+    """Ketdi qilinmagan bo'lsa, ish vaqti tugaganidan so'ng (18:00) avtomatik ketdi qiladi."""
+    if not _shift_config.get("auto_checkout", True):
+        return
+
+    now = datetime.now()
+    today = _today_str()
+    end_h, end_m = [int(x) for x in _shift_config["end_time"].split(":")]
+    changed = False
+
+    for r in records:
+        if r.check_in and not r.check_out:
+            rec_date = datetime.strptime(r.date, "%Y-%m-%d").date()
+            shift_end = datetime.combine(rec_date, dt_time(end_h, end_m))
+            # Agar o'tgan kun bo'lsa yoki bugun 18:00 dan o'tgan bo'lsa
+            if r.date < today or (r.date == today and now >= shift_end):
+                r.check_out = shift_end
+                r.worked_hours = _calc_hours(r.check_in, shift_end)
+                auto_tag = f"Avtomatik ketdi ({_shift_config['end_time']})"
+                if not r.note:
+                    r.note = auto_tag
+                elif auto_tag not in r.note:
+                    r.note = f"{r.note} · {auto_tag}"
+                changed = True
+
+    if changed:
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
 
 
 @router.get("", response_model=list[AttendanceOut])
@@ -56,6 +103,7 @@ def list_attendance(
         q = q.where(Attendance.user_id == user.id)
 
     records = db.scalars(q).all()
+    _apply_auto_checkout(db, records)
     out = []
     for r in records:
         u_name = r.user.full_name if r.user else None
@@ -293,6 +341,81 @@ def record_attendance(
     )
 
 
+class ShiftConfigIn(BaseModel):
+    start_time: str | None = None  # HH:MM
+    end_time: str | None = None    # HH:MM
+    daily_hours: int | None = None
+    grace_minutes: int | None = None
+    minute_penalty: bool | None = None
+    overtime_enabled: bool | None = None
+    auto_checkout: bool | None = None
+
+
+class SalaryPaymentIn(BaseModel):
+    user_id: int
+    month: str  # YYYY-MM
+    amount: Decimal
+    note: str | None = None
+
+
+@router.get("/shift-config")
+def get_shift_config(_: User = Depends(get_current_user)):
+    """Ish vaqti va davomat qoidalarini olish."""
+    return _shift_config
+
+
+@router.post("/shift-config")
+def update_shift_config(
+    data: ShiftConfigIn,
+    _: User = Depends(require_roles(roles.ADMIN)),
+):
+    """Ish vaqti va davomat qoidalarini sozlash (faqat admin)."""
+    if data.start_time is not None:
+        _shift_config["start_time"] = data.start_time
+    if data.end_time is not None:
+        _shift_config["end_time"] = data.end_time
+    if data.daily_hours is not None:
+        _shift_config["daily_hours"] = data.daily_hours
+    if data.grace_minutes is not None:
+        _shift_config["grace_minutes"] = data.grace_minutes
+    if data.minute_penalty is not None:
+        _shift_config["minute_penalty"] = data.minute_penalty
+    if data.overtime_enabled is not None:
+        _shift_config["overtime_enabled"] = data.overtime_enabled
+    if data.auto_checkout is not None:
+        _shift_config["auto_checkout"] = data.auto_checkout
+    return _shift_config
+
+
+@router.post("/pay-salary")
+def pay_salary(
+    data: SalaryPaymentIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(roles.ADMIN)),
+):
+    """Xodimga maosh to'langanini belgilash va chiqimga yozish."""
+    u = db.get(User, data.user_id)
+    if not u:
+        raise HTTPException(404, "Xodim topilmadi")
+
+    key = f"{data.user_id}:{data.month}"
+    _paid_salaries.add(key)
+
+    # Chiqimlar jurnaliga qayd etish
+    exp = Expense(
+        type="expense",
+        category="Ish haqi / Avans",
+        amount=data.amount,
+        payment_method="cash",
+        note=f"Oylik to‘lovi: {u.full_name} ({data.month})",
+        created_by=current_user.id,
+    )
+    db.add(exp)
+    db.commit()
+
+    return {"ok": True, "user_id": data.user_id, "month": data.month, "amount": float(data.amount)}
+
+
 @router.get("/salary-report", response_model=list[SalaryReportItem])
 def get_salary_report(
     month: str = Query(..., description="YYYY-MM formati"),
@@ -300,14 +423,23 @@ def get_salary_report(
     db: Session = Depends(get_db),
     _: User = Depends(require_roles(roles.ADMIN)),
 ):
-    users = db.scalars(select(User).where(User.is_active == True).order_by(User.id)).all()
+    # Xo'jayinga (admin) oylik to'lanmaydi - ro'yxatdan chiqariladi!
+    users = db.scalars(
+        select(User).where(User.is_active == True, User.role != roles.ADMIN).order_by(User.id)
+    ).all()
+
     attendances = db.scalars(
         select(Attendance).where(Attendance.date.startswith(month))
     ).all()
+    _apply_auto_checkout(db, attendances)
 
     user_att: dict[int, list[Attendance]] = {}
     for a in attendances:
         user_att.setdefault(a.user_id, []).append(a)
+
+    start_h, start_m = [int(x) for x in _shift_config["start_time"].split(":")]
+    grace_m = _shift_config.get("grace_minutes", 10)
+    standard_daily_h = Decimal(str(_shift_config.get("daily_hours", 8)))
 
     report: list[SalaryReportItem] = []
     for u in users:
@@ -320,7 +452,47 @@ def get_salary_report(
         base_sal = u.salary or Decimal(0)
         sal_type = u.salary_type or "monthly"
 
-        # Davomat bo'yicha hisoblash
+        # Oylik to'langanligini tekshirish
+        pay_key = f"{u.id}:{month}"
+        is_paid = pay_key in _paid_salaries
+        if not is_paid:
+            # Expense jurnalida qayd etilganligini tekshirish
+            matching_exp = db.scalar(
+                select(Expense).where(
+                    Expense.type == "expense",
+                    Expense.category.ilike("%ish haqi%"),
+                    Expense.note.ilike(f"%{u.full_name}%({month})%"),
+                )
+            )
+            if matching_exp:
+                is_paid = True
+                _paid_salaries.add(pay_key)
+
+        # Stavka bo'yicha stavka koeffitsientlari
+        if total_working_days > 0:
+            day_rate = base_sal / Decimal(total_working_days)
+        else:
+            day_rate = Decimal(0)
+        hourly_rate = (day_rate / standard_daily_h) if standard_daily_h > 0 else Decimal(0)
+        minute_rate = hourly_rate / Decimal(60)
+
+        # Minutbay kechikish jarimalari hisobi
+        total_late_minutes = 0
+        total_overtime_hours = Decimal(0)
+
+        for a in worked_atts:
+            if a.check_in:
+                cin = a.check_in.replace(tzinfo=None) if a.check_in.tzinfo else a.check_in
+                expected_start = datetime.combine(cin.date(), dt_time(start_h, start_m))
+                diff_seconds = (cin - expected_start).total_seconds()
+                if diff_seconds > (grace_m * 60):
+                    total_late_minutes += int(diff_seconds // 60)
+
+            # Ko'p ishlasa ish haqi qo'shiladi (Overtime)
+            if _shift_config.get("overtime_enabled", True) and a.worked_hours > standard_daily_h:
+                total_overtime_hours += (a.worked_hours - standard_daily_h)
+
+        # Haydovchi reysbay hisobi
         if sal_type == "trip" or u.role == roles.DRIVER:
             completed_deliveries = db.scalars(
                 select(Delivery).where(
@@ -339,23 +511,34 @@ def get_salary_report(
                 calc_sal = sum((d.delivery_fee or Decimal(0) for d in month_deliveries), Decimal(0))
             days_worked = len(month_deliveries) if month_deliveries else days_worked
             deduction = Decimal(0)
+            bonus = Decimal(0)
             net = calc_sal
         elif sal_type == "daily":
             calc_sal = base_sal * Decimal(days_worked)
-            day_rate = base_sal
-            deduction = Decimal(str(round(float(day_rate * Decimal(0.1) * Decimal(days_late)), 2)))
-            net = max(Decimal(0), calc_sal - deduction)
+            deduction = Decimal(str(round(float(total_late_minutes * float(minute_rate)), 2))) if _shift_config.get("minute_penalty", True) else Decimal(str(round(float(base_sal * Decimal(0.1) * Decimal(days_late)), 2)))
+            bonus = Decimal(str(round(float(total_overtime_hours * hourly_rate), 2)))
+            net = max(Decimal(0), calc_sal + bonus - deduction)
         elif sal_type == "hourly":
             calc_sal = base_sal * hours_worked
-            day_rate = base_sal * Decimal(8)
-            deduction = Decimal(str(round(float(day_rate * Decimal(0.1) * Decimal(days_late)), 2)))
+            deduction = Decimal(str(round(float(total_late_minutes * float(minute_rate)), 2)))
+            bonus = Decimal(0)
             net = max(Decimal(0), calc_sal - deduction)
         else:  # monthly
-            per_day = base_sal / Decimal(total_working_days) if total_working_days else Decimal(0)
-            calc_sal = Decimal(str(round(float(per_day * Decimal(days_worked)), 2)))
-            day_rate = (base_sal / Decimal(total_working_days)) if total_working_days else Decimal(0)
-            deduction = Decimal(str(round(float(day_rate * Decimal(0.1) * Decimal(days_late)), 2)))
-            net = max(Decimal(0), calc_sal - deduction)
+            calc_sal = Decimal(str(round(float(day_rate * Decimal(days_worked)), 2)))
+            if _shift_config.get("minute_penalty", True) and total_late_minutes > 0:
+                deduction = Decimal(str(round(float(Decimal(total_late_minutes) * minute_rate), 2)))
+            else:
+                deduction = Decimal(str(round(float(day_rate * Decimal(0.1) * Decimal(days_late)), 2)))
+            bonus = Decimal(str(round(float(total_overtime_hours * hourly_rate), 2)))
+            net = max(Decimal(0), calc_sal + bonus - deduction)
+
+        # Oylik to'langandan keyin ishlagan qismi va to'lanadigan qismi 0 ga tushadi!
+        if is_paid:
+            final_calc = Decimal(0)
+            final_net = Decimal(0)
+        else:
+            final_calc = calc_sal
+            final_net = net
 
         report.append(
             SalaryReportItem(
@@ -367,11 +550,11 @@ def get_salary_report(
                 days_worked=days_worked,
                 hours_worked=hours_worked,
                 days_late=days_late,
-                calculated_salary=calc_sal,
-                bonus=Decimal(0),
+                calculated_salary=final_calc,
+                bonus=bonus,
                 deduction=deduction,
-                net_salary=net,
-                is_paid=False,
+                net_salary=final_net,
+                is_paid=is_paid,
             )
         )
 

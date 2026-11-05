@@ -993,34 +993,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
               required DateTime initial,
               required ValueChanged<DateTime> onPicked,
             }) async {
-              final res = await showDatePicker(
+              final res = await StonexDatePickerDialog.show(
                 context: dialogCtx,
                 initialDate: initial,
                 firstDate: DateTime(2020),
                 lastDate: DateTime(2030),
-                helpText: 'Sanani tanlang',
-                cancelText: 'Bekor qilish',
-                confirmText: 'Tanlash',
-                builder: (c, child) {
-                  return Theme(
-                    data: isDark
-                        ? ThemeData.dark().copyWith(
-                            colorScheme: const ColorScheme.dark(
-                              primary: AppColors.neonLime,
-                              onPrimary: AppColors.ink,
-                              surface: Color(0xFF1E232B),
-                              onSurface: Colors.white,
-                            ),
-                          )
-                        : ThemeData.light().copyWith(
-                            colorScheme: const ColorScheme.light(
-                              primary: Color(0xFF0284C7),
-                              onPrimary: Colors.white,
-                            ),
-                          ),
-                    child: child!,
-                  );
-                },
               );
               if (res != null) {
                 setDialogState(() {
@@ -2586,14 +2563,17 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
   }
 
   List<AppUser> get _employees {
-    if (_allEmployees.isNotEmpty) return _allEmployees;
-    return const [
-      AppUser(id: 1, username: 'bobur', fullName: 'Bobur Yoqubov', role: Role.ishchi, salary: 4500000),
-      AppUser(id: 2, username: 'alisher', fullName: 'Alisher Saidov', role: Role.ishchi, salary: 4200000),
-      AppUser(id: 3, username: 'aziz', fullName: 'Aziz Kassir', role: Role.kassir, salary: 4000000),
-      AppUser(id: 4, username: 'jamshid', fullName: 'Jamshid Haydovchi', role: Role.haydovchi, salary: 3800000),
-      AppUser(id: 5, username: 'nodir', fullName: 'Nodir Boshqaruvchi', role: Role.ishBoshqaruvchi, salary: 6000000),
-    ];
+    final list = _allEmployees.isNotEmpty
+        ? _allEmployees
+        : const [
+            AppUser(id: 1, username: 'bobur', fullName: 'Bobur Yoqubov', role: Role.ishchi, salary: 4500000),
+            AppUser(id: 2, username: 'alisher', fullName: 'Alisher Saidov', role: Role.ishchi, salary: 4200000),
+            AppUser(id: 3, username: 'aziz', fullName: 'Aziz Kassir', role: Role.kassir, salary: 4000000),
+            AppUser(id: 4, username: 'jamshid', fullName: 'Jamshid Haydovchi', role: Role.haydovchi, salary: 3800000),
+            AppUser(id: 5, username: 'nodir', fullName: 'Nodir Boshqaruvchi', role: Role.ishBoshqaruvchi, salary: 6000000),
+          ];
+    // Xo'jayinga (admin) oylik to'lanmaydi
+    return list.where((u) => u.role != Role.admin).toList();
   }
 
   double get _totalSelectedSalaries {
@@ -2678,6 +2658,12 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
               date: _date,
             ),
           );
+
+          // Oylik to'langandan keyin to'langan deb belgilash
+          try {
+            final mStr = '${_date.year}-${_date.month.toString().padLeft(2, '0')}';
+            await repos.attendance.paySalary(user.id, mStr, empAmount);
+          } catch (_) {}
         }
 
         if (mounted) {

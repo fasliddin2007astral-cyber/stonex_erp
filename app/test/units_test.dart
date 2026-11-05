@@ -86,21 +86,24 @@ void main() {
     final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
     final monthStr = '${today.year}-${today.month.toString().padLeft(2, '0')}';
 
-    // 1-xodim (Admin) uchun keldi qilish
-    final record = await attRepo.checkIn(1, note: 'Keldi');
-    expect(record.userId, 1);
+    // Xodim (Ishchi id: 2) uchun keldi qilish (vaqtida kelgan 09:00)
+    final morning = DateTime(today.year, today.month, today.day, 9, 0);
+    final evening = DateTime(today.year, today.month, today.day, 18, 0);
+    final record = await attRepo.checkIn(2, time: morning, note: 'Keldi');
+    expect(record.userId, 2);
     expect(record.checkIn != null, true);
     expect(record.date, todayStr);
 
-    // Ketdi qilish
-    final updated = await attRepo.checkOut(1, note: 'Ish tugadi');
+    // Ketdi qilish (18:00)
+    final updated = await attRepo.checkOut(2, time: evening, note: 'Ish tugadi');
     expect(updated.checkOut != null, true);
 
-    // Oylik hisobot olish
+    // Oylik hisobot olish: Xo'jayinga (admin id: 1) oylik to'lanmaydi, xodimga (id: 2) to'lanadi
     final reports = await attRepo.getSalaryReport(month: monthStr);
     expect(reports.isNotEmpty, true);
-    final adminReport = reports.firstWhere((r) => r.userId == 1);
-    expect(adminReport.netSalary > 0, true);
+    expect(reports.any((r) => r.userId == 1), false); // Xo'jayinga oylik to'lanmaydi
+    final workerReport = reports.firstWhere((r) => r.userId == 2);
+    expect(workerReport.netSalary > 0, true);
   });
 
   test('Mahsulot qo‘shishda sort tanlash (1, 1.5, 2, oliy va hasSorts) to‘g‘ri saqlanadi', () async {
