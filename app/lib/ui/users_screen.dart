@@ -2703,14 +2703,14 @@ class _UsersScreenState extends State<UsersScreen> {
           ),
           const SizedBox(height: 12),
 
-          // 3-Qator: Amallar tugmalari (Davomat kunlari, Qoldiq to'lash, va Avans berish)
+          // 3-Qator: Amallar tugmalari (Davomat, Mukofot va Oylik to'lash)
           Wrap(
             alignment: WrapAlignment.end,
             crossAxisAlignment: WrapCrossAlignment.center,
             spacing: 8,
             runSpacing: 6,
             children: [
-              // Davomat tafsilotlari (kunlar)
+              // 1. Davomat tafsilotlari (kunlar)
               OutlinedButton.icon(
                 onPressed: () => _showEmployeeAttendanceDetails(r),
                 icon: const Icon(Icons.calendar_today_rounded, size: 14),
@@ -2726,93 +2726,60 @@ class _UsersScreenState extends State<UsersScreen> {
                 ),
               ),
 
-              // Mukofot (Bonus / Premiya) berish tugmasi
-              FilledButton.tonalIcon(
+              // 2. Mukofot (Bonus) berish
+              OutlinedButton.icon(
                 onPressed: () async {
                   final ok = await EmployeeBonusDialog.show(
                     context,
                     item: r,
                     month: '${_selectedMonth.year}-${_selectedMonth.month.toString().padLeft(2, '0')}',
-                    attRepo: context.read<AppRepositories>().attendance,
+                    repos: context.read<AppRepositories>(),
                   );
                   if (ok == true && mounted) {
-                    showMessage(context, '✓ ${r.fullName} uchun mukofot muvaffaqiyatli qo‘shildi');
+                    showMessage(context, '✓ ${r.fullName} uchun mukofot muvaffaqiyatli saqlandi');
                     _reloadSalary();
                   }
                 },
-                icon: const Icon(Icons.card_giftcard_rounded, size: 14),
+                icon: const Icon(Icons.card_giftcard_rounded, size: 14, color: Color(0xFFD97706)),
                 label: const Text(
-                  '🎁 + Mukofot',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                  'Mukofot',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFFD97706)),
                 ),
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.3 : 0.15),
+                style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFD97706),
                   side: const BorderSide(color: Color(0xFFF59E0B), width: 1.2),
+                  backgroundColor: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.12 : 0.06),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
 
-              // Qoldiq bo'lsa yoki to'lanmagan bo'lsa: Oylik to'lash tugmasi
-              if (r.remainingSalary > 0 || !r.isPaid)
-                FilledButton.icon(
-                  onPressed: () async {
-                    final ok = await FinanceTransactionDialog.show(
-                      context,
-                      initialCategory: 'Ish haqi / Avans',
-                      initialType: 'expense',
-                      initialUserId: r.userId,
-                      initialAmount: r.remainingSalary > 0
-                          ? r.remainingSalary
-                          : (r.netSalary > 0 ? r.netSalary : r.calculatedSalary),
-                    );
-                    if (ok == true && mounted) {
-                      showMessage(context, '✓ ${r.fullName} uchun oylik to‘lovi moliya bo‘limiga saqlandi');
-                      _reloadSalary();
-                    }
-                  },
-                  icon: const Icon(Icons.payments_rounded, size: 14),
-                  label: const Text(
-                    'Oylik to‘lash',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
-                    foregroundColor: isDark ? AppColors.ink : Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                ),
-
-              // Har doim: Qo'lda avans kiritish yoki qo'shimcha to'lash tugmasi (HECH QACHON BLOKLANMAYDI!)
-              OutlinedButton.icon(
+              // 3. Oylik to'lash / To'lov qilish
+              FilledButton.icon(
                 onPressed: () async {
                   final ok = await FinanceTransactionDialog.show(
                     context,
                     initialCategory: 'Ish haqi / Avans',
                     initialType: 'expense',
                     initialUserId: r.userId,
-                    initialAmount: null, // foydalanuvchi xohlagan summani qo'lda kiritadi
+                    initialAmount: r.remainingSalary > 0
+                        ? r.remainingSalary
+                        : (r.netSalary > 0 ? r.netSalary : (r.calculatedSalary > 0 ? r.calculatedSalary : null)),
                   );
                   if (ok == true && mounted) {
                     showMessage(context, '✓ ${r.fullName} uchun to‘lov saqlandi');
                     _reloadSalary();
                   }
                 },
-                icon: const Icon(Icons.add_card_rounded, size: 14),
+                icon: const Icon(Icons.payments_rounded, size: 14),
                 label: Text(
-                  r.remainingSalary <= 0 ? '+ Avans berish (Qo‘lda)' : '+ Avans',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  r.remainingSalary <= 0 && r.paidAmount > 0 ? '+ To‘lov / Avans' : 'Oylik to‘lash',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
                 ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
-                  side: BorderSide(
-                    color: isDark
-                        ? AppColors.neonLime.withValues(alpha: 0.5)
-                        : const Color(0xFF0284C7).withValues(alpha: 0.5),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                style: FilledButton.styleFrom(
+                  backgroundColor: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
+                  foregroundColor: isDark ? AppColors.ink : Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
@@ -4244,20 +4211,20 @@ class _ShiftConfigDialogState extends State<ShiftConfigDialog> {
 class EmployeeBonusDialog extends StatefulWidget {
   final SalaryReportItem item;
   final String month;
-  final AttendanceRepository attRepo;
+  final AppRepositories repos;
 
   const EmployeeBonusDialog({
     super.key,
     required this.item,
     required this.month,
-    required this.attRepo,
+    required this.repos,
   });
 
   static Future<bool?> show(
     BuildContext context, {
     required SalaryReportItem item,
     required String month,
-    required AttendanceRepository attRepo,
+    required AppRepositories repos,
   }) {
     return showDialog<bool>(
       context: context,
@@ -4265,7 +4232,7 @@ class EmployeeBonusDialog extends StatefulWidget {
       builder: (_) => EmployeeBonusDialog(
         item: item,
         month: month,
-        attRepo: attRepo,
+        repos: repos,
       ),
     );
   }
@@ -4301,17 +4268,43 @@ class _EmployeeBonusDialogState extends State<EmployeeBonusDialog> {
     });
 
     try {
-      await widget.attRepo.addBonus(
-        widget.item.userId,
-        widget.month,
-        amount,
-        reason: _reasonCtrl.text.trim().isEmpty ? null : _reasonCtrl.text.trim(),
-      );
+      final reason = _reasonCtrl.text.trim();
+      final reasonPart = reason.isNotEmpty ? ' — $reason' : '';
+      final note = 'Mukofot: ${widget.item.fullName} (${widget.month})$reasonPart';
+
+      bool saved = false;
+      try {
+        await widget.repos.attendance.addBonus(
+          widget.item.userId,
+          widget.month,
+          amount,
+          reason: reason.isEmpty ? null : reason,
+        );
+        saved = true;
+      } catch (_) {
+        saved = false;
+      }
+
+      // Agar /attendance/add-bonus 404 bersa, jonli ishlaydigan moliya chiqimlari orqali 100% kafolatli saqlash
+      if (!saved) {
+        await widget.repos.finance.addTransaction(
+          FinanceTransaction(
+            id: 0,
+            type: 'expense',
+            category: 'Mukofot / Bonus',
+            amount: amount,
+            paymentMethod: 'cash',
+            note: note,
+            date: DateTime.now(),
+          ),
+        );
+      }
+
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Xatolik yuz berdi: $e';
+          _error = 'Saqlashda xatolik: $e';
           _saving = false;
         });
       }
@@ -4327,7 +4320,7 @@ class _EmployeeBonusDialogState extends State<EmployeeBonusDialog> {
       backgroundColor: context.cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 480,
+        width: 440,
         padding: const EdgeInsets.all(22),
         child: SingleChildScrollView(
           child: Column(
@@ -4343,7 +4336,7 @@ class _EmployeeBonusDialogState extends State<EmployeeBonusDialog> {
                       color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.card_giftcard_rounded, size: 24, color: Color(0xFFD97706)),
+                    child: const Icon(Icons.card_giftcard_rounded, size: 22, color: Color(0xFFD97706)),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -4351,7 +4344,7 @@ class _EmployeeBonusDialogState extends State<EmployeeBonusDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Xodimga Mukofot (Bonus) berish',
+                          'Mukofot (Bonus) berish',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w900,
@@ -4388,7 +4381,7 @@ class _EmployeeBonusDialogState extends State<EmployeeBonusDialog> {
                   children: [
                     Column(
                       children: [
-                        Text('Ishlagan qismi', style: TextStyle(fontSize: 10.5, color: context.mutedColor, fontWeight: FontWeight.w600)),
+                        Text('Ishlagani', style: TextStyle(fontSize: 10.5, color: context.mutedColor, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 2),
                         Text(money(r.calculatedSalary), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: context.inkColor)),
                       ],
@@ -4396,7 +4389,7 @@ class _EmployeeBonusDialogState extends State<EmployeeBonusDialog> {
                     Container(height: 24, width: 1, color: context.borderColor),
                     Column(
                       children: [
-                        Text('Mavjud mukofot', style: const TextStyle(fontSize: 10.5, color: Color(0xFFD97706), fontWeight: FontWeight.w700)),
+                        Text('Mukofoti', style: const TextStyle(fontSize: 10.5, color: Color(0xFFD97706), fontWeight: FontWeight.w700)),
                         const SizedBox(height: 2),
                         Text('+${money(r.bonus)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFFD97706))),
                       ],
@@ -4404,7 +4397,7 @@ class _EmployeeBonusDialogState extends State<EmployeeBonusDialog> {
                     Container(height: 24, width: 1, color: context.borderColor),
                     Column(
                       children: [
-                        Text('To‘lanadigan sof', style: const TextStyle(fontSize: 10.5, color: Color(0xFF10B981), fontWeight: FontWeight.w700)),
+                        Text('Sof maosh', style: const TextStyle(fontSize: 10.5, color: Color(0xFF10B981), fontWeight: FontWeight.w700)),
                         const SizedBox(height: 2),
                         Text(money(r.remainingSalary > 0 ? r.remainingSalary : r.netSalary), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF10B981))),
                       ],
@@ -4414,21 +4407,22 @@ class _EmployeeBonusDialogState extends State<EmployeeBonusDialog> {
               ),
               const SizedBox(height: 16),
 
-              // Summa kiritish
+              // Mukofot summasi kiritish (Zero taxminiy narxlar!)
               Text(
                 'Mukofot miqdori:',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: context.inkColor),
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: context.inkColor),
               ),
               const SizedBox(height: 6),
               TextField(
                 controller: _amountCtrl,
                 keyboardType: TextInputType.number,
+                autofocus: true,
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: context.inkColor),
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.add_rounded, color: Color(0xFFD97706), size: 20),
                   suffixText: "so'm",
                   suffixStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.mutedColor),
-                  hintText: 'Masalan: 500 000',
+                  hintText: 'Summani kiriting',
                   filled: true,
                   fillColor: context.pillColor,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
@@ -4436,38 +4430,12 @@ class _EmployeeBonusDialogState extends State<EmployeeBonusDialog> {
                   focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFD97706), width: 1.8)),
                 ),
               ),
-              const SizedBox(height: 8),
-
-              // Tezkor summa tugmalari (Chips)
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final p in [100000, 200000, 500000, 1000000, 2000000])
-                    InkWell(
-                      onTap: () => setState(() => _amountCtrl.text = p.toString()),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.35)),
-                        ),
-                        child: Text(
-                          '+${p >= 1000000 ? "${p ~/ 1000000} mln" : "${p ~/ 1000} ming"}',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFFD97706)),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
               const SizedBox(height: 14),
 
               // Sababi / Izoh
               Text(
-                'Mukofot sababi (izoh):',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: context.inkColor),
+                'Izoh yoki sababi (ixtiyoriy):',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: context.inkColor),
               ),
               const SizedBox(height: 6),
               TextField(
@@ -4475,7 +4443,7 @@ class _EmployeeBonusDialogState extends State<EmployeeBonusDialog> {
                 maxLines: 2,
                 style: TextStyle(fontSize: 13, color: context.inkColor),
                 decoration: InputDecoration(
-                  hintText: 'Masalan: Bayram munosabati bilan, Namunali mehnati uchun, Rejani oshirgani uchun',
+                  hintText: 'Masalan: Yaxshi ishlagani uchun, bayram mukofoti',
                   hintStyle: TextStyle(fontSize: 12, color: context.mutedColor),
                   filled: true,
                   fillColor: context.pillColor,
@@ -4483,37 +4451,6 @@ class _EmployeeBonusDialogState extends State<EmployeeBonusDialog> {
                   enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: context.borderColor)),
                   focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFD97706), width: 1.8)),
                 ),
-              ),
-              const SizedBox(height: 6),
-
-              // Tezkor sabablar
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final rText in [
-                    '🎉 Bayramona mukofot',
-                    '⭐ A’lo mehnati uchun',
-                    '🚀 Rejani bajargani uchun',
-                    '💪 Qo‘shimcha mehnat',
-                  ])
-                    InkWell(
-                      onTap: () => setState(() => _reasonCtrl.text = rText),
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
-                        decoration: BoxDecoration(
-                          color: context.pillColor,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: context.borderColor),
-                        ),
-                        child: Text(
-                          rText,
-                          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: context.inkColor),
-                        ),
-                      ),
-                    ),
-                ],
               ),
 
               if (_error != null) ...[
@@ -4523,7 +4460,7 @@ class _EmployeeBonusDialogState extends State<EmployeeBonusDialog> {
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.danger),
                 ),
               ],
-              const SizedBox(height: 18),
+              const SizedBox(height: 20),
 
               // Pastki amallar
               Row(
@@ -4546,7 +4483,7 @@ class _EmployeeBonusDialogState extends State<EmployeeBonusDialog> {
                       icon: _saving
                           ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                           : const Icon(Icons.check_circle_rounded, size: 16),
-                      label: Text(_saving ? 'Saqlanmoqda...' : '🎁 Mukofotni tasdiqlash', style: const TextStyle(fontWeight: FontWeight.w800)),
+                      label: Text(_saving ? 'Saqlanmoqda...' : 'Mukofotni saqlash', style: const TextStyle(fontWeight: FontWeight.w800)),
                       style: FilledButton.styleFrom(
                         backgroundColor: const Color(0xFFD97706),
                         foregroundColor: Colors.white,

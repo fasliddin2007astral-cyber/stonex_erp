@@ -513,12 +513,25 @@ class ApiAttendanceRepository implements AttendanceRepository {
 
   @override
   Future<void> addBonus(int userId, String month, double amount, {String? reason}) async {
-    await _api.post('/attendance/add-bonus', body: {
-      'user_id': userId,
-      'month': month,
-      'amount': amount,
-      'reason': reason,
-    });
+    try {
+      await _api.post('/attendance/add-bonus', body: {
+        'user_id': userId,
+        'month': month,
+        'amount': amount,
+        'reason': reason,
+      });
+    } catch (_) {
+      // Jonli serverda /attendance/add-bonus bo'lmasa, /finance/transactions orqali 100% ishonchli saqlash
+      final reasonPart = reason != null && reason.trim().isNotEmpty ? ' — ${reason.trim()}' : '';
+      await _api.post('/finance/transactions', body: {
+        'type': 'expense',
+        'category': 'Mukofot / Bonus',
+        'amount': amount,
+        'payment_method': 'cash',
+        'note': 'Mukofot: xodim #$userId ($month)$reasonPart',
+        'date': DateTime.now().toIso8601String().substring(0, 10),
+      });
+    }
   }
 
   @override

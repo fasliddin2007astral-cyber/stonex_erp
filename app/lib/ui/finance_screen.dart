@@ -3250,40 +3250,6 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
                                         ),
                                       ),
                                     ],
-                                    InkWell(
-                                      onTap: () {
-                                        final currentVal = int.tryParse(ctrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-                                        ctrl.text = (currentVal + 500000).toString();
-                                        _recalculateTotalFromEmployees();
-                                      },
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-                                        decoration: BoxDecoration(
-                                          color: isDark ? const Color(0xFF2D3748) : const Color(0xFFF1F5F9),
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: context.borderColor),
-                                        ),
-                                        child: const Text('+500 ming', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700)),
-                                      ),
-                                    ),
-                                    InkWell(
-                                      onTap: () {
-                                        final currentVal = int.tryParse(ctrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-                                        ctrl.text = (currentVal + 1000000).toString();
-                                        _recalculateTotalFromEmployees();
-                                      },
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-                                        decoration: BoxDecoration(
-                                          color: isDark ? const Color(0xFF2D3748) : const Color(0xFFF1F5F9),
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: context.borderColor),
-                                        ),
-                                        child: const Text('+1 mln', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700)),
-                                      ),
-                                    ),
                                   ],
                                 ),
                               ],

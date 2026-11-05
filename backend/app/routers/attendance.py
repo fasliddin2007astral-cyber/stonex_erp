@@ -370,7 +370,7 @@ class BonusIn(BaseModel):
 def add_bonus(
     data: BonusIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(roles.ADMIN)),
+    current_user: User = Depends(require_roles(roles.ADMIN, roles.CASHIER)),
 ):
     """Xodimga mukofot (bonus / premiya) qo'shish."""
     u = db.get(User, data.user_id)
@@ -428,7 +428,7 @@ def update_shift_config(
 def pay_salary(
     data: SalaryPaymentIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(roles.ADMIN)),
+    current_user: User = Depends(require_roles(roles.ADMIN, roles.CASHIER)),
 ):
     """Xodimga maosh to'langanini belgilash va chiqimga yozish."""
     u = db.get(User, data.user_id)
