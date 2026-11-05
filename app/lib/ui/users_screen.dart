@@ -455,7 +455,7 @@ class _UsersScreenState extends State<UsersScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8.5),
                     decoration: BoxDecoration(
                       color: _currentTab == i
-                          ? (isDark ? const Color(0xFF10B981) : AppColors.darkCard)
+                          ? (isDark ? const Color(0xFF242A35) : const Color(0xFF2D3748))
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(100),
                       boxShadow: _currentTab == i
@@ -606,9 +606,17 @@ class _UsersScreenState extends State<UsersScreen> {
                     return Padding(
                       padding: const EdgeInsets.only(right: 6),
                       child: ChoiceChip(
-                        label: Text(f, style: TextStyle(fontSize: 12, fontWeight: isSel ? FontWeight.w700 : FontWeight.w500)),
+                        label: Text(f, style: TextStyle(fontSize: 12, fontWeight: isSel ? FontWeight.w700 : FontWeight.w500, color: isSel ? Colors.white : context.inkColor)),
                         selected: isSel,
                         onSelected: (_) => setState(() => _selectedFilter = f),
+                        selectedColor: context.isDark ? const Color(0xFF242A35) : const Color(0xFF2D3748),
+                        checkmarkColor: Colors.white,
+                        side: BorderSide(
+                          color: isSel
+                              ? (context.isDark ? const Color(0xFF3B4454) : const Color(0xFF334155))
+                              : context.borderColor,
+                          width: 1,
+                        ),
                         visualDensity: VisualDensity.compact,
                       ),
                     );
@@ -1172,7 +1180,7 @@ class _UsersScreenState extends State<UsersScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
-              ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+              ? (context.isDark ? const Color(0xFF242A35) : const Color(0xFF2D3748))
               : Colors.transparent,
           borderRadius: BorderRadius.circular(100),
           boxShadow: isSelected
@@ -1232,7 +1240,7 @@ class _UsersScreenState extends State<UsersScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
-              ? (context.isDark ? AppColors.neonLime : AppColors.darkCard)
+              ? (context.isDark ? const Color(0xFF242A35) : const Color(0xFF2D3748))
               : Colors.transparent,
           borderRadius: BorderRadius.circular(100),
           boxShadow: isSelected
@@ -2026,7 +2034,7 @@ class _UsersScreenState extends State<UsersScreen> {
                             style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
                           ),
                           style: FilledButton.styleFrom(
-                            backgroundColor: isDark ? const Color(0xFF10B981) : AppColors.darkCard,
+                            backgroundColor: isDark ? const Color(0xFF242A35) : const Color(0xFF2D3748),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -2273,8 +2281,15 @@ class _UsersScreenState extends State<UsersScreen> {
                                 ),
                                 selected: _salaryFilter == f,
                                 onSelected: (_) => setState(() => _salaryFilter = f),
-                                selectedColor: isDark ? const Color(0xFF10B981) : AppColors.darkCard,
+                                selectedColor: isDark ? const Color(0xFF242A35) : const Color(0xFF2D3748),
+                                checkmarkColor: Colors.white,
                                 backgroundColor: context.pillColor,
+                                side: BorderSide(
+                                  color: _salaryFilter == f
+                                      ? (isDark ? const Color(0xFF3B4454) : const Color(0xFF334155))
+                                      : context.borderColor,
+                                  width: 1,
+                                ),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                 visualDensity: VisualDensity.compact,
