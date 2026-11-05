@@ -1,3 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -6,6 +11,23 @@ import '../core/theme.dart';
 import '../data/repositories.dart';
 import '../domain/models.dart';
 import 'common.dart';
+import 'finance_screen.dart';
+
+class _KpiItem {
+  final String label;
+  final String value;
+  final String subtext;
+  final IconData icon;
+  final Color color;
+
+  const _KpiItem({
+    required this.label,
+    required this.value,
+    required this.subtext,
+    required this.icon,
+    required this.color,
+  });
+}
 
 class UsersScreen extends StatefulWidget {
   const UsersScreen({super.key});
@@ -32,6 +54,9 @@ class _UsersScreenState extends State<UsersScreen> {
   DateTime _selectedMonth = DateTime(DateTime.now().year, DateTime.now().month);
   final int _totalWorkingDays = 26;
   late Future<List<SalaryReportItem>> _salaryFuture;
+  final _salarySearchCtrl = TextEditingController();
+  String _salaryFilter = 'Barchasi'; // 'Barchasi', 'Ishchilar', 'Haydovchilar', 'Maoshi borlar', 'Intizomli', 'Kechikkanlar'
+  String _salarySort = 'default'; // 'default', 'salary_desc', 'days_desc', 'name_asc'
 
   UserRepository get _usersRepo => context.read<AppRepositories>().users;
   AttendanceRepository get _attRepo => context.read<AppRepositories>().attendance;
@@ -54,6 +79,7 @@ class _UsersScreenState extends State<UsersScreen> {
   void dispose() {
     _searchCtrl.dispose();
     _attSearchCtrl.dispose();
+    _salarySearchCtrl.dispose();
     super.dispose();
   }
 
@@ -1640,10 +1666,95 @@ class _UsersScreenState extends State<UsersScreen> {
     return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
+  String _getMonthNameUz(int m) {
+    const months = [
+      'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
+      'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'
+    ];
+    return months[(m - 1).clamp(0, 11)];
+  }
+
+  Widget _getRoleBadge(String role) {
+    String text = 'Xodim';
+    Color color = const Color(0xFF64748B);
+    IconData icon = Icons.badge_rounded;
+
+    switch (role.toLowerCase()) {
+      case 'admin':
+        text = 'Admin';
+        color = const Color(0xFF8B5CF6);
+        icon = Icons.admin_panel_settings_rounded;
+        break;
+      case 'kassir':
+        text = 'Kassir';
+        color = AppColors.green;
+        icon = Icons.point_of_sale_rounded;
+        break;
+      case 'ish_boshqaruvchi':
+      case 'ishboshqaruvchi':
+        text = 'Boshqaruvchi';
+        color = const Color(0xFF0D9488);
+        icon = Icons.manage_accounts_rounded;
+        break;
+      case 'ishchi':
+        text = 'Ishchi';
+        color = const Color(0xFFD97706);
+        icon = Icons.precision_manufacturing_rounded;
+        break;
+      case 'haydovchi':
+        text = 'Haydovchi';
+        color = const Color(0xFF0284C7);
+        icon = Icons.local_shipping_rounded;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getRoleColor(String role) {
+    switch (role.toLowerCase()) {
+      case 'admin':
+        return const Color(0xFF8B5CF6);
+      case 'kassir':
+        return AppColors.green;
+      case 'ish_boshqaruvchi':
+      case 'ishboshqaruvchi':
+        return const Color(0xFF0D9488);
+      case 'ishchi':
+        return const Color(0xFFD97706);
+      case 'haydovchi':
+        return const Color(0xFF0284C7);
+      default:
+        return const Color(0xFF64748B);
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // TAB 2: Oylik va Ish haqi hisoboti (Payroll)
   // ---------------------------------------------------------------------------
   Widget _buildSalaryTab() {
+    final now = DateTime.now();
+    final isCurrentMonth = _selectedMonth.year == now.year && _selectedMonth.month == now.month;
+    final isDark = context.isDark;
+
     return FutureBuilder<List<SalaryReportItem>>(
       future: _salaryFuture,
       builder: (context, snap) {
@@ -1657,75 +1768,507 @@ class _UsersScreenState extends State<UsersScreen> {
         final reports = snap.data ?? [];
         final totalNet = reports.fold(0.0, (sum, r) => sum + r.netSalary);
         final totalBase = reports.fold(0.0, (sum, r) => sum + r.baseSalary);
+        final totalCalculated = reports.fold(0.0, (sum, r) => sum + r.calculatedSalary);
         final totalDeductions = reports.fold(0.0, (sum, r) => sum + r.deduction);
+        final lateCount = reports.where((r) => r.daysLate > 0).length;
+
+        // Qidiruv va filtr
+        final query = _salarySearchCtrl.text.toLowerCase().trim();
+        var filteredReports = reports.where((r) {
+          final matchesSearch = query.isEmpty ||
+              r.fullName.toLowerCase().contains(query) ||
+              r.role.toLowerCase().contains(query);
+          if (!matchesSearch) return false;
+
+          switch (_salaryFilter) {
+            case 'Ishchilar':
+              return r.role.toLowerCase() == 'ishchi';
+            case 'Haydovchilar':
+              return r.role.toLowerCase() == 'haydovchi';
+            case 'Maoshi borlar':
+              return r.baseSalary > 0;
+            case 'Intizomli':
+              return r.daysLate == 0;
+            case 'Kechikkanlar':
+              return r.daysLate > 0;
+            default:
+              return true;
+          }
+        }).toList();
+
+        // Saralash
+        if (_salarySort == 'salary_desc') {
+          filteredReports.sort((a, b) => b.netSalary.compareTo(a.netSalary));
+        } else if (_salarySort == 'days_desc') {
+          filteredReports.sort((a, b) => b.daysWorked.compareTo(a.daysWorked));
+        } else if (_salarySort == 'name_asc') {
+          filteredReports.sort((a, b) => a.fullName.compareTo(b.fullName));
+        }
 
         return RefreshIndicator(
           onRefresh: () async => _reloadSalary(),
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // Oy tanlash paneli
+              // 1. Oyni tanlash va Harakatlar paneli
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: context.cardColor,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: context.borderColor),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                child: Row(
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 10,
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left_rounded),
-                      onPressed: () {
-                        setState(() {
-                          _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1);
-                          _reloadSalary();
-                        });
-                      },
-                    ),
-                    Expanded(
-                      child: Center(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.calendar_month_rounded, size: 16, color: AppColors.neonLime),
-                            const SizedBox(width: 8),
-                            Text(
-                              '$_monthStr Oylik Ish Haqi Hisoboti',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: context.inkColor),
-                            ),
-                          ],
+                    // Oy boshqaruvi
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: context.pillColor,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.chevron_left_rounded),
+                            tooltip: 'Oldingi oy',
+                            onPressed: () {
+                              setState(() {
+                                _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1);
+                                _reloadSalary();
+                              });
+                            },
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: context.pillColor,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: context.borderColor),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.calendar_month_rounded,
+                                size: 18,
+                                color: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${_getMonthNameUz(_selectedMonth.month)}, ${_selectedMonth.year}',
+                                style: TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: context.inkColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: context.pillColor,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.chevron_right_rounded),
+                            tooltip: 'Keyingi oy',
+                            onPressed: () {
+                              setState(() {
+                                _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1);
+                                _reloadSalary();
+                              });
+                            },
+                          ),
+                        ),
+                        if (!isCurrentMonth) ...[
+                          const SizedBox(width: 8),
+                          InkWell(
+                            onTap: () {
+                              setState(() {
+                                _selectedMonth = DateTime(now.year, now.month);
+                                _reloadSalary();
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? AppColors.neonLime.withValues(alpha: 0.15)
+                                    : const Color(0xFF0284C7).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isDark
+                                      ? AppColors.neonLime.withValues(alpha: 0.3)
+                                      : const Color(0xFF0284C7).withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Text(
+                                'Joriy oy',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: isDark ? AppColors.neonLime : const Color(0xFF0284C7),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right_rounded),
-                      onPressed: () {
-                        setState(() {
-                          _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1);
-                          _reloadSalary();
-                        });
-                      },
+
+                    // Tezkor amallar: Barchasiga oylik to'lash va Excel yuklash
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Excel export tugmasi
+                        OutlinedButton.icon(
+                          onPressed: reports.isEmpty ? null : () => _exportSalaryCsv(reports),
+                          icon: const Icon(Icons.table_view_rounded, size: 16),
+                          label: const Text(
+                            'Excel tabel',
+                            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: context.inkColor,
+                            side: BorderSide(color: context.borderColor),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+
+                        // Barchasiga to'lash tugmasi
+                        FilledButton.icon(
+                          onPressed: reports.isEmpty
+                              ? null
+                              : () async {
+                                  final ok = await FinanceTransactionDialog.show(
+                                    context,
+                                    autoPayAll: true,
+                                    initialCategory: 'Ish haqi / Avans',
+                                    initialType: 'expense',
+                                  );
+                                  if (ok == true && mounted) {
+                                    showMessage(context, '✓ Oylik to‘lovlari moliya bo‘limiga saqlandi');
+                                    _reloadSalary();
+                                  }
+                                },
+                          icon: const Icon(Icons.payments_rounded, size: 16),
+                          label: const Text(
+                            'Barchasiga oylik to‘lash',
+                            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: isDark ? AppColors.neonLime : AppColors.darkCard,
+                            foregroundColor: isDark ? AppColors.ink : Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 12),
 
-              // KPI kartalari
-              Row(
-                children: [
-                  _buildKpiCard('Jami Hisoblangan', money(totalNet), Icons.payments_rounded, AppColors.neonLime),
-                  const SizedBox(width: 8),
-                  _buildKpiCard('Rejadagi Fond', money(totalBase), Icons.account_balance_wallet_rounded, AppColors.ink),
-                  const SizedBox(width: 8),
-                  _buildKpiCard('Kechikish jarimalari', '-${money(totalDeductions)}', Icons.gavel_rounded, AppColors.danger),
-                ],
+              // 2. Kengaytirilgan 4 ta KPI kartasi
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth > 700;
+                  final itemW = isWide ? (constraints.maxWidth - 30) / 4 : (constraints.maxWidth - 10) / 2;
+
+                  final kpiList = [
+                    _KpiItem(
+                      label: 'Jami Sof Oylik',
+                      value: money(totalNet),
+                      subtext: 'To‘lanadigan yakuniy hisob',
+                      icon: Icons.payments_rounded,
+                      color: AppColors.green,
+                    ),
+                    _KpiItem(
+                      label: 'Rejadagi Oylik Fond',
+                      value: money(totalBase),
+                      subtext: 'Shtat bo‘yicha to‘liq summa',
+                      icon: Icons.account_balance_wallet_rounded,
+                      color: const Color(0xFF3B82F6),
+                    ),
+                    _KpiItem(
+                      label: 'Haqiqiy Ishlagani',
+                      value: money(totalCalculated),
+                      subtext: 'Davomat kunlari hisobi',
+                      icon: Icons.work_history_rounded,
+                      color: const Color(0xFFD97706),
+                    ),
+                    _KpiItem(
+                      label: 'Kechikish Jarimalari',
+                      value: totalDeductions > 0 ? '-${money(totalDeductions)}' : '0 so‘m',
+                      subtext: lateCount > 0 ? '$lateCount nafar xodim kechikkan' : 'Kechikishlar yo‘q',
+                      icon: Icons.gavel_rounded,
+                      color: totalDeductions > 0 ? AppColors.danger : AppColors.green,
+                    ),
+                  ];
+
+                  return Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: kpiList.map((item) {
+                      return SizedBox(
+                        width: itemW,
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: context.cardColor,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: context.borderColor),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: item.color.withValues(alpha: isDark ? 0.2 : 0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(item.icon, size: 20, color: item.color),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      item.label,
+                                      style: TextStyle(fontSize: 10.5, color: context.mutedColor, fontWeight: FontWeight.w600),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      item.value,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w900,
+                                        color: item.color == AppColors.green && item.label == 'Jami Sof Oylik'
+                                            ? (isDark ? AppColors.neonLime : AppColors.green)
+                                            : context.inkColor,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      item.subtext,
+                                      style: TextStyle(fontSize: 9.5, color: context.mutedColor),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
               ),
               const SizedBox(height: 14),
 
-              // Xodimlarning oylik hisobot kartalari
-              for (final rep in reports) _buildSalaryItemCard(rep),
+              // 3. Qidiruv va Filtr paneli
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: context.cardColor,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: context.borderColor),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        // Qidiruv maydoni
+                        Expanded(
+                          child: TextField(
+                            controller: _salarySearchCtrl,
+                            onChanged: (_) => setState(() {}),
+                            style: TextStyle(fontSize: 13, color: context.inkColor),
+                            decoration: InputDecoration(
+                              hintText: 'Xodim ismi yoki lavozimi bo‘yicha qidirish...',
+                              hintStyle: TextStyle(fontSize: 12.5, color: context.mutedColor),
+                              prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                              suffixIcon: _salarySearchCtrl.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear_rounded, size: 16),
+                                      onPressed: () {
+                                        _salarySearchCtrl.clear();
+                                        setState(() {});
+                                      },
+                                    )
+                                  : null,
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                              filled: true,
+                              fillColor: context.pillColor,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: context.borderColor),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: context.borderColor.withValues(alpha: 0.5)),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+
+                        // Saralash popup
+                        PopupMenuButton<String>(
+                          tooltip: 'Saralash',
+                          initialValue: _salarySort,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          color: context.cardColor,
+                          onSelected: (val) => setState(() => _salarySort = val),
+                          itemBuilder: (ctx) => [
+                            const PopupMenuItem(
+                              value: 'default',
+                              child: Text('Standart ketma-ketlik', style: TextStyle(fontSize: 12.5)),
+                            ),
+                            const PopupMenuItem(
+                              value: 'salary_desc',
+                              child: Text('Maosh bo‘yicha (eng ko‘p)', style: TextStyle(fontSize: 12.5)),
+                            ),
+                            const PopupMenuItem(
+                              value: 'days_desc',
+                              child: Text('Davomat bo‘yicha (eng ko‘p kun)', style: TextStyle(fontSize: 12.5)),
+                            ),
+                            const PopupMenuItem(
+                              value: 'name_asc',
+                              child: Text('Alifbo bo‘yicha (A-Z)', style: TextStyle(fontSize: 12.5)),
+                            ),
+                          ],
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: context.pillColor,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: context.borderColor),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.sort_rounded, size: 16, color: context.mutedColor),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _salarySort == 'salary_desc'
+                                      ? 'Maosh'
+                                      : (_salarySort == 'days_desc' ? 'Davomat' : (_salarySort == 'name_asc' ? 'A-Z' : 'Tartib')),
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.inkColor),
+                                ),
+                                const SizedBox(width: 2),
+                                Icon(Icons.arrow_drop_down_rounded, size: 16, color: context.mutedColor),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Filtr chiplari
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                        children: [
+                          for (final f in [
+                            'Barchasi',
+                            'Ishchilar',
+                            'Haydovchilar',
+                            'Maoshi borlar',
+                            'Intizomli',
+                            'Kechikkanlar'
+                          ]) ...[
+                            Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: ChoiceChip(
+                                label: Text(
+                                  f == 'Barchasi' ? 'Barchasi (${reports.length})' : f,
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: _salaryFilter == f ? FontWeight.w800 : FontWeight.w600,
+                                    color: _salaryFilter == f
+                                        ? (isDark ? AppColors.ink : Colors.white)
+                                        : context.inkColor,
+                                  ),
+                                ),
+                                selected: _salaryFilter == f,
+                                onSelected: (_) => setState(() => _salaryFilter = f),
+                                selectedColor: isDark ? AppColors.neonLime : AppColors.darkCard,
+                                backgroundColor: context.pillColor,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // 4. Xodimlar ro'yxati yoki Bo'sh holat
+              if (filteredReports.isEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: context.cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: context.borderColor),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.person_search_rounded, size: 48, color: context.mutedColor),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Mos keluvchi xodimlar topilmadi',
+                        style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: context.inkColor),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Qidiruv yoki filtr parametrlarini o‘zgartirib ko‘ring',
+                        style: TextStyle(fontSize: 12, color: context.mutedColor),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                for (final rep in filteredReports) _buildSalaryItemCard(rep),
             ],
           ),
         );
@@ -1734,80 +2277,608 @@ class _UsersScreenState extends State<UsersScreen> {
   }
 
   Widget _buildSalaryItemCard(SalaryReportItem r) {
+    final isDark = context.isDark;
+    final roleColor = _getRoleColor(r.role);
+    final unit = r.salaryType == "daily"
+        ? "kun"
+        : (r.salaryType == "hourly" ? "soat" : (r.salaryType == "trip" ? "reys" : "oy"));
+
+    final hasSalaryRate = r.baseSalary > 0;
+    final progress = _totalWorkingDays > 0 ? (r.daysWorked / _totalWorkingDays).clamp(0.0, 1.0) : 0.0;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: context.cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: context.borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 1-Qator: Xodim shaxsi (Avatar, Ism, Lavozim) va Sof maosh
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Avatar
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      roleColor.withValues(alpha: isDark ? 0.35 : 0.2),
+                      roleColor.withValues(alpha: isDark ? 0.15 : 0.08),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: roleColor.withValues(alpha: 0.4), width: 1.2),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  _getInitials(r.fullName),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                    color: isDark ? (roleColor == AppColors.green ? AppColors.neonLime : roleColor) : roleColor,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // Ism, Lavozim va Oylik stavkasi
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      r.fullName,
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: context.inkColor),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            r.fullName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                              color: context.inkColor,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _getRoleBadge(r.role),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Stavka: ${money(r.baseSalary)} / ${r.salaryType == "daily" ? "kun" : (r.salaryType == "hourly" ? "soat" : (r.salaryType == "trip" ? "reys" : "oy"))}',
-                      style: TextStyle(fontSize: 11.5, color: context.mutedColor),
-                    ),
+                    const SizedBox(height: 3),
+                    if (hasSalaryRate)
+                      Text(
+                        'Stavka: ${money(r.baseSalary)} / $unit',
+                        style: TextStyle(fontSize: 12, color: context.mutedColor, fontWeight: FontWeight.w600),
+                      )
+                    else
+                      Container(
+                        margin: const EdgeInsets.only(top: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          '⚠️ Stavka belgilanmagan',
+                          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFFD97706)),
+                        ),
+                      ),
                   ],
                 ),
               ),
+              const SizedBox(width: 12),
+
+              // To'lanadigan sof maosh
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
                     money(r.netSalary),
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.green),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 18,
+                      color: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
+                    ),
                   ),
                   Text(
                     'To‘lanadigan sof maosh',
-                    style: TextStyle(fontSize: 10, color: context.mutedColor),
+                    style: TextStyle(fontSize: 10, color: context.mutedColor, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
+
+          // 2-Qator: Metrikalar paneli (Davomat, Ishlagan haqi, Kechikish)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: context.pillColor,
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: context.borderColor.withValues(alpha: 0.7)),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  '📅 Davomat: ${r.daysWorked}/$_totalWorkingDays kun (${r.hoursWorked.toStringAsFixed(1)} soat)',
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: context.inkColor),
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: [
+                    // Davomat ko'rsatkichi
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.event_available_rounded, size: 16, color: Color(0xFF3B82F6)),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Davomat: ',
+                          style: TextStyle(fontSize: 11.5, color: context.mutedColor, fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          '${r.daysWorked}/$_totalWorkingDays kun ',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: context.inkColor),
+                        ),
+                        Text(
+                          '(${r.hoursWorked.toStringAsFixed(1)} soat)',
+                          style: TextStyle(fontSize: 11, color: context.mutedColor),
+                        ),
+                      ],
+                    ),
+
+                    // Ishlagani
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.work_history_rounded, size: 15, color: Color(0xFFD97706)),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Ishlagan qismi: ',
+                          style: TextStyle(fontSize: 11.5, color: context.mutedColor, fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          money(r.calculatedSalary),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: context.inkColor),
+                        ),
+                      ],
+                    ),
+
+                    // Kechikish / Jarima holati (0 bo'lsa -0 ko'rsatmaydi)
+                    if (r.daysLate > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.danger.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, size: 13, color: AppColors.danger),
+                            const SizedBox(width: 4),
+                            Text(
+                              r.deduction > 0
+                                  ? '${r.daysLate} kun kechikdi (-${money(r.deduction)})'
+                                  : '${r.daysLate} kun kechikdi (jarimasiz)',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.danger,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.green.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppColors.green.withValues(alpha: 0.3)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_circle_rounded, size: 13, color: AppColors.green),
+                            SizedBox(width: 4),
+                            Text(
+                              'Intizomli (kechikishsiz)',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.green),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
-                if (r.daysLate > 0)
-                  Text(
-                    '⚠ ${r.daysLate} kun kechikdi (-${money(r.deduction)})',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.danger),
-                  )
-                else
-                  const Text(
-                    '✓ Intizomli',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.green),
+
+                const SizedBox(height: 8),
+
+                // Mini Davomat progress liniyasi
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 4,
+                    backgroundColor: context.borderColor.withValues(alpha: 0.5),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      progress >= 0.8
+                          ? const Color(0xFF10B981)
+                          : (progress >= 0.4 ? const Color(0xFF3B82F6) : const Color(0xFFF59E0B)),
+                    ),
                   ),
+                ),
               ],
             ),
+          ),
+          const SizedBox(height: 12),
+
+          // 3-Qator: Amallar tugmalari (Davomat kunlari va To'lov qilish)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              // Davomat tafsilotlari (kunlar)
+              OutlinedButton.icon(
+                onPressed: () => _showEmployeeAttendanceDetails(r),
+                icon: const Icon(Icons.calendar_today_rounded, size: 14),
+                label: const Text(
+                  'Davomat kunlari',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: context.inkColor,
+                  side: BorderSide(color: context.borderColor),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // To'lov qilish tugmasi
+              FilledButton.icon(
+                onPressed: () async {
+                  final ok = await FinanceTransactionDialog.show(
+                    context,
+                    initialCategory: 'Ish haqi / Avans',
+                    initialType: 'expense',
+                    initialUserId: r.userId,
+                    initialAmount: r.netSalary > 0 ? r.netSalary : r.calculatedSalary,
+                  );
+                  if (ok == true && mounted) {
+                    showMessage(context, '✓ ${r.fullName} uchun oylik to‘lovi moliya bo‘limiga saqlandi');
+                    _reloadSalary();
+                  }
+                },
+                icon: const Icon(Icons.payments_rounded, size: 14),
+                label: const Text(
+                  'Oylik to‘lash',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: isDark ? AppColors.neonLime : const Color(0xFF16A34A),
+                  foregroundColor: isDark ? AppColors.ink : Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  // Xodimning oylik davomat tafsilotlari dialogi
+  Future<void> _showEmployeeAttendanceDetails(SalaryReportItem r) async {
+    final isDark = context.isDark;
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogCtx) {
+        return Dialog(
+          backgroundColor: dialogCtx.cardColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 580, maxHeight: 620),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Modal Sarlavhasi
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 16, 14),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: _getRoleColor(r.role).withValues(alpha: isDark ? 0.3 : 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          _getInitials(r.fullName),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            color: _getRoleColor(r.role),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              r.fullName,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: dialogCtx.inkColor,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${_getMonthNameUz(_selectedMonth.month)} ${_selectedMonth.year} davomat tabeli · ${r.daysWorked} kun / ${r.hoursWorked.toStringAsFixed(1)} soat',
+                              style: TextStyle(fontSize: 12, color: dialogCtx.mutedColor),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                        tooltip: 'Yopish',
+                        onPressed: () => Navigator.pop(dialogCtx),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+
+                // Qaydlar ro'yxati
+                Flexible(
+                  child: FutureBuilder<List<AttendanceRecord>>(
+                    future: _attRepo.list(month: _monthStr, userId: r.userId),
+                    builder: (c, snap) {
+                      if (snap.connectionState != ConnectionState.done) {
+                        return const Center(child: Padding(padding: EdgeInsets.all(30), child: CircularProgressIndicator()));
+                      }
+                      final list = snap.data ?? [];
+                      if (list.isEmpty) {
+                        return Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.event_busy_rounded, size: 40, color: dialogCtx.mutedColor),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Bu oyda davomat yozuvlari topilmadi',
+                                  style: TextStyle(fontSize: 13, color: dialogCtx.mutedColor),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+
+                      // Kunlar bo'yicha saralash
+                      list.sort((a, b) => a.date.compareTo(b.date));
+
+                      return ListView.separated(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: list.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (c, idx) {
+                          final att = list[idx];
+                          final isLate = att.status == 'late';
+                          final inTime = att.checkIn != null ? _formatTime(att.checkIn!) : '--:--';
+                          final outTime = att.checkOut != null ? _formatTime(att.checkOut!) : 'Ketmagan';
+
+                          final parsedDate = DateTime.tryParse(att.date);
+                          final dateLabel = parsedDate != null
+                              ? '${parsedDate.day.toString().padLeft(2, '0')}.${parsedDate.month.toString().padLeft(2, '0')}'
+                              : att.date;
+
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: dialogCtx.pillColor,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: dialogCtx.borderColor.withValues(alpha: 0.6)),
+                            ),
+                            child: Row(
+                              children: [
+                                // Sana
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: dialogCtx.cardColor,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    dateLabel,
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: dialogCtx.inkColor),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+
+                                // Kirish va Chiqish
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.login_rounded, size: 13, color: isLate ? AppColors.danger : AppColors.green),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Kirish: $inTime',
+                                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: dialogCtx.inkColor),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Icon(Icons.logout_rounded, size: 13, color: att.checkOut != null ? const Color(0xFF3B82F6) : dialogCtx.mutedColor),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Chiqish: $outTime',
+                                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: dialogCtx.inkColor),
+                                          ),
+                                        ],
+                                      ),
+                                      if (att.workedHours > 0) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Ishlangan: ${att.workedHours.toStringAsFixed(1)} soat',
+                                          style: TextStyle(fontSize: 10.5, color: dialogCtx.mutedColor),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+
+                                // Holat badge
+                                if (isLate)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.danger.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      'Kechikkan',
+                                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppColors.danger),
+                                    ),
+                                  )
+                                else
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.green.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      'Vaqtida',
+                                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppColors.green),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+
+                const Divider(height: 1),
+                // Footer
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogCtx),
+                        child: const Text('Yopish'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Excel (CSV) fayl qilib eksport qilish
+  Future<void> _exportSalaryCsv(List<SalaryReportItem> reports) async {
+    try {
+      final buf = StringBuffer();
+      // CSV Header
+      buf.writeln('Xodim;Lavozim;Stavka turi;Oylik stavka (so‘m);Ishlagan kun;Ishlagan soat;Kechikkan kun;Hisoblangan ish haqi (so‘m);Jarima/Chegirma (so‘m);To‘lanadigan sof maosh (so‘m)');
+
+      for (final r in reports) {
+        final sType = r.salaryType == 'daily' ? 'Kunlik' : (r.salaryType == 'hourly' ? 'Soatbay' : (r.salaryType == 'trip' ? 'Reysbay' : 'Oylik'));
+        buf.writeln('${r.fullName};${r.role};$sType;${r.baseSalary.toInt()};${r.daysWorked};${r.hoursWorked};${r.daysLate};${r.calculatedSalary.toInt()};${r.deduction.toInt()};${r.netSalary.toInt()}');
+      }
+
+      var csv = buf.toString();
+      if (!csv.startsWith('\uFEFF')) {
+        csv = '\uFEFF$csv';
+      }
+
+      final defaultFileName = 'Oylik_va_davomat_${_selectedMonth.year}_${_selectedMonth.month.toString().padLeft(2, '0')}.csv';
+      final bytes = Uint8List.fromList(utf8.encode(csv));
+
+      Uri? savedUri;
+      try {
+        savedUri = await FilePicker.saveFile(
+          dialogTitle: 'Oylik tabelini saqlash joyini tanlang',
+          fileName: defaultFileName,
+          bytes: bytes,
+        );
+      } catch (_) {
+        savedUri = null;
+      }
+
+      if (savedUri == null) return;
+
+      final savedPath = savedUri.scheme == 'file' ? savedUri.toFilePath() : savedUri.path;
+      try {
+        final f = File(savedPath);
+        await f.writeAsBytes(bytes, flush: true);
+      } catch (e) {
+        debugPrint('Fayl yozish: $e');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            content: Row(
+              children: [
+                const Icon(Icons.table_view_rounded, color: Colors.white, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Oylik tabeli muvaffaqiyatli saqlandi: $defaultFileName',
+                    style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) showMessage(context, 'Eksportda xatolik: $e', error: true);
+    }
   }
 
   Widget _buildKpiCard(String label, String value, IconData icon, Color color) {

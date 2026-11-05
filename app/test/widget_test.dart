@@ -38,6 +38,7 @@ import 'package:stonex_erp/ui/debts_screen.dart';
 import 'package:stonex_erp/ui/orders_screen.dart';
 
 import 'package:stonex_erp/ui/receipt_dialog.dart';
+import 'package:stonex_erp/ui/users_screen.dart';
 
 import 'package:stonex_erp/ui/sales_history_screen.dart';
 
@@ -1594,5 +1595,61 @@ void main() {
 
     // Dialog yopilganini tekshirish
     expect(find.text('Chiqim kiritish (Xarajat)'), findsNothing);
+  });
+
+  testWidgets('UsersScreen: Oylik va Ish haqi hisoboti zamonaviy UI va boshqaruv tugmalari ishlaydi', (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          Provider<AppRepositories>.value(value: repos),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: UsersScreen()),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    // 1. "Oylik hisobi" tabini topish va bosish
+    expect(find.text('Oylik hisobi'), findsOneWidget);
+    await tester.tap(find.text('Oylik hisobi'));
+    await tester.pumpAndSettle();
+
+    // 2. Yangi zamonaviy boshqaruv paneli va tugmalar
+    expect(find.text('Barchasiga oylik to‘lash'), findsOneWidget);
+    expect(find.text('Excel tabel'), findsOneWidget);
+
+    // 3. 4 ta KPI kartasi
+    expect(find.text('Jami Sof Oylik'), findsOneWidget);
+    expect(find.text('Rejadagi Oylik Fond'), findsOneWidget);
+    expect(find.text('Haqiqiy Ishlagani'), findsOneWidget);
+
+    // 4. Qidiruv va filtr chiplari
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.textContaining('Barchasi ('), findsOneWidget);
+
+    // 5. Xodim kartasida yangi qulayliklar: Davomat kunlari va Oylik to'lash tugmasi
+    expect(find.text('Davomat kunlari'), findsWidgets);
+    expect(find.text('Oylik to‘lash'), findsWidgets);
+    expect(find.textContaining('Ishlagan qismi:'), findsWidgets);
+    expect(find.text('To‘lanadigan sof maosh'), findsWidgets);
+
+    // 6. "Davomat kunlari" tugmasini bosib ko'rish
+    await tester.ensureVisible(find.text('Davomat kunlari').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Davomat kunlari').first);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('davomat tabeli'), findsOneWidget);
+    expect(find.text('Yopish'), findsOneWidget);
+    await tester.tap(find.text('Yopish'));
+    await tester.pumpAndSettle();
   });
 }

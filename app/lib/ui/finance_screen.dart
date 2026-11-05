@@ -2357,12 +2357,16 @@ class FinanceTransactionDialog extends StatefulWidget {
   final String? initialCategory;
   final String? initialType;
   final bool autoPayAll;
+  final int? initialUserId;
+  final double? initialAmount;
 
   const FinanceTransactionDialog({
     super.key,
     this.initialCategory,
     this.initialType,
     this.autoPayAll = false,
+    this.initialUserId,
+    this.initialAmount,
   });
 
   static Future<bool?> show(
@@ -2370,6 +2374,8 @@ class FinanceTransactionDialog extends StatefulWidget {
     String? initialCategory,
     String? initialType,
     bool autoPayAll = false,
+    int? initialUserId,
+    double? initialAmount,
   }) {
     return showDialog<bool>(
       context: context,
@@ -2377,6 +2383,8 @@ class FinanceTransactionDialog extends StatefulWidget {
         initialCategory: initialCategory,
         initialType: initialType,
         autoPayAll: autoPayAll,
+        initialUserId: initialUserId,
+        initialAmount: initialAmount,
       ),
     );
   }
@@ -2558,6 +2566,22 @@ class _FinanceTransactionDialogState extends State<FinanceTransactionDialog> {
 
     if (widget.autoPayAll) {
       _payAllEmployeesFullSalary();
+    } else if (widget.initialUserId != null) {
+      _selectedUserIds.clear();
+      for (final u in _employees) {
+        if (u.id == widget.initialUserId) {
+          _selectedUserIds.add(u.id);
+          final ctrl = _getEmployeeCtrl(u);
+          if (widget.initialAmount != null && widget.initialAmount! > 0) {
+            ctrl.text = widget.initialAmount!.toInt().toString();
+          } else {
+            final earned = getEarnedSoFar(u);
+            ctrl.text = earned > 0 ? earned.toInt().toString() : (u.salary > 0 ? u.salary.toInt().toString() : '0');
+          }
+          break;
+        }
+      }
+      _recalculateTotalFromEmployees();
     }
   }
 
