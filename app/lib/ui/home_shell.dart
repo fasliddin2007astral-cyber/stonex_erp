@@ -16,6 +16,7 @@ import 'customers_screen.dart';
 import 'dashboard_screen.dart';
 import 'debts_screen.dart';
 import 'deliveries_screen.dart';
+import 'finance_screen.dart';
 import 'orders_screen.dart';
 import 'pos_screen.dart';
 import 'production_screen.dart';
@@ -79,6 +80,12 @@ List<_Dest> _destinationsFor(Role role,
     PurchasesScreen.new,
     actionLabel: '+ Yangi Xarid',
   );
+  const finance = _Dest(
+    'Moliya',
+    Icons.account_balance_wallet_rounded,
+    FinanceScreen.new,
+    actionLabel: '+ Chiqim / Kirim',
+  );
   const products = _Dest(
       'Mahsulotlar', Icons.inventory_2_rounded, ProductsScreen.new,
       actionLabel: '+ Mahsulot');
@@ -113,6 +120,7 @@ List<_Dest> _destinationsFor(Role role,
         customers,
         debts,
         purchases,
+        finance,
         products,
         stock,
         prod,
@@ -120,7 +128,7 @@ List<_Dest> _destinationsFor(Role role,
         cams
       ];
     case Role.kassir:
-      return [pos, orders, deliveries, salesHistory, customers, debts, products];
+      return [pos, orders, deliveries, salesHistory, customers, debts, purchases, finance, products];
     case Role.ishBoshqaruvchi:
       return [prod, stock];
     case Role.ishchi:
@@ -476,6 +484,14 @@ class _HomeShellState extends State<HomeShell> {
             _refreshKey++;
           });
         }
+      }
+    } else if (cur.label == 'Moliya') {
+      final saved = await FinanceTransactionDialog.show(context);
+      if (saved == true && mounted) {
+        showMessage(context, 'Moliya operatsiyasi muvaffaqiyatli saqlandi');
+        setState(() {
+          _refreshKey++;
+        });
       }
     } else if (cur.label == 'Mahsulotlar') {
       final saved = await showDialog<bool>(
